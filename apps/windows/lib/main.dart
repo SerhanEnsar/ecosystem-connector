@@ -1,10 +1,24 @@
-import 'package:ec_ui/ec_ui.dart';
-import 'package:flutter/material.dart';
+import 'dart:io';
 
-/// Entry point of the Windows app.
-///
-/// Platform-specific integrations live in this app's native folder (windows/); the
-/// screens come from the shared ec_ui package.
+import 'package:ec_app/ec_app.dart';
+import 'package:ec_ui/ec_ui.dart';
+import 'package:path_provider/path_provider.dart';
+
+/// Entry point of the Windows app. Screens come from ec_ui; this file only connects
+/// the Windows-specific pieces.
 void main() {
-  runApp(const EcosystemConnectorApp(platform: EcPlatform.windows));
+  runEcApp(
+    EcPlatform.windows,
+    PlatformHooks(
+      deviceName: () async => Platform.localHostname.split('.').first,
+      receiveDir: () async {
+        final downloads = await getDownloadsDirectory();
+        final dir = Directory(
+          '${downloads!.path}${Platform.pathSeparator}Ecosystem Connector',
+        );
+        await dir.create(recursive: true);
+        return dir.path;
+      },
+    ),
+  );
 }

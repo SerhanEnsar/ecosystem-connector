@@ -13,6 +13,9 @@ dependencies:
     sdk: flutter
   ec_ui:
     path: ../../packages/ec_ui
+  ec_app:
+    path: ../../packages/ec_app
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:

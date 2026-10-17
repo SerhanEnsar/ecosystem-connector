@@ -1,0 +1,26 @@
+name: ec_app
+description: Wires the shared UI (ec_ui) to the Rust core (ec_bridge); used by every platform app.
+publish_to: none
+version: 0.0.1
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=3.38.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  ec_ui:
+    path: ../ec_ui
+  ec_bridge:
+    path: ../ec_bridge
+  path_provider: ^2.1.6
+  file_selector: ^1.1.0
+  flutter_local_notifications: ^22.3.2
+  url_launcher: ^6.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

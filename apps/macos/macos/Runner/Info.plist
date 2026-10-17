@@ -28,5 +28,11 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Ecosystem Connector finds your paired devices on this network and sends files to them.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_ecconnect._udp</string>
+	</array>
 </dict>
 </plist>

@@ -1,0 +1,23 @@
+[package]
+name = "ec-runtime"
+description = "Everything a running device needs: identity, trust, presence, pairing, sending and receiving."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+ec-core = { version = "0.0.1", path = "../ec-core" }
+ec-net = { version = "0.0.1", path = "../ec-net" }
+ec-transfer = { version = "0.0.1", path = "../ec-transfer" }
+thiserror = "2.0.21"
+tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "sync", "time"] }
+tracing = "0.1.44"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tempfile = "3.27.0"
