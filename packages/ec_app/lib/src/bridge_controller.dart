@@ -65,6 +65,10 @@ class BridgeController extends EcController with WidgetsBindingObserver {
   BridgeController(this._core, this._hooks, this._notifier) {
     _refresh();
     _events = _core.events().listen(_onEvent);
+    _invites = _hooks.incomingInvites?.listen((invite) {
+      _pendingInvite = invite;
+      notifyListeners();
+    });
     _shares = _hooks.sharedFiles?.listen((paths) {
       if (paths.isEmpty) return;
       _pendingShare = [..._pendingShare, ...paths];
@@ -118,6 +122,8 @@ class BridgeController extends EcController with WidgetsBindingObserver {
   final Notifier _notifier;
   late final StreamSubscription<CoreEvent> _events;
   StreamSubscription<List<String>>? _shares;
+  StreamSubscription<String>? _invites;
+  String? _pendingInvite;
   List<String> _pendingShare = const [];
   Timer? _vpnTimer;
   FlingSetup? _flingSetup;
@@ -154,6 +160,12 @@ class BridgeController extends EcController with WidgetsBindingObserver {
 
   @override
   bool get vpnActive => _vpnActive;
+
+  @override
+  String? get pendingInvite => _pendingInvite;
+
+  @override
+  void clearPendingInvite() => _pendingInvite = null;
 
   @override
   FlingSetup? get flingSetup => _flingSetup;
@@ -384,6 +396,7 @@ class BridgeController extends EcController with WidgetsBindingObserver {
   void dispose() {
     _events.cancel();
     _shares?.cancel();
+    _invites?.cancel();
     _vpnTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();

@@ -45,6 +45,14 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Pairing links (ecpair:), for example from scanning the QR code with
+                 the system camera, open the app on the pairing screen. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ecpair" />
+            </intent-filter>
             <!-- "Share" from other apps sends files to a paired device. -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />

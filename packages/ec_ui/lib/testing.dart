@@ -120,6 +120,19 @@ class FakeController extends EcController {
   @override
   FlingSetup? get flingSetup => _flingSetup;
 
+  String? _pendingInvite;
+
+  set pendingInvite(String? value) {
+    _pendingInvite = value;
+    notifyListeners();
+  }
+
+  @override
+  String? get pendingInvite => _pendingInvite;
+
+  @override
+  void clearPendingInvite() => _pendingInvite = null;
+
   /// Calls made to the fling setup methods, in order.
   final setupCalls = <String>[];
 

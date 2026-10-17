@@ -27,6 +27,7 @@ class PlatformHooks {
     this.vpnActive,
     this.opensFlings = false,
     this.fling,
+    this.incomingInvites,
   });
 
   /// The name this device gets when it is set up for the first time.
@@ -58,4 +59,7 @@ class PlatformHooks {
 
   /// Flinging from the screen edge, where the platform supports it.
   final FlingHooks? fling;
+
+  /// Pairing links the app was opened with (scanned with the system camera).
+  final Stream<String>? incomingInvites;
 }

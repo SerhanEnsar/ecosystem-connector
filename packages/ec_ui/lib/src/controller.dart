@@ -44,6 +44,12 @@ abstract class EcController extends ChangeNotifier {
   /// Opens the system accessibility settings, to turn on screen access.
   Future<void> openScreenAccessSettings();
 
+  /// A pairing link the app was opened with, waiting to be used.
+  String? get pendingInvite;
+
+  /// Marks [pendingInvite] as handled.
+  void clearPendingInvite();
+
   /// Whether this platform can scan a QR code with a camera.
   bool get canScan;
 

@@ -23,6 +23,9 @@ static RT: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
 /// The core started in this process, with its home folder.
 static RUNNING: Mutex<Option<(String, Arc<Runtime>)>> = Mutex::new(None);
 
+/// Held while a core starts, so concurrent starts share one core.
+static STARTING: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 fn running(home: &str) -> Option<Arc<Runtime>> {
     let guard = RUNNING.lock().unwrap_or_else(|e| e.into_inner());
     guard
@@ -191,6 +194,10 @@ impl EcCore {
     /// can be recreated while the process keeps receiving in the background. Starting
     /// again with the same home returns the running core instead of a second one.
     pub async fn start(config: CoreConfig) -> anyhow::Result<EcCore> {
+        // Two Flutter engines (the app and the Android fling layer) may start at the
+        // same moment; the lock makes the second one wait and join the first core
+        // instead of starting another with its own, stale copy of the trust store.
+        let _starting = STARTING.lock().await;
         if let Some(runtime) = running(&config.home) {
             return Ok(Self::wrap(runtime));
         }
@@ -450,4 +457,28 @@ fn convert(event: Event) -> Option<CoreEvent> {
             ReceiveEvent::Interrupted { reason } => CoreEvent::ReceiveInterrupted { reason },
         },
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn concurrent_starts_share_one_core() {
+        let dir = tempfile::tempdir().unwrap_or_else(|e| panic!("{e}"));
+        let config = || CoreConfig {
+            home: dir.path().join("home").to_string_lossy().into_owned(),
+            device_name: "Tablet".into(),
+            receive_dir: dir.path().join("inbox").to_string_lossy().into_owned(),
+        };
+        let (a, b) = tokio::join!(EcCore::start(config()), EcCore::start(config()));
+        let (a, b) = (
+            a.unwrap_or_else(|e| panic!("{e}")),
+            b.unwrap_or_else(|e| panic!("{e}")),
+        );
+        assert!(
+            Arc::ptr_eq(&a.runtime, &b.runtime),
+            "both engines got the same core"
+        );
+    }
 }

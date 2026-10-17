@@ -60,6 +60,13 @@ class _HomeScreenState extends State<HomeScreen> {
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
+        final invite = controller.pendingInvite;
+        if (invite != null) {
+          controller.clearPendingInvite();
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => showPairingSheet(context, controller, invite: invite),
+          );
+        }
         final receiving = controller.receiving;
         final text = Theme.of(context).textTheme;
         return Scaffold(
