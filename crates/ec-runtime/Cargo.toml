@@ -21,5 +21,4 @@ tracing = "0.1.44"
 workspace = true
 
 [dev-dependencies]
-ec-fling = { path = "../ec-fling" }
 tempfile = "3.27.0"
