@@ -72,12 +72,23 @@ sequenceDiagram
     A->>A: Store Mac's device id
 ```
 
-### Cable boost (planned)
+### Fast transfer and cable boost
 
+Implemented in phase 2 (`ec-transfer`). Files are split into chunks with BLAKE3 hashes
+and sent over parallel QUIC streams. All needed chunks sit in one queue, and every
+network path to the receiver (one QUIC connection each) runs workers that take from it.
 When a new network interface appears (USB tethering on Android, a Thunderbolt or USB-C
-bridge between computers), `ec-net` probes the peer over it. If the new path is faster,
-the QUIC connection migrates to it; if migration is not possible, a new connection is
-opened and `ec-transfer` resumes from the chunks already received.
+bridge between computers), the sender looks the receiver up again and opens a
+connection over the new address. That path starts taking chunks immediately, and
+because a faster path acknowledges sooner, it takes more of them. Nothing restarts.
+
+QUIC connection migration was considered and not used: QUIC only lets the client move
+its own address, while a cable gives the receiver a new address too. A second
+connection works in every case and also allows using Wi-Fi and the cable together.
+
+If the connection carrying the control stream fails, the sender starts a new attempt;
+the receiver hashes its partial files and asks only for what is missing. Details:
+[PROTOCOL.md](PROTOCOL.md#file-transfer-kinds-1-and-2).
 
 ### Linked files (planned)
 

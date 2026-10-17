@@ -29,13 +29,14 @@ In place today:
   unpaired devices are refused.
 - Network messages are size-limited before any allocation; device names from other
   devices are sanitised.
+- Received file names are validated so a peer can never write outside the receive
+  folder or overwrite a file; every chunk is verified with BLAKE3 before it is written.
+- Every parser of untrusted input is fuzzed in CI.
 - Dependencies are checked against the RustSec advisory database in CI.
 
 Planned:
 
-- Incoming file names will be sanitised so a peer can never write outside the receive
-  folder (phase 2, with file transfer).
-- Fuzz targets for every network parser (phase 2).
 - Private keys moved into the OS keychain or keystore.
+- Confirmation for large incoming transfers and cleanup of old partial files.
 
 The full analysis is in [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).

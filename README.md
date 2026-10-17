@@ -37,8 +37,8 @@ across platforms: Mac ↔ Android, Android ↔ Android, Windows ↔ Mac, Windows
 
 | Feature | What it does | Status |
 |---|---|---|
-| **Fast send** | Send any file, folder, link or text to a nearby device. Transfers resume after a drop. | Planned |
-| **Cable boost** | Plug in a USB-C cable (USB tethering or Thunderbolt bridge) and an active transfer moves to the faster path without restarting. | Planned |
+| **Fast send** | Send any file or folder to a nearby device. Transfers resume after a drop and every chunk is verified. | Core done (CLI) |
+| **Cable boost** | Plug in a USB-C cable (USB tethering or Thunderbolt bridge) and an active transfer starts using the faster path without restarting. | Core done, device test pending |
 | **Linked files** | One file, one version on every device. Edit it anywhere and the others update within seconds. No duplicate copies. | Planned |
 | **Shared clipboard** | Copy on one device, paste on another. Send the current browser tab. | Planned |
 | **Handoff** | "Continue on this device?" for the file or web page open on your other device. | Planned |
@@ -74,7 +74,7 @@ Details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the wire format in
 
 - [x] Phase 0: project skeleton, CI, security policy
 - [x] Phase 1: device identity, pairing, discovery, encrypted connection
-- [ ] Phase 2: fast resumable transfer and cable boost, first benchmarks
+- [x] Phase 2: fast resumable transfer and cable boost, first benchmarks
 - [ ] Phase 3: desktop and Android app v0
 - [ ] Phase 4: linked files
 - [ ] Phase 5: shared clipboard and browser extension
@@ -127,12 +127,37 @@ Connected to "Galaxy Tab" at 192.168.1.31:50430 (encrypted, identity verified).
   ping 1: 0.43 ms
 ```
 
+Send files or whole folders. If the transfer is interrupted, sending again resumes it:
+
+```console
+mac$ ec send 9703 ~/Downloads/course
+Resuming: 16.8 MB of 314.6 MB already on the other device.
+  path: 192.168.1.31:54722
+Sent 2 file(s), 297.8 MB in 2.0 s (150.7 MB/s over 2 path(s)).
+```
+
 A device that is not paired is refused during the TLS handshake:
 
 ```console
 stranger$ ec ping 9703
 Error: ... invalid peer certificate: ApplicationVerificationFailure
 ```
+
+## Performance
+
+<img src="docs/media/bench-loopback.svg" alt="Bar chart: median transfer speed on loopback by parallel chunk streams, between 178 and 240 MB/s" width="640">
+
+Both ends on one machine (Apple M4) over loopback, with the full protocol: QUIC, TLS 1.3,
+BLAKE3 verification and disk writes. This is the ceiling set by the software, about
+2 Gbit/s per connection, which is well above what Wi-Fi 6 delivers in practice. Chunk
+hashing runs at several GB/s and is not a bottleneck.
+
+| Parallel streams | 1 | 2 | 4 | 8 | 16 |
+|---|---|---|---|---|---|
+| Median MB/s (5 runs) | 178 | 211 | 240 | 186 | 239 |
+
+Wi-Fi and USB cable measurements between real devices will be added once the Android
+app can send and receive (phase 3). Reproduce with `bench/README.md`.
 
 ## Building from source
 

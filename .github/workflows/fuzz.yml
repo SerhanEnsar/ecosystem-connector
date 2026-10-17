@@ -1,0 +1,56 @@
+# Fuzzes every parser that reads data from the network or the user: on changes to
+# the core, and weekly for longer.
+name: Fuzz
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "crates/**"
+      - "fuzz/**"
+      - ".github/workflows/fuzz.yml"
+  pull_request:
+    paths:
+      - "crates/**"
+      - "fuzz/**"
+      - ".github/workflows/fuzz.yml"
+  schedule:
+    - cron: "41 3 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Fuzz (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [invite, control_message, rel_path]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: nightly
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: cargo-fuzz
+      - name: Run
+        working-directory: fuzz
+        env:
+          # Longer on the weekly run.
+          SECONDS_TO_RUN: ${{ github.event_name == 'schedule' && '900' || '60' }}
+        # The prebuilt cargo-fuzz defaults to the musl target, which sanitizers do not support.
+        run: >-
+          cargo +nightly fuzz run --target x86_64-unknown-linux-gnu "${{ matrix.target }}"
+          -- -max_total_time="$SECONDS_TO_RUN"
+      - name: Keep the crashing input
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-crash-${{ matrix.target }}
+          path: fuzz/artifacts/

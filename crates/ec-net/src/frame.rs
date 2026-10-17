@@ -14,7 +14,7 @@ use crate::{Error, Result};
 pub const MAX_FRAME_LEN: usize = 64 * 1024;
 
 /// Encodes and writes one message.
-pub(crate) async fn write_msg<T: Serialize>(send: &mut SendStream, msg: &T) -> Result<()> {
+pub async fn write_msg<T: Serialize>(send: &mut SendStream, msg: &T) -> Result<()> {
     let body = postcard::to_stdvec(msg)?;
     if body.len() > MAX_FRAME_LEN {
         return Err(Error::FrameTooLarge(body.len()));
@@ -27,7 +27,7 @@ pub(crate) async fn write_msg<T: Serialize>(send: &mut SendStream, msg: &T) -> R
 }
 
 /// Reads and decodes one message.
-pub(crate) async fn read_msg<T: DeserializeOwned>(recv: &mut RecvStream) -> Result<T> {
+pub async fn read_msg<T: DeserializeOwned>(recv: &mut RecvStream) -> Result<T> {
     let mut len = [0u8; 4];
     recv.read_exact(&mut len).await?;
     let len = u32::from_be_bytes(len) as usize;
@@ -40,7 +40,7 @@ pub(crate) async fn read_msg<T: DeserializeOwned>(recv: &mut RecvStream) -> Resu
 }
 
 /// Decodes a message body. Trailing bytes are rejected.
-pub(crate) fn decode<T: DeserializeOwned>(body: &[u8]) -> Result<T> {
+pub fn decode<T: DeserializeOwned>(body: &[u8]) -> Result<T> {
     let (msg, rest) = postcard::take_from_bytes(body)?;
     if !rest.is_empty() {
         return Err(Error::Protocol("trailing bytes after message"));

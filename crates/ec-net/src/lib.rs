@@ -16,12 +16,17 @@ mod error;
 mod frame;
 mod node;
 pub mod pairing;
+mod router;
 mod tls;
 
 pub use discovery::{Advertiser, DiscoveredDevice, SERVICE_TYPE, browse, local_addrs};
 pub use error::{Error, Result};
-pub use frame::MAX_FRAME_LEN;
-pub use node::{Node, PeerConnection, Session, serve_connection};
+pub use frame::{MAX_FRAME_LEN, decode, read_msg, write_msg};
+pub use node::{Node, PeerConnection, Session};
+pub use router::{Router, SESSION_KIND, Service, ServiceFuture, serve_connection};
+
+/// QUIC stream types used by services.
+pub use quinn::{RecvStream, SendStream};
 
 /// ALPN protocol id of regular connections.
 pub(crate) const ALPN_SESSION: &[u8] = b"ec/1";

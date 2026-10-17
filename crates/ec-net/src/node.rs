@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use tokio::time::timeout;
 
 use crate::frame::{read_msg, write_msg};
+use crate::router::{SESSION_KIND, Service, ServiceFuture};
 use crate::tls::{self, ClientPolicy, TrustedSet};
 use crate::{ALPN_SESSION, Error, Result};
 
@@ -143,9 +144,33 @@ impl PeerConnection {
         self.conn.remote_address()
     }
 
+    /// The underlying QUIC connection.
+    pub fn quic(&self) -> &quinn::Connection {
+        &self.conn
+    }
+
+    /// Opens a bidirectional stream for the service `kind`.
+    pub async fn open_bi(&self, kind: u8) -> Result<(quinn::SendStream, quinn::RecvStream)> {
+        let (mut send, recv) = self.conn.open_bi().await?;
+        send.write_all(&[kind]).await?;
+        Ok((send, recv))
+    }
+
+    /// Opens a unidirectional stream for the service `kind`.
+    pub async fn open_uni(&self, kind: u8) -> Result<quinn::SendStream> {
+        let mut send = self.conn.open_uni().await?;
+        send.write_all(&[kind]).await?;
+        Ok(send)
+    }
+
+    /// Waits until the connection is closed, for any reason.
+    pub async fn closed(&self) {
+        self.conn.closed().await;
+    }
+
     /// Opens a session stream and exchanges names.
     pub async fn open_session(&self, my_name: &str) -> Result<Session> {
-        let (mut send, mut recv) = self.conn.open_bi().await?;
+        let (mut send, mut recv) = self.open_bi(SESSION_KIND).await?;
         write_msg(
             &mut send,
             &SessionMsg::Hello {
@@ -205,62 +230,65 @@ impl Session {
     }
 }
 
-/// Answers session streams on `conn` until the peer closes it.
-///
-/// `my_name` is sent in the hello. `on_hello` is called with each peer's announced name.
-pub async fn serve_connection(
-    conn: PeerConnection,
+/// Called with a peer's id and announced name when it says hello.
+type HelloCallback = Box<dyn Fn(DeviceId, &str) + Send + Sync>;
+
+/// The built-in service answering session streams (hello, then pings).
+pub(crate) struct SessionService {
     my_name: String,
-    on_hello: impl Fn(DeviceId, &str) + Send + Sync + 'static,
-) -> Result<()> {
-    let on_hello = Arc::new(on_hello);
-    loop {
-        let (send, recv) = match conn.conn.accept_bi().await {
-            Ok(streams) => streams,
-            Err(
-                quinn::ConnectionError::ApplicationClosed(_)
-                | quinn::ConnectionError::LocallyClosed
-                | quinn::ConnectionError::TimedOut,
-            ) => return Ok(()),
-            Err(e) => return Err(e.into()),
+    on_hello: HelloCallback,
+}
+
+impl SessionService {
+    pub(crate) fn new(
+        my_name: String,
+        on_hello: impl Fn(DeviceId, &str) + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            my_name,
+            on_hello: Box::new(on_hello),
+        }
+    }
+
+    async fn serve(
+        &self,
+        peer: DeviceId,
+        mut send: quinn::SendStream,
+        mut recv: quinn::RecvStream,
+    ) -> Result<()> {
+        match timeout(HELLO_TIMEOUT, read_msg(&mut recv)).await?? {
+            SessionMsg::Hello { name } => (self.on_hello)(peer, &sanitize_device_name(&name)),
+            _ => return Err(Error::Protocol("expected hello")),
+        }
+        let hello = SessionMsg::Hello {
+            name: self.my_name.clone(),
         };
-        let name = my_name.clone();
-        let peer = conn.peer;
-        let on_hello = on_hello.clone();
-        tokio::spawn(async move {
-            if let Err(e) = serve_session(send, recv, &name, peer, &*on_hello).await {
-                tracing::debug!(peer = %peer.short(), "session ended: {e}");
+        write_msg(&mut send, &hello).await?;
+        loop {
+            match read_msg(&mut recv).await {
+                Ok(SessionMsg::Ping { nonce }) => {
+                    write_msg(&mut send, &SessionMsg::Pong { nonce }).await?
+                }
+                Ok(_) => return Err(Error::Protocol("unexpected message")),
+                Err(Error::Read(quinn::ReadExactError::FinishedEarly(0))) => return Ok(()),
+                Err(e) => return Err(e),
             }
-        });
+        }
     }
 }
 
-async fn serve_session(
-    mut send: quinn::SendStream,
-    mut recv: quinn::RecvStream,
-    my_name: &str,
-    peer: DeviceId,
-    on_hello: &(dyn Fn(DeviceId, &str) + Send + Sync),
-) -> Result<()> {
-    match timeout(HELLO_TIMEOUT, read_msg(&mut recv)).await?? {
-        SessionMsg::Hello { name } => on_hello(peer, &sanitize_device_name(&name)),
-        _ => return Err(Error::Protocol("expected hello")),
-    }
-    write_msg(
-        &mut send,
-        &SessionMsg::Hello {
-            name: my_name.to_owned(),
-        },
-    )
-    .await?;
-    loop {
-        match read_msg(&mut recv).await {
-            Ok(SessionMsg::Ping { nonce }) => {
-                write_msg(&mut send, &SessionMsg::Pong { nonce }).await?
+impl Service for SessionService {
+    fn handle_bi(
+        self: Arc<Self>,
+        conn: PeerConnection,
+        send: quinn::SendStream,
+        recv: quinn::RecvStream,
+    ) -> ServiceFuture {
+        Box::pin(async move {
+            let peer = conn.peer();
+            if let Err(e) = self.serve(peer, send, recv).await {
+                tracing::debug!(peer = %peer.short(), "session ended: {e}");
             }
-            Ok(_) => return Err(Error::Protocol("unexpected message")),
-            Err(Error::Read(quinn::ReadExactError::FinishedEarly(0))) => return Ok(()),
-            Err(e) => return Err(e),
-        }
+        })
     }
 }

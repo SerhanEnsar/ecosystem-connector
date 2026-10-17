@@ -78,10 +78,22 @@ The proof is compared in constant time. Pairing succeeds only if both decisions 
 
 Timeouts: 120 s for a device to connect, 10 s per protocol step, 90 s for each user decision.
 
-## Sessions (`ec/1`)
+## Stream kinds (`ec/1`)
 
-Only devices in each other's trust store complete the handshake. On a new bidirectional
-stream the opener sends `Hello { name }` and the other side answers with its own `Hello`.
+Only devices in each other's trust store complete the handshake. The first byte of
+every stream on a regular connection names the service it belongs to:
+
+| Kind | Stream | Service |
+|---|---|---|
+| `0` | bidirectional | Session: hello and ping |
+| `1` | bidirectional | Transfer control |
+| `2` | unidirectional | Transfer chunk |
+
+A stream of an unknown kind is stopped.
+
+## Sessions (kind 0)
+
+The opener sends `Hello { name }` and the other side answers with its own `Hello`.
 After that the stream carries:
 
 | Message | Meaning |
@@ -89,4 +101,82 @@ After that the stream carries:
 | `Ping { nonce: u64 }` | Liveness and round-trip time |
 | `Pong { nonce: u64 }` | Answer with the same nonce |
 
-File transfer, clipboard and handoff messages are added in later phases.
+## File transfer (kinds 1 and 2)
+
+Code: `crates/ec-transfer`.
+
+Files are cut into chunks (4 MiB, doubled for files over 32 GiB so a file never has
+more than 8192 chunks). Each chunk has a BLAKE3 hash, computed by the sender before the
+offer. Each transfer has a random 16-byte id.
+
+```mermaid
+sequenceDiagram
+    participant S as Sender
+    participant R as Receiver
+    S->>R: control: Offer { id, files, total_bytes }
+    S->>R: control: File { index, path, size, chunk_size } + Hashes { … } per file
+    S->>R: control: OfferEnd
+    Note over R: validate, accept, hash any partial file<br/>left by an earlier attempt
+    R->>S: control: Need { file, ranges } … NeedEnd
+    loop each needed chunk, on any path
+        S->>R: chunk stream: header + bytes
+        R->>S: control: Ack { file, chunk, ok }
+    end
+    R->>S: control: FileDone { file } per file, then Done
+```
+
+### Chunk streams
+
+A unidirectional stream of kind `2` carries exactly one chunk:
+
+```
++-------------+--------------+---------------+-------------------------+
+| id: 16 B    | file: u32 LE | chunk: u32 LE | chunk bytes (exact len) |
++-------------+--------------+---------------+-------------------------+
+```
+
+The receiver checks that the transfer exists and belongs to the connection's device,
+that the indices are in range, that the stream holds exactly the chunk's length, and
+that the BLAKE3 hash matches. Only then is the chunk written and acknowledged with
+`ok = true`. A chunk that fails is acknowledged with `ok = false` and sent again.
+
+### Several paths at once
+
+Chunk streams may arrive on **any** connection from the same device, not only the one
+carrying the control stream. The sender keeps one queue of needed chunks and runs a few
+workers per connection; each worker takes the next chunk and waits for its `Ack`. A
+faster path (a USB cable next to Wi-Fi) acknowledges sooner and so takes more chunks.
+When a path fails, its unacknowledged chunks return to the queue. The sender watches the
+local network interfaces and, when they change, looks the device up again and opens a
+connection over any new address.
+
+### Resume
+
+The receiver keeps unfinished files in `.ecosystem-connector-partial/` inside the receive
+folder, named by a hash of the sending device, path, size and chunk hashes. When the
+same file is offered again, the receiver hashes the partial file and only lists the
+chunks that do not match in its `Need` messages. If the control connection fails, the
+sender starts a new attempt (up to 5, with fresh addresses) and the same mechanism
+resumes it.
+
+### Finishing
+
+When every chunk is written, the receiver flushes each file to disk and renames it into
+place. It never overwrites: an existing name gets ` (1)`, ` (2)`, … before the extension.
+
+### Limits enforced by the receiver
+
+| What | Limit |
+|---|---|
+| Files per transfer | 100 000 |
+| Chunks per file | 8 192 |
+| Chunk size | 64 KiB – 64 MiB |
+| Hashes per message | 1 024 |
+| Transfers at once | 8 |
+| Chunk data held in memory | 256 MiB across all transfers |
+
+Received paths must have 1–32 components, at most 255 bytes each and 1024 in total. A
+component may not be empty, `.` or `..`; may not contain `/ \ : * ? " < > |`, control
+characters or bidirectional overrides; may not end with a dot or space; and may not be
+a reserved Windows device name (`CON`, `NUL`, `COM1`, …). Folders are created one by
+one and must not be symbolic links.
