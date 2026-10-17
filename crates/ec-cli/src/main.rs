@@ -13,7 +13,8 @@ use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use ec_core::{DeviceIdentity, PairingInvite, TrustStore, TrustedDevice};
 use ec_net::pairing::{PairingListener, PairingPrompt, pair_with};
-use ec_net::{Advertiser, Node, browse, local_addrs, serve_connection};
+use ec_net::{Advertiser, Node, Router, browse, local_addrs, serve_connection};
+use ec_transfer::{ReceiveEvent, Receiver, SendEvent, SendOptions, send_paths};
 
 #[derive(Parser)]
 #[command(name = "ec", version, about = "Ecosystem Connector command line tool")]
@@ -56,11 +57,25 @@ enum Command {
         #[arg(long, default_value_t = 3)]
         seconds: u64,
     },
-    /// Stay online: announce this device and answer paired devices.
+    /// Stay online: announce this device, answer paired devices and receive files.
     Serve {
         /// UDP port to listen on (0 picks a free port).
         #[arg(long, default_value_t = 0)]
         port: u16,
+        /// Folder for received files [default: Downloads/Ecosystem Connector].
+        #[arg(long)]
+        dir: Option<PathBuf>,
+    },
+    /// Send files or folders to a paired device that is running `ec serve`.
+    Send {
+        /// The device id, or a unique prefix of it.
+        device: String,
+        /// Files or folders to send.
+        #[arg(required = true)]
+        paths: Vec<PathBuf>,
+        /// Chunks in flight per network path.
+        #[arg(long, default_value_t = 8)]
+        streams: usize,
     },
     /// Connect to a paired device and measure the round-trip time.
     Ping {
@@ -146,7 +161,21 @@ async fn main() -> Result<()> {
                 );
             }
         }
-        Command::Serve { port } => serve(Arc::new(identity), &trust, port).await?,
+        Command::Serve { port, dir } => {
+            let dir = match dir {
+                Some(dir) => dir,
+                None => default_receive_dir()?,
+            };
+            serve(Arc::new(identity), &trust, port, dir).await?
+        }
+        Command::Send {
+            device,
+            paths,
+            streams,
+        } => {
+            let device = find(&trust, &device)?.clone();
+            send(Arc::new(identity), &trust, &device, paths, streams).await?;
+        }
         Command::Ping { device, count } => {
             let device = find(&trust, &device)?.clone();
             ping(Arc::new(identity), &trust, &device, count).await?;
@@ -167,6 +196,15 @@ fn default_home() -> Result<PathBuf> {
     };
     let base = base.context("cannot find a data folder; pass --home")?;
     Ok(base.join("EcosystemConnector"))
+}
+
+fn default_receive_dir() -> Result<PathBuf> {
+    let home = std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .context("cannot find the home folder; pass --dir")?;
+    Ok(PathBuf::from(home)
+        .join("Downloads")
+        .join("Ecosystem Connector"))
 }
 
 fn find<'a>(trust: &'a TrustStore, prefix: &str) -> Result<&'a TrustedDevice> {
@@ -218,7 +256,12 @@ async fn ask_user(prompt: PairingPrompt) -> bool {
     .unwrap_or(false)
 }
 
-async fn serve(identity: Arc<DeviceIdentity>, trust: &TrustStore, port: u16) -> Result<()> {
+async fn serve(
+    identity: Arc<DeviceIdentity>,
+    trust: &TrustStore,
+    port: u16,
+    dir: PathBuf,
+) -> Result<()> {
     let trusted = trust.devices().map(|d| d.id);
     let node = Arc::new(Node::bind(
         identity.clone(),
@@ -227,28 +270,54 @@ async fn serve(identity: Arc<DeviceIdentity>, trust: &TrustStore, port: u16) -> 
     )?);
     let port = node.local_addr()?.port();
     let _advertiser = Advertiser::start(&identity, port)?;
+
+    let mut router = Router::with_session(identity.name(), |id, name| {
+        println!("  {} says hello as \"{name}\"", id.short());
+    });
+    // Only paired devices can connect at all, so their transfers are accepted.
+    let accept: ec_transfer::AcceptPolicy = Arc::new(|offer: &ec_transfer::Offer| {
+        println!(
+            "Receiving {} file(s), {} from {} (first: {})",
+            offer.files,
+            human_bytes(offer.total_bytes),
+            offer.peer.short(),
+            offer.first_path
+        );
+        true
+    });
+    let progress = Progress::new();
+    let events: ec_transfer::ReceiveEvents = Arc::new(move |event| match event {
+        ReceiveEvent::Started { already_have, .. } if already_have > 0 => {
+            println!("  resuming: {} already here", human_bytes(already_have));
+        }
+        ReceiveEvent::Progress { received, total } => progress.show(received, total, None),
+        ReceiveEvent::Saved { path } => println!("\r  saved {}", path.display()),
+        ReceiveEvent::Interrupted { reason } => {
+            println!("\r  interrupted ({reason}); it will resume when sent again")
+        }
+        _ => {}
+    });
+    let receiver = Arc::new(Receiver::new(dir.clone(), accept, events));
+    router.add(ec_transfer::CONTROL_KIND, receiver.clone())?;
+    router.add(ec_transfer::CHUNK_KIND, receiver)?;
+    let router = Arc::new(router);
+
     println!(
         "{} ({}) is online on UDP port {port}. Press Ctrl-C to stop.",
         identity.name(),
         identity.id().short()
     );
+    println!("Received files go to {}", dir.display());
     println!("Pairings made while this runs take effect after a restart.");
 
     let accept_loop = {
         let node = node.clone();
-        let name = identity.name().to_owned();
         async move {
             while let Some(conn) = node.accept().await {
                 match conn {
                     Ok(conn) => {
-                        println!(
-                            "Connection from {} at {}",
-                            conn.peer().short(),
-                            conn.remote_addr()
-                        );
-                        tokio::spawn(serve_connection(conn, name.clone(), |id, name| {
-                            println!("  {} says hello as \"{name}\"", id.short());
-                        }));
+                        tracing::info!(peer = %conn.peer().short(), addr = %conn.remote_addr(), "connected");
+                        tokio::spawn(serve_connection(conn, router.clone()));
                     }
                     Err(e) => println!("Refused a connection: {e}"),
                 }
@@ -261,6 +330,140 @@ async fn serve(identity: Arc<DeviceIdentity>, trust: &TrustStore, port: u16) -> 
     }
     node.shutdown().await;
     Ok(())
+}
+
+async fn send(
+    identity: Arc<DeviceIdentity>,
+    trust: &TrustStore,
+    device: &TrustedDevice,
+    paths: Vec<PathBuf>,
+    streams: usize,
+) -> Result<()> {
+    println!("Looking for {} on the network...", device.name);
+    let addrs = find_addrs(device.id, Duration::from_secs(3)).await?;
+    if addrs.is_empty() {
+        bail!(
+            "{} was not found. Is `ec serve` running on it?",
+            device.name
+        );
+    }
+    let node = Arc::new(Node::bind(
+        identity,
+        trust.devices().map(|d| d.id),
+        SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)),
+    )?);
+
+    let peer = device.id;
+    let rediscover: ec_transfer::AddrSource = Arc::new(move || {
+        Box::pin(async move {
+            find_addrs(peer, Duration::from_millis(1500))
+                .await
+                .unwrap_or_default()
+        })
+    });
+    let options = SendOptions {
+        streams_per_path: streams,
+        rediscover: Some(rediscover),
+        ..SendOptions::default()
+    };
+    let progress = Progress::new();
+    let events: ec_transfer::SendEvents = Arc::new(move |event| match event {
+        SendEvent::Accepted { to_send, total } if to_send < total => println!(
+            "Resuming: {} of {} already on the other device.",
+            human_bytes(total - to_send),
+            human_bytes(total)
+        ),
+        SendEvent::PathAdded { addr } => println!("\r  path: {addr}"),
+        SendEvent::PathLost { addr } => println!("\r  path lost: {addr}"),
+        SendEvent::Progress {
+            sent,
+            to_send,
+            paths,
+        } => progress.show(sent, to_send, Some(paths)),
+        SendEvent::Retrying { attempt, reason } => {
+            println!("\r  connection lost ({reason}), retrying (attempt {attempt})")
+        }
+        _ => {}
+    });
+
+    println!("Hashing...");
+    let report = send_paths(node.clone(), peer, addrs, paths, options, events).await?;
+    let secs = report.elapsed.as_secs_f64().max(0.001);
+    println!(
+        "\nSent {} file(s), {} in {:.1} s ({}/s over {} path(s)).",
+        report.files,
+        human_bytes(report.bytes_sent),
+        secs,
+        human_bytes((report.bytes_sent as f64 / secs) as u64),
+        report.paths_used
+    );
+    node.shutdown().await;
+    Ok(())
+}
+
+async fn find_addrs(peer: ec_core::DeviceId, wait: Duration) -> Result<Vec<SocketAddr>> {
+    Ok(browse(wait)
+        .await?
+        .into_iter()
+        .find(|d| d.id == peer)
+        .map(|d| d.addrs)
+        .unwrap_or_default())
+}
+
+/// Prints a one-line progress indicator, at most a few times per second.
+struct Progress {
+    start: std::time::Instant,
+    last: std::sync::Mutex<std::time::Instant>,
+}
+
+impl Progress {
+    fn new() -> Self {
+        let now = std::time::Instant::now();
+        Self {
+            start: now,
+            last: std::sync::Mutex::new(now),
+        }
+    }
+
+    fn show(&self, done: u64, total: u64, paths: Option<usize>) {
+        let now = std::time::Instant::now();
+        {
+            let mut last = self.last.lock().unwrap_or_else(|e| e.into_inner());
+            if done < total && now.duration_since(*last) < Duration::from_millis(200) {
+                return;
+            }
+            *last = now;
+        }
+        let secs = now.duration_since(self.start).as_secs_f64().max(0.001);
+        let percent = if total == 0 {
+            100.0
+        } else {
+            done as f64 * 100.0 / total as f64
+        };
+        let paths = paths.map(|p| format!(", {p} path(s)")).unwrap_or_default();
+        print!(
+            "\r  {percent:5.1}%  {} / {}  {}/s{paths}    ",
+            human_bytes(done),
+            human_bytes(total),
+            human_bytes((done as f64 / secs) as u64)
+        );
+        let _ = std::io::stdout().flush();
+    }
+}
+
+fn human_bytes(n: u64) -> String {
+    const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
+    let mut value = n as f64;
+    let mut unit = 0;
+    while value >= 1000.0 && unit < UNITS.len() - 1 {
+        value /= 1000.0;
+        unit += 1;
+    }
+    if unit == 0 {
+        format!("{n} B")
+    } else {
+        format!("{value:.1} {}", UNITS[unit])
+    }
 }
 
 async fn ping(

@@ -9,7 +9,7 @@ use ec_core::{DeviceId, DeviceIdentity, PairingSecret};
 use std::future::{Ready, ready};
 
 use ec_net::pairing::{PairingListener, PairingPrompt, pair_with};
-use ec_net::{Error, Node, serve_connection};
+use ec_net::{Error, Node, Router, serve_connection};
 use tokio::sync::oneshot;
 
 const LOCALHOST: IpAddr = IpAddr::V4(Ipv4Addr::LOCALHOST);
@@ -134,9 +134,10 @@ fn paired_nodes() -> (Node, Arc<Node>, Arc<DeviceIdentity>) {
 
 fn serve(node: Arc<Node>) {
     tokio::spawn(async move {
+        let router = Arc::new(Router::with_session("B", |_, _| {}));
         while let Some(conn) = node.accept().await {
             if let Ok(conn) = conn {
-                tokio::spawn(serve_connection(conn, "B".into(), |_, _| {}));
+                tokio::spawn(serve_connection(conn, router.clone()));
             }
         }
     });

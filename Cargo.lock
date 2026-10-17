@@ -312,6 +312,7 @@ dependencies = [
  "clap",
  "ec-core",
  "ec-net",
+ "ec-transfer",
  "gethostname",
  "qrcode",
  "tokio",
@@ -367,6 +368,20 @@ version = "0.0.1"
 [[package]]
 name = "ec-transfer"
 version = "0.0.1"
+dependencies = [
+ "blake3",
+ "bytes",
+ "ec-core",
+ "ec-net",
+ "hex",
+ "postcard",
+ "rand",
+ "serde",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "embedded-io"

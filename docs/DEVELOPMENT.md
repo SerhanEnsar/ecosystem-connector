@@ -49,6 +49,18 @@ checks as CI for that area.
 tools/check.sh core
 ```
 
+### Fuzzing
+
+Parsers of untrusted input have fuzz targets in `fuzz/` (needs a nightly toolchain):
+
+```sh
+rustup toolchain install nightly
+cargo install cargo-fuzz
+cd fuzz && cargo +nightly fuzz run rel_path -- -max_total_time=60
+```
+
+Targets: `invite`, `control_message`, `rel_path`. Add one for every new parser.
+
 ### Android
 
 - Flutter stable (CI uses the version in `.github/workflows/android.yml`)

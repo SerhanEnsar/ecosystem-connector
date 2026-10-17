@@ -201,6 +201,11 @@ pub(crate) fn client_config(
 
 fn transport() -> Arc<quinn::TransportConfig> {
     let mut transport = quinn::TransportConfig::default();
+    // Windows sized for fast local links: about 1 Gbit/s at 50 ms of round-trip time.
+    transport.receive_window(quinn::VarInt::from_u32(64 * 1024 * 1024));
+    transport.stream_receive_window(quinn::VarInt::from_u32(8 * 1024 * 1024));
+    transport.send_window(64 * 1024 * 1024);
+    transport.max_concurrent_uni_streams(quinn::VarInt::from_u32(256));
     transport.keep_alive_interval(Some(std::time::Duration::from_secs(5)));
     if let Ok(timeout) = std::time::Duration::from_secs(20).try_into() {
         transport.max_idle_timeout(Some(timeout));

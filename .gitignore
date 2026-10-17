@@ -31,3 +31,9 @@ key.properties
 .dart_tool/
 build/
 .flutter-plugins-dependencies
+
+# Fuzzing
+/fuzz/target/
+/fuzz/corpus/
+/fuzz/artifacts/
+/fuzz/coverage/
