@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:ec_bridge/ec_bridge.dart';
 import 'package:ec_ui/ec_ui.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/widgets.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'hooks.dart';
@@ -60,7 +61,7 @@ const runnableExtensions = {
 };
 
 /// [EcController] backed by the Rust core.
-class BridgeController extends EcController {
+class BridgeController extends EcController with WidgetsBindingObserver {
   BridgeController(this._core, this._hooks, this._notifier) {
     _refresh();
     _events = _core.events().listen(_onEvent);
@@ -69,18 +70,43 @@ class BridgeController extends EcController {
       _pendingShare = [..._pendingShare, ...paths];
       notifyListeners();
     });
-    if (_hooks.vpnActive != null) {
-      unawaited(_checkVpn());
-      // A VPN can be switched on or off at any time.
+    if (_hooks.vpnActive != null || _hooks.fling != null) {
+      unawaited(_checkPlatform());
+      // A VPN or a permission can change at any time.
       _vpnTimer = Timer.periodic(
         const Duration(seconds: 15),
-        (_) => _checkVpn(),
+        (_) => _checkPlatform(),
       );
+      WidgetsBinding.instance.addObserver(this);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Back from the system settings: show the new state right away.
+    if (state == AppLifecycleState.resumed) unawaited(_checkPlatform());
+  }
+
+  Future<void> _checkPlatform() async {
+    await _checkVpn();
+    final fling = _hooks.fling;
+    if (fling != null) {
+      final setup = await fling.status();
+      final old = _flingSetup;
+      if (old == null ||
+          old.handleOn != setup.handleOn ||
+          old.canDrawOverlays != setup.canDrawOverlays ||
+          old.screenAccess != setup.screenAccess) {
+        _flingSetup = setup;
+        notifyListeners();
+      }
     }
   }
 
   Future<void> _checkVpn() async {
-    final active = await _hooks.vpnActive!();
+    final check = _hooks.vpnActive;
+    if (check == null) return;
+    final active = await check();
     if (active != _vpnActive) {
       _vpnActive = active;
       notifyListeners();
@@ -94,6 +120,7 @@ class BridgeController extends EcController {
   StreamSubscription<List<String>>? _shares;
   List<String> _pendingShare = const [];
   Timer? _vpnTimer;
+  FlingSetup? _flingSetup;
   var _vpnActive = false;
 
   List<EcDevice> _devices = const [];
@@ -127,6 +154,23 @@ class BridgeController extends EcController {
 
   @override
   bool get vpnActive => _vpnActive;
+
+  @override
+  FlingSetup? get flingSetup => _flingSetup;
+
+  @override
+  Future<void> setFlingHandle(bool on) async {
+    await _hooks.fling?.setHandle(on);
+    await _checkPlatform();
+  }
+
+  @override
+  Future<void> openOverlaySettings() async =>
+      _hooks.fling?.openOverlaySettings();
+
+  @override
+  Future<void> openScreenAccessSettings() async =>
+      _hooks.fling?.openAccessibilitySettings();
 
   @override
   bool get canScan => _hooks.scanInvite != null;
@@ -341,6 +385,7 @@ class BridgeController extends EcController {
     _events.cancel();
     _shares?.cancel();
     _vpnTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 }

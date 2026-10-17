@@ -5,6 +5,8 @@ import 'package:ec_ui/ec_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import 'fling_layer.dart';
+
 /// Talks to MainActivity.kt.
 const _platform = MethodChannel(
   'io.github.serhanensar.ecosystemconnector/platform',
@@ -24,16 +26,9 @@ void main() {
 
   runEcApp(
     EcPlatform.android,
-    PlatformHooks(
-      deviceName: () async =>
-          await _platform.invokeMethod<String>('deviceName') ?? 'Android',
-      receiveDir: () async =>
-          (await _platform.invokeMethod<String>('receiveDir'))!,
+    _hooks(
       // Permissions, the background receive service and the mDNS multicast lock.
       beforeStart: () => _platform.invokeMethod<void>('prepare'),
-      scanInvite: () => _platform.invokeMethod<String>('scanInvite'),
-      vpnActive: () async =>
-          await _platform.invokeMethod<bool>('vpnActive') ?? false,
       sharedFiles: () async* {
         // Files shared before the UI was ready, then any later shares.
         final early = await _platform.invokeMethod<List<Object?>>('takeShared');
@@ -43,3 +38,52 @@ void main() {
     ),
   );
 }
+
+/// Entry point of the fling layer: a second Flutter engine that FlingHandle.kt starts
+/// early and shows over other apps while the edge handle is held.
+@pragma('vm:entry-point')
+Future<void> flingMain() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Joins the core the app already started; the app posts the notifications and
+  // watches the VPN and permissions, so this engine needs only the basics, which
+  // FlingHandle.kt answers on the fling channel.
+  const fling = MethodChannel('io.github.serhanensar.ecosystemconnector/fling');
+  final controller = await startController(
+    PlatformHooks(
+      deviceName: () async =>
+          await fling.invokeMethod<String>('deviceName') ?? 'Android',
+      receiveDir: () async => (await fling.invokeMethod<String>('receiveDir'))!,
+    ),
+    notify: false,
+  );
+  runApp(FlingLayer(controller: controller));
+}
+
+PlatformHooks _hooks({
+  Future<void> Function()? beforeStart,
+  Stream<List<String>>? sharedFiles,
+}) => PlatformHooks(
+  deviceName: () async =>
+      await _platform.invokeMethod<String>('deviceName') ?? 'Android',
+  receiveDir: () async => (await _platform.invokeMethod<String>('receiveDir'))!,
+  beforeStart: beforeStart,
+  scanInvite: () => _platform.invokeMethod<String>('scanInvite'),
+  sharedFiles: sharedFiles,
+  vpnActive: () async =>
+      await _platform.invokeMethod<bool>('vpnActive') ?? false,
+  fling: FlingHooks(
+    status: () async {
+      final s = await _platform.invokeMapMethod<String, bool>('flingStatus');
+      return FlingSetup(
+        handleOn: s?['handleOn'] ?? false,
+        canDrawOverlays: s?['canDrawOverlays'] ?? false,
+        screenAccess: s?['screenAccess'] ?? false,
+      );
+    },
+    setHandle: (on) => _platform.invokeMethod<void>('setFlingHandle', on),
+    openOverlaySettings: () =>
+        _platform.invokeMethod<void>('openOverlaySettings'),
+    openAccessibilitySettings: () =>
+        _platform.invokeMethod<void>('openAccessibilitySettings'),
+  ),
+);

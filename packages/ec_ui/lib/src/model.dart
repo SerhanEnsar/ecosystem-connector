@@ -171,3 +171,24 @@ class FlingScreenshot extends FlingContent {
   @override
   String get label => 'Screenshot';
 }
+
+/// What flinging from the screen edge needs on this device (Android).
+class FlingSetup {
+  const FlingSetup({
+    required this.handleOn,
+    required this.canDrawOverlays,
+    required this.screenAccess,
+  });
+
+  /// The user turned the edge handle on.
+  final bool handleOn;
+
+  /// The app may draw over other apps (needed for the handle).
+  final bool canDrawOverlays;
+
+  /// The accessibility service is on (needed for screenshots and web pages).
+  final bool screenAccess;
+
+  /// Everything is in place.
+  bool get ready => handleOn && canDrawOverlays && screenAccess;
+}

@@ -110,6 +110,28 @@ class FakeController extends EcController {
     return sending.stream;
   }
 
+  FlingSetup? _flingSetup;
+
+  set flingSetup(FlingSetup? value) {
+    _flingSetup = value;
+    notifyListeners();
+  }
+
+  @override
+  FlingSetup? get flingSetup => _flingSetup;
+
+  /// Calls made to the fling setup methods, in order.
+  final setupCalls = <String>[];
+
+  @override
+  Future<void> setFlingHandle(bool on) async => setupCalls.add('handle:$on');
+
+  @override
+  Future<void> openOverlaySettings() async => setupCalls.add('overlay');
+
+  @override
+  Future<void> openScreenAccessSettings() async => setupCalls.add('access');
+
   @override
   Future<void> forget(EcDevice device) async {
     devices = _devices.where((d) => d.id != device.id).toList();

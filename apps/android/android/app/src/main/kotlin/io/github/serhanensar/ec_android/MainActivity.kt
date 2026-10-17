@@ -6,8 +6,8 @@ import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
+import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -29,12 +29,34 @@ class MainActivity : FlutterActivity() {
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).apply {
             setMethodCallHandler { call, result ->
                 when (call.method) {
-                    "deviceName" -> result.success(deviceName())
-                    "receiveDir" -> result.success(receiveDir())
+                    "deviceName" -> result.success(DeviceInfo.name(this@MainActivity))
+                    "receiveDir" -> result.success(DeviceInfo.receiveDir())
                     "prepare" -> prepare(result)
                     "scanInvite" -> scan(result)
                     "takeShared" -> result.success(sharedFiles.take())
                     "vpnActive" -> result.success(vpnActive())
+                    "flingStatus" -> result.success(
+                        mapOf(
+                            "handleOn" to FlingHandle.isEnabled(this@MainActivity),
+                            "canDrawOverlays" to Settings.canDrawOverlays(this@MainActivity),
+                            "screenAccess" to ScreenAccessService.isEnabled(this@MainActivity),
+                        ),
+                    )
+                    "setFlingHandle" -> {
+                        FlingHandle.setEnabled(this@MainActivity, call.arguments as Boolean)
+                        FlingHandle.get(this@MainActivity).sync()
+                        result.success(null)
+                    }
+                    "openOverlaySettings" -> {
+                        startActivity(
+                            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")),
+                        )
+                        result.success(null)
+                    }
+                    "openAccessibilitySettings" -> {
+                        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                        result.success(null)
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -61,19 +83,6 @@ class MainActivity : FlutterActivity() {
         val connectivity = getSystemService(ConnectivityManager::class.java)
         val capabilities = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
         return capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
-    }
-
-    private fun deviceName(): String =
-        Settings.Global.getString(contentResolver, "device_name")?.takeIf { it.isNotBlank() }
-            ?: "${Build.MANUFACTURER} ${Build.MODEL}"
-
-    /** Download/Ecosystem Connector, visible in the Files app. */
-    private fun receiveDir(): String {
-        @Suppress("DEPRECATION")
-        val downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val dir = File(downloads, "Ecosystem Connector")
-        dir.mkdirs()
-        return dir.absolutePath
     }
 
     /** Asks for the permissions the app needs, then starts the receive service. */
