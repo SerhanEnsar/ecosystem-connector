@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -18,7 +19,14 @@ pub struct TrustedDevice {
     pub name: String,
     /// When pairing completed, in seconds since the Unix epoch.
     pub paired_at: u64,
+    /// Where the device was last reachable. Used to find it on networks that block
+    /// mDNS; the connection is still authenticated by its pinned id.
+    #[serde(default)]
+    pub addrs: Vec<SocketAddr>,
 }
+
+/// Most addresses remembered per device.
+const MAX_REMEMBERED_ADDRS: usize = 8;
 
 #[derive(Default, Serialize, Deserialize)]
 struct TrustFile {
@@ -62,10 +70,29 @@ impl TrustStore {
                 .duration_since(UNIX_EPOCH)
                 .map(|d| d.as_secs())
                 .unwrap_or(0),
+            addrs: Vec::new(),
         };
         self.devices.insert(id, device.clone());
         self.save()?;
         Ok(device)
+    }
+
+    /// Remembers where a paired device was reachable. Saves only when something
+    /// changed. Returns whether it did.
+    pub fn set_addrs(&mut self, id: &DeviceId, addrs: &[SocketAddr]) -> Result<bool> {
+        let Some(device) = self.devices.get_mut(id) else {
+            return Ok(false);
+        };
+        let mut addrs = addrs.to_vec();
+        addrs.sort();
+        addrs.dedup();
+        addrs.truncate(MAX_REMEMBERED_ADDRS);
+        if addrs.is_empty() || device.addrs == addrs {
+            return Ok(false);
+        }
+        device.addrs = addrs;
+        self.save()?;
+        Ok(true)
     }
 
     /// Removes a device and saves the store. Returns whether it was present.
@@ -154,6 +181,40 @@ mod tests {
         assert!(store.find_by_prefix("abab").is_none(), "ambiguous");
         assert_eq!(store.find_by_prefix("CDCD-CDCD").unwrap().name, "C");
         assert!(store.find_by_prefix("").is_none());
+    }
+
+    #[test]
+    fn addresses_are_remembered_and_old_files_still_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut store = TrustStore::load(dir.path()).unwrap();
+        store.add(id(1), "Tablet").unwrap();
+        let addr: SocketAddr = "10.0.0.5:47820".parse().unwrap();
+        assert!(store.set_addrs(&id(1), &[addr, addr]).unwrap());
+        assert!(!store.set_addrs(&id(1), &[addr]).unwrap(), "unchanged");
+        assert!(!store.set_addrs(&id(2), &[addr]).unwrap(), "unknown device");
+        assert_eq!(
+            TrustStore::load(dir.path())
+                .unwrap()
+                .get(&id(1))
+                .unwrap()
+                .addrs,
+            [addr]
+        );
+
+        // A file written before addresses existed.
+        let old = format!(
+            r#"{{"version":1,"devices":[{{"id":"{}","name":"Old","paired_at":1}}]}}"#,
+            id(3)
+        );
+        std::fs::write(dir.path().join(TRUST_FILE), old).unwrap();
+        assert!(
+            TrustStore::load(dir.path())
+                .unwrap()
+                .get(&id(3))
+                .unwrap()
+                .addrs
+                .is_empty()
+        );
     }
 
     #[test]

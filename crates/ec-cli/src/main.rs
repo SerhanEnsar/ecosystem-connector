@@ -60,7 +60,7 @@ enum Command {
     /// Stay online: announce this device, answer paired devices and receive files.
     Serve {
         /// UDP port to listen on (0 picks a free port).
-        #[arg(long, default_value_t = 0)]
+        #[arg(long, default_value_t = ec_net::DEFAULT_PORT)]
         port: u16,
         /// Folder for received files [default: Downloads/Ecosystem Connector].
         #[arg(long)]
@@ -120,7 +120,9 @@ async fn main() -> Result<()> {
         Command::Join { invite } => {
             let invite = PairingInvite::parse(&invite)?;
             println!("Connecting...");
-            let paired = pair_with(Arc::new(identity), &invite, ask_user).await?;
+            // Tell the other device where `ec serve` listens by default.
+            let paired =
+                pair_with(Arc::new(identity), &invite, ec_net::DEFAULT_PORT, ask_user).await?;
             save_paired(&mut trust, paired)?;
         }
         Command::Devices => {
@@ -214,7 +216,11 @@ fn find<'a>(trust: &'a TrustStore, prefix: &str) -> Result<&'a TrustedDevice> {
 }
 
 async fn pair(identity: Arc<DeviceIdentity>, trust: &mut TrustStore) -> Result<()> {
-    let listener = PairingListener::bind(identity, SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))?;
+    let listener = PairingListener::bind(
+        identity,
+        SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)),
+        ec_net::DEFAULT_PORT,
+    )?;
     let invite = listener.invite(&local_addrs())?.to_uri();
 
     let qr = qrcode::QrCode::new(invite.as_bytes())?;
@@ -233,6 +239,9 @@ async fn pair(identity: Arc<DeviceIdentity>, trust: &mut TrustStore) -> Result<(
 
 fn save_paired(trust: &mut TrustStore, paired: ec_net::pairing::PairedDevice) -> Result<()> {
     let device = trust.add(paired.id, &paired.name)?;
+    if let Some(addr) = paired.addr {
+        trust.set_addrs(&device.id, &[addr])?;
+    }
     println!("Paired with {} ({}).", device.name, device.id.short());
     Ok(())
 }
@@ -340,7 +349,7 @@ async fn send(
     streams: usize,
 ) -> Result<()> {
     println!("Looking for {} on the network...", device.name);
-    let addrs = find_addrs(device.id, Duration::from_secs(3)).await?;
+    let addrs = addrs_for(device, Duration::from_secs(3)).await?;
     if addrs.is_empty() {
         bail!(
             "{} was not found. Is `ec serve` running on it?",
@@ -399,6 +408,18 @@ async fn send(
     );
     node.shutdown().await;
     Ok(())
+}
+
+/// Addresses to try for a paired device: what mDNS finds, then where it was reachable
+/// before (for networks that block mDNS).
+async fn addrs_for(device: &TrustedDevice, wait: Duration) -> Result<Vec<SocketAddr>> {
+    let mut addrs = find_addrs(device.id, wait).await?;
+    for addr in &device.addrs {
+        if !addrs.contains(addr) {
+            addrs.push(*addr);
+        }
+    }
+    Ok(addrs)
 }
 
 async fn find_addrs(peer: ec_core::DeviceId, wait: Duration) -> Result<Vec<SocketAddr>> {
@@ -473,20 +494,20 @@ async fn ping(
     count: u32,
 ) -> Result<()> {
     println!("Looking for {} on the network...", device.name);
-    let found = browse(Duration::from_secs(3)).await?;
-    let Some(target) = found.into_iter().find(|d| d.id == device.id) else {
+    let addrs = addrs_for(device, Duration::from_secs(3)).await?;
+    if addrs.is_empty() {
         bail!(
             "{} was not found. Is `ec serve` running on it?",
             device.name
         );
-    };
+    }
 
     let node = Node::bind(
         identity.clone(),
         trust.devices().map(|d| d.id),
         SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)),
     )?;
-    let conn = node.connect(device.id, &target.addrs).await?;
+    let conn = node.connect(device.id, &addrs).await?;
     let mut session = conn.open_session(identity.name()).await?;
     println!(
         "Connected to \"{}\" at {} (encrypted, identity verified).",

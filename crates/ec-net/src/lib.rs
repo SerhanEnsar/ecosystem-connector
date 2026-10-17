@@ -19,10 +19,10 @@ pub mod pairing;
 mod router;
 mod tls;
 
-pub use discovery::{Advertiser, DiscoveredDevice, SERVICE_TYPE, browse, local_addrs};
+pub use discovery::{Advertiser, DiscoveredDevice, Presence, SERVICE_TYPE, browse, local_addrs};
 pub use error::{Error, Result};
 pub use frame::{MAX_FRAME_LEN, decode, read_msg, write_msg};
-pub use node::{Node, PeerConnection, Session};
+pub use node::{DEFAULT_PORT, Node, PeerConnection, Session};
 pub use router::{Router, SESSION_KIND, Service, ServiceFuture, serve_connection};
 
 /// QUIC stream types used by services.

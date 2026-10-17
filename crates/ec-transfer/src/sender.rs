@@ -53,7 +53,15 @@ pub struct SendOptions {
     /// example when a USB cable is plugged in). Without it only the initial addresses
     /// are used.
     pub rediscover: Option<AddrSource>,
+    /// Returns a live connection with the peer, if one exists (for example one the
+    /// peer opened to us). It is used before dialling, so sending works even when the
+    /// peer cannot accept new connections (VPN, NAT, firewall). It is not closed
+    /// afterwards.
+    pub reuse: Option<ConnSource>,
 }
+
+/// Returns an existing connection with the peer, if any.
+pub type ConnSource = Arc<dyn Fn() -> Option<PeerConnection> + Send + Sync>;
 
 impl Default for SendOptions {
     fn default() -> Self {
@@ -61,6 +69,7 @@ impl Default for SendOptions {
             streams_per_path: 8,
             max_attempts: 5,
             rediscover: None,
+            reuse: None,
         }
     }
 }
@@ -240,7 +249,16 @@ async fn run_attempt(
     options: &SendOptions,
     events: &SendEvents,
 ) -> Result<SendReport> {
-    let conn = node.connect(peer, addrs).await?;
+    let existing = options
+        .reuse
+        .as_ref()
+        .and_then(|source| source())
+        .filter(|c| c.peer() == peer && c.quic().close_reason().is_none());
+    let reused = existing.is_some();
+    let conn = match existing {
+        Some(conn) => conn,
+        None => node.connect(peer, addrs).await?,
+    };
     let (mut send, mut recv) = conn.open_bi(CONTROL_KIND).await?;
     write_offer(&mut send, id, files).await?;
     let needed = read_needs(&mut recv, files).await?;
@@ -319,7 +337,9 @@ async fn run_attempt(
     }
     tasks.abort_all();
     let _ = send.finish();
-    conn.close();
+    if !reused {
+        conn.close();
+    }
 
     Ok(SendReport {
         files: files.len(),

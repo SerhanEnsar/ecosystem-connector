@@ -9,10 +9,14 @@ changes flow from a branch to a release.
 crates/              Rust core, shared by every platform (Cargo workspace)
   ec-core            identity, pairing crypto, trust store
   ec-net             discovery, QUIC + TLS, pairing protocol
-  ec-transfer …      later phases
+  ec-transfer        chunked, resumable, multipath file transfer
+  ec-runtime         a running device: everything the apps need
+  ec-ffi             Flutter bindings (package name ec_ffi)
   ec-cli             the `ec` command line tool
 packages/
-  ec_ui              shared Flutter UI (no platform code)
+  ec_ui              shared Flutter UI and the EcController interface (no platform code)
+  ec_bridge          generated Dart bindings + cargokit, builds the Rust core per platform
+  ec_app             EcController on top of the core; start-up shared by every app
 apps/                one Flutter project per platform, each with its own native code
   android/
   macos/
@@ -27,9 +31,12 @@ single `pubspec.lock`.
 
 ### Module rules
 
-- **Dependencies point inwards.** Apps depend on `ec_ui` and (from phase 3) on the Rust
-  core through a bridge package. `ec_ui` never depends on an app. Crates depend on
-  `ec-core`, never the other way round.
+- **Dependencies point inwards.** Apps depend on `ec_app`, which joins `ec_ui` and
+  `ec_bridge`. `ec_ui` depends on neither (screens talk to the `EcController` interface,
+  tests use `FakeController`). Crates depend on `ec-core`, never the other way round.
+- **Generated code is not edited.** After changing `crates/ec-ffi/src/api`, run
+  `flutter_rust_bridge_codegen generate` in `packages/ec_bridge`. `cargokit/` is vendored
+  unchanged.
 - **Platform code stays in its app.** A Kotlin, Swift or C++ change touches exactly one
   folder in `apps/`.
 - **One crate, one responsibility.** A new capability (for example clipboard) gets its

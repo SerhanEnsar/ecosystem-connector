@@ -1,0 +1,4 @@
+# Regenerate with: flutter_rust_bridge_codegen generate
+rust_input: crate::api
+rust_root: ../../crates/ec-ffi/
+dart_output: lib/src/rust

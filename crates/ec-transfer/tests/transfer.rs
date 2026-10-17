@@ -175,7 +175,7 @@ async fn interrupted_transfer_resumes_where_it_stopped() {
     let options = SendOptions {
         streams_per_path: 2,
         max_attempts: 1,
-        rediscover: None,
+        ..SendOptions::default()
     };
     let first = {
         let node = pair.sender.clone();
@@ -236,6 +236,51 @@ async fn uses_two_paths_when_available() {
     .unwrap();
     assert_eq!(report.paths_used, 2);
     assert_eq!(read(pair.dir.path(), "data.bin"), data);
+}
+
+/// The receiving device cannot accept connections (VPN, NAT), but it connected to
+/// the sender. The sender must send over that connection; no address is known at all.
+#[tokio::test]
+async fn sends_over_a_connection_the_receiver_opened() {
+    let a = Arc::new(DeviceIdentity::generate("Mac").unwrap());
+    let b = Arc::new(DeviceIdentity::generate("Tablet").unwrap());
+    let mac = Arc::new(Node::bind(a.clone(), [b.id()], SocketAddr::new(LOCALHOST, 0)).unwrap());
+    let tablet = Node::bind(b.clone(), [a.id()], SocketAddr::new(LOCALHOST, 0)).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+
+    // The tablet dials the Mac and serves its own receiver on that connection.
+    let service = Arc::new(Receiver::new(
+        dir.path().to_path_buf(),
+        Arc::new(|_| true),
+        Arc::new(|_| {}),
+    ));
+    let mut router = Router::with_session("Tablet", |_, _| {});
+    router.add(CONTROL_KIND, service.clone()).unwrap();
+    router.add(CHUNK_KIND, service).unwrap();
+    let accepting = mac.clone();
+    let accepted = tokio::spawn(async move { accepting.accept().await.unwrap().unwrap() });
+    let outgoing = tablet
+        .connect(a.id(), &[mac.local_addr().unwrap()])
+        .await
+        .unwrap();
+    tokio::spawn(serve_connection(outgoing, Arc::new(router)));
+    let incoming = accepted.await.unwrap();
+
+    let src = tempfile::tempdir().unwrap();
+    let file = src.path().join("notes.pdf");
+    std::fs::write(&file, b"sent back over the same connection").unwrap();
+    let options = SendOptions {
+        reuse: Some(Arc::new(move || Some(incoming.clone()))),
+        ..SendOptions::default()
+    };
+    let report = send_paths(mac, b.id(), vec![], vec![file], options, Arc::new(|_| {}))
+        .await
+        .unwrap();
+    assert_eq!(report.files, 1);
+    assert_eq!(
+        read(dir.path(), "notes.pdf"),
+        b"sent back over the same connection"
+    );
 }
 
 /// Opens a raw control stream to the receiver, as a misbehaving peer would.

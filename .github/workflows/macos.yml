@@ -7,6 +7,8 @@ on:
     paths:
       - "apps/macos/**"
       - "packages/**"
+      - "crates/**"
+      - "Cargo.lock"
       - "pubspec.yaml"
       - "pubspec.lock"
       - ".github/workflows/macos.yml"
@@ -14,6 +16,8 @@ on:
     paths:
       - "apps/macos/**"
       - "packages/**"
+      - "crates/**"
+      - "Cargo.lock"
       - "pubspec.yaml"
       - "pubspec.lock"
       - ".github/workflows/macos.yml"

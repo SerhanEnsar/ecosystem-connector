@@ -3,3 +3,7 @@ Copyright 2026 SerhanEnsar
 
 This product is licensed under the Apache License, Version 2.0.
 See the LICENSE file for the full license text.
+
+This product includes cargokit (https://github.com/irondash/cargokit),
+Copyright 2022 Matej Knopp, licensed under the MIT or Apache License 2.0,
+in packages/ec_bridge/cargokit.

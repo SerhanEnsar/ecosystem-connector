@@ -8,6 +8,8 @@ environment:
 
 workspace:
   - packages/ec_ui
+  - packages/ec_bridge
+  - packages/ec_app
   - apps/android
   - apps/macos
   - apps/windows

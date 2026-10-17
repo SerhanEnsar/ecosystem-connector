@@ -36,10 +36,21 @@ const STEP_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, Serialize, Deserialize)]
 enum PairMsg {
-    Request { name: String, proof: [u8; 32] },
-    Accepted { name: String },
+    /// `port` is the sender's regular node port, so the other side can reach it later
+    /// without mDNS.
+    Request {
+        name: String,
+        proof: [u8; 32],
+        port: u16,
+    },
+    Accepted {
+        name: String,
+        port: u16,
+    },
     Rejected,
-    Decision { accept: bool },
+    Decision {
+        accept: bool,
+    },
 }
 
 /// What to show the user before they confirm pairing.
@@ -60,6 +71,12 @@ pub struct PairedDevice {
     pub id: DeviceId,
     /// Its name.
     pub name: String,
+    /// Where its node listens, as seen during pairing (its IP and announced port).
+    pub addr: Option<SocketAddr>,
+}
+
+fn node_addr(conn: &quinn::Connection, port: u16) -> Option<SocketAddr> {
+    (port != 0).then(|| SocketAddr::new(conn.remote_address().ip(), port))
 }
 
 /// Listens for one pairing attempt.
@@ -67,17 +84,20 @@ pub struct PairingListener {
     identity: Arc<DeviceIdentity>,
     endpoint: quinn::Endpoint,
     secret: PairingSecret,
+    node_port: u16,
 }
 
 impl PairingListener {
-    /// Opens the listener on `addr` with a fresh secret.
-    pub fn bind(identity: Arc<DeviceIdentity>, addr: SocketAddr) -> Result<Self> {
+    /// Opens the listener on `addr` with a fresh secret. `node_port` is this device's
+    /// regular node port, told to the other device during pairing.
+    pub fn bind(identity: Arc<DeviceIdentity>, addr: SocketAddr, node_port: u16) -> Result<Self> {
         let server = tls::server_config(&identity, ClientPolicy::AnyForPairing, ALPN_PAIRING)?;
         let endpoint = quinn::Endpoint::server(server, addr)?;
         Ok(Self {
             identity,
             endpoint,
             secret: PairingSecret::generate(),
+            node_port,
         })
     }
 
@@ -110,7 +130,15 @@ impl PairingListener {
         let result = timeout(PAIRING_WINDOW, self.wait_for_request())
             .await
             .map_err(|_| Error::PairingFailed("no device connected in time"))?;
-        let (conn, mut send, mut recv, peer, name, binding) = match result? {
+        let ValidRequest {
+            conn,
+            mut send,
+            mut recv,
+            peer,
+            name,
+            binding,
+            port,
+        } = match result? {
             Request::Valid(r) => r,
             Request::BadProof(conn, mut send) => {
                 let _ = write_msg(&mut send, &PairMsg::Rejected).await;
@@ -127,6 +155,7 @@ impl PairingListener {
             &mut send,
             &PairMsg::Accepted {
                 name: self.identity.name().to_owned(),
+                port: self.node_port,
             },
         )
         .await?;
@@ -139,7 +168,12 @@ impl PairingListener {
         let outcome = decide(&mut send, &mut recv, confirm(prompt)).await;
         let _ = timeout(Duration::from_secs(2), conn.closed()).await;
         self.endpoint.close(0u32.into(), b"done");
-        outcome.map(|()| PairedDevice { id: peer, name })
+        let addr = node_addr(&conn, port);
+        outcome.map(|()| PairedDevice {
+            id: peer,
+            name,
+            addr,
+        })
     }
 
     async fn wait_for_request(&self) -> Result<Request> {
@@ -164,12 +198,20 @@ impl PairingListener {
             let Ok(Ok(msg)) = timeout(STEP_TIMEOUT, read_msg::<PairMsg>(&mut recv)).await else {
                 continue;
             };
-            let PairMsg::Request { name, proof } = msg else {
+            let PairMsg::Request { name, proof, port } = msg else {
                 continue;
             };
             return Ok(
                 if verify_proof(&self.secret, &peer, &me, &binding, &proof) {
-                    Request::Valid((conn, send, recv, peer, sanitize_device_name(&name), binding))
+                    Request::Valid(ValidRequest {
+                        conn,
+                        send,
+                        recv,
+                        peer,
+                        name: sanitize_device_name(&name),
+                        binding,
+                        port,
+                    })
                 } else {
                     Request::BadProof(conn, send)
                 },
@@ -178,24 +220,27 @@ impl PairingListener {
     }
 }
 
-type ValidRequest = (
-    quinn::Connection,
-    quinn::SendStream,
-    quinn::RecvStream,
-    DeviceId,
-    String,
-    [u8; 32],
-);
+struct ValidRequest {
+    conn: quinn::Connection,
+    send: quinn::SendStream,
+    recv: quinn::RecvStream,
+    peer: DeviceId,
+    name: String,
+    binding: [u8; 32],
+    port: u16,
+}
 
 enum Request {
     Valid(ValidRequest),
     BadProof(quinn::Connection, quinn::SendStream),
 }
 
-/// Uses `invite` to pair with the device that created it.
+/// Uses `invite` to pair with the device that created it. `node_port` is this
+/// device's regular node port, told to the other device.
 pub async fn pair_with<F, Fut>(
     identity: Arc<DeviceIdentity>,
     invite: &PairingInvite,
+    node_port: u16,
     confirm: F,
 ) -> Result<PairedDevice>
 where
@@ -221,11 +266,12 @@ where
     let request = PairMsg::Request {
         name: identity.name().to_owned(),
         proof: proof(&invite.secret, &me, &invite.responder, &binding),
+        port: node_port,
     };
     write_msg(&mut send, &request).await?;
 
-    let name = match timeout(STEP_TIMEOUT, read_msg(&mut recv)).await?? {
-        PairMsg::Accepted { name } => sanitize_device_name(&name),
+    let (name, port) = match timeout(STEP_TIMEOUT, read_msg(&mut recv)).await?? {
+        PairMsg::Accepted { name, port } => (sanitize_device_name(&name), port),
         PairMsg::Rejected => {
             return Err(Error::PairingFailed("the other device rejected the invite"));
         }
@@ -239,9 +285,11 @@ where
     let outcome = decide(&mut send, &mut recv, confirm(prompt)).await;
     conn.close(0u32.into(), b"done");
     let _ = timeout(Duration::from_secs(2), endpoint.wait_idle()).await;
+    let addr = node_addr(&conn, port);
     outcome.map(|()| PairedDevice {
         id: invite.responder,
         name,
+        addr,
     })
 }
 
