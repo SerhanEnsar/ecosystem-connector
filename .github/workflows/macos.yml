@@ -4,14 +4,20 @@ name: macOS
 on:
   push:
     branches: [main, develop, "platform/**"]
-    paths: &paths
+    paths:
       - "apps/macos/**"
       - "packages/**"
       - "pubspec.yaml"
       - "pubspec.lock"
       - ".github/workflows/macos.yml"
   pull_request:
-    paths: *paths
+    paths:
+      - "apps/macos/**"
+      - "packages/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/macos.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read

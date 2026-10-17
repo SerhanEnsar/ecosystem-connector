@@ -4,7 +4,7 @@ name: Core
 on:
   push:
     branches: [main, develop, "platform/**"]
-    paths: &paths
+    paths:
       - "crates/**"
       - "Cargo.toml"
       - "Cargo.lock"
@@ -14,7 +14,16 @@ on:
       - "deny.toml"
       - ".github/workflows/core.yml"
   pull_request:
-    paths: *paths
+    paths:
+      - "crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "clippy.toml"
+      - "rustfmt.toml"
+      - "deny.toml"
+      - ".github/workflows/core.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read

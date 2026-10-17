@@ -4,14 +4,20 @@ name: Windows
 on:
   push:
     branches: [main, develop, "platform/**"]
-    paths: &paths
+    paths:
       - "apps/windows/**"
       - "packages/**"
       - "pubspec.yaml"
       - "pubspec.lock"
       - ".github/workflows/windows.yml"
   pull_request:
-    paths: *paths
+    paths:
+      - "apps/windows/**"
+      - "packages/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/windows.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read

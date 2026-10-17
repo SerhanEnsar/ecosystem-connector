@@ -4,14 +4,20 @@ name: Android
 on:
   push:
     branches: [main, develop, "platform/**"]
-    paths: &paths
+    paths:
       - "apps/android/**"
       - "packages/**"
       - "pubspec.yaml"
       - "pubspec.lock"
       - ".github/workflows/android.yml"
   pull_request:
-    paths: *paths
+    paths:
+      - "apps/android/**"
+      - "packages/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
