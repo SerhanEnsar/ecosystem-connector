@@ -23,6 +23,18 @@ body:
         3. ...
     validations:
       required: true
+  - type: dropdown
+    id: platforms
+    attributes:
+      label: Platforms involved
+      multiple: true
+      options:
+        - Android
+        - macOS
+        - Windows
+        - Command line (ec)
+    validations:
+      required: true
   - type: input
     id: devices
     attributes:

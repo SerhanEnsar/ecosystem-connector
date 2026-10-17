@@ -12,27 +12,33 @@ environment and how changes get merged.
 
 ## Development setup
 
-You need:
+Each area has its own environment; you only need the one you work on. The full guide,
+including the module rules, is in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
-- [Rust](https://rustup.rs), stable toolchain (the repo pins it in `rust-toolchain.toml`)
-- [Flutter](https://docs.flutter.dev/get-started/install), stable channel
-- For Android: Android SDK and NDK (Android Studio installs both)
+| Area | Folder | Needs |
+|---|---|---|
+| Core | `crates/` | Rust stable |
+| Shared UI | `packages/ec_ui/` | Flutter stable |
+| Android | `apps/android/` | Flutter, Android Studio |
+| macOS | `apps/macos/` | Flutter, Xcode |
+| Windows | `apps/windows/` | Flutter, Visual Studio 2022 (C++ workload) |
 
-```sh
-cargo build
-cargo test
-cd app && flutter test
-```
+## Branches
+
+Branch from `develop`, or from `platform/<platform>` for platform-only work:
+
+- `feature/<area>-<topic>`, for example `feature/core-transfer`, `feature/android-qs-tile`
+- `fix/<topic>` for bug fixes
+
+Open the pull request against the branch you started from. `main` only receives
+releases. Details: [docs/DEVELOPMENT.md#branches](docs/DEVELOPMENT.md#branches).
 
 ## Before you open a pull request
 
-Run the same checks CI runs:
+Run the same checks CI runs, for the area you changed:
 
 ```sh
-cargo fmt --all --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
-cd app && flutter analyze && flutter test
+tools/check.sh core      # or: ui, android, macos, windows, all
 ```
 
 Please also:

@@ -1,0 +1,46 @@
+# macOS app: apps/macos plus the shared UI package it depends on.
+name: macOS
+
+on:
+  push:
+    branches: [main, develop, "platform/**"]
+    paths: &paths
+      - "apps/macos/**"
+      - "packages/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/macos.yml"
+  pull_request:
+    paths: *paths
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.47.7"
+
+jobs:
+  app:
+    name: Analyze, test and build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze packages/ec_ui apps/macos
+      - run: flutter test
+        working-directory: packages/ec_ui
+      - run: flutter test
+        working-directory: apps/macos
+      - run: flutter build macos --debug
+        working-directory: apps/macos

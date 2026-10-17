@@ -1,0 +1,13 @@
+# Dart/Flutter workspace: one dependency resolution for the shared UI package and
+# every platform app. Run `flutter pub get` here, at the repository root.
+name: ecosystem_connector_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.13.0
+
+workspace:
+  - packages/ec_ui
+  - apps/android
+  - apps/macos
+  - apps/windows

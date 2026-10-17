@@ -26,3 +26,8 @@ key.properties
 
 # Benchmark raw output (charts in docs/media are committed)
 /bench/out/
+
+# Dart / Flutter workspace
+.dart_tool/
+build/
+.flutter-plugins-dependencies

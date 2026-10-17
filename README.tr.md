@@ -6,7 +6,8 @@
 Her şeyi anında gönder, dosyaları kopya oluşturmadan senkron tut, panonu paylaş
 ve yaptığın işe diğer cihazda kaldığın yerden devam et.
 
-[![CI](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/ci.yml/badge.svg)](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/ci.yml)
+[![Core](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/core.yml/badge.svg)](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/core.yml)
+[![Android](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/android.yml/badge.svg)](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/android.yml)
 [![Lisans: Apache-2.0](https://img.shields.io/badge/lisans-Apache--2.0-blue.svg)](LICENSE)
 
 [English](README.md) · [Mimari](docs/ARCHITECTURE.md) · [Katkı](CONTRIBUTING.md) · [Güvenlik](SECURITY.md)
@@ -37,6 +38,21 @@ Windows ↔ Android.
 | **Bağlı dosyalar** | Her cihazda tek dosya, tek sürüm. Herhangi birinde düzenle, diğerleri saniyeler içinde güncellensin. Kopya birikmez. |
 | **Ortak pano** | Bir cihazda kopyala, diğerinde yapıştır. Açık tarayıcı sekmesini gönder. |
 | **Handoff** | Diğer cihazda açık olan dosya ya da web sayfası için "Bu cihazda devam et?" sorusu. |
+
+## Kurulum
+
+En son sürümü [Releases](https://github.com/SerhanEnsar/ecosystem-connector/releases)
+sayfasından indir:
+
+| Platform | Dosya |
+|---|---|
+| Android telefon veya tablet | `…-android-arm64-v8a.apk` (çoğu cihaz) ya da `…-android-universal.apk` |
+| macOS | `…-macos-universal.zip` |
+| Windows | `…-windows-x64.zip` |
+| Komut satırı | `ec-cli-…` |
+
+İlk sürümler ön sürüm (pre-release) olarak işaretlenir. Uygulamalar faz 3'e kadar yalnızca
+ana ekranı gösterir; `ec` komut satırı aracı şimdiden çalışır.
 
 ## Nasıl çalışır
 

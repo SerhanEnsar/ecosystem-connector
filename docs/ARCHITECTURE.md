@@ -18,9 +18,11 @@ third-party apps.
 
 ## Components
 
+Repository layout and module rules: [DEVELOPMENT.md](DEVELOPMENT.md).
+
 ```mermaid
 flowchart TB
-    subgraph app["Flutter app (app/)"]
+    subgraph app["Flutter apps (apps/android, apps/macos, apps/windows) + shared UI (packages/ec_ui)"]
         UI[Screens and tray/menu bar]
         PI[Platform integrations<br/>share sheet, QS tile, notifications,<br/>front-window document]
     end

@@ -6,7 +6,11 @@
 Send anything instantly, keep files in sync without duplicates, share your clipboard,
 and continue what you were doing on another device.
 
-[![CI](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/ci.yml/badge.svg)](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/ci.yml)
+[![Core](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/core.yml/badge.svg)](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/core.yml)
+[![Android](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/android.yml/badge.svg)](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/android.yml)
+[![macOS](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/macos.yml/badge.svg)](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/macos.yml)
+[![Windows](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/windows.yml/badge.svg)](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/windows.yml)
+[![Security](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/security.yml/badge.svg)](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/security.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 ![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Android-informational)
 ![Status](https://img.shields.io/badge/status-early%20development-orange)
@@ -77,6 +81,21 @@ Details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the wire format in
 - [ ] Phase 6: handoff
 - [ ] Phase 7: signed releases
 
+## Install
+
+Download the latest build from [Releases](https://github.com/SerhanEnsar/ecosystem-connector/releases):
+
+| Platform | File |
+|---|---|
+| Android phone or tablet | `…-android-arm64-v8a.apk` (most devices) or `…-android-universal.apk` |
+| macOS | `…-macos-universal.zip` |
+| Windows | `…-windows-x64.zip` |
+| Command line | `ec-cli-…` |
+
+Early releases are marked as pre-releases. The apps only show their main screen until
+phase 3 connects them to the core; the `ec` command line tool already works. Every file
+can be checked with `gh attestation verify <file> -R SerhanEnsar/ecosystem-connector`.
+
 ## Try it: the `ec` command line tool
 
 The apps are not ready yet, but the core already works from the command line. On two
@@ -117,14 +136,15 @@ Error: ... invalid peer certificate: ApplicationVerificationFailure
 
 ## Building from source
 
-Requirements: [Rust](https://rustup.rs) (stable) and [Flutter](https://docs.flutter.dev/get-started/install) (stable). Android builds also need the Android SDK and NDK.
+Each platform has its own environment; see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ```sh
 git clone https://github.com/SerhanEnsar/ecosystem-connector.git
 cd ecosystem-connector
 
-cargo test            # Rust core
-cd app && flutter run # app (choose macOS, Windows or an Android device)
+tools/check.sh core                  # Rust core: build, lint, test
+flutter pub get                      # Flutter workspace (all apps)
+cd apps/android && flutter run       # or apps/macos, apps/windows
 ```
 
 ## Repository layout
@@ -132,10 +152,12 @@ cd app && flutter run # app (choose macOS, Windows or an Android device)
 ```
 crates/      Rust core: identity, networking, transfer, sync, clipboard, handoff,
              and the `ec` command line tool
-app/         Flutter app for macOS, Windows and Android
+packages/    Shared Flutter UI (ec_ui)
+apps/        One Flutter app per platform: android/, macos/, windows/
+tools/       Local check script, release signing setup
 extension/   Browser extension (planned)
 bench/       Reproducible benchmarks that produce the charts in this README
-docs/        Architecture, protocol and threat model
+docs/        Architecture, protocol, threat model, development guide
 ```
 
 ## Contributing
