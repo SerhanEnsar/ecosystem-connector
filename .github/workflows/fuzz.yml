@@ -44,7 +44,10 @@ jobs:
         env:
           # Longer on the weekly run.
           SECONDS_TO_RUN: ${{ github.event_name == 'schedule' && '900' || '60' }}
-        run: cargo +nightly fuzz run "${{ matrix.target }}" -- -max_total_time="$SECONDS_TO_RUN"
+        # The prebuilt cargo-fuzz defaults to the musl target, which sanitizers do not support.
+        run: >-
+          cargo +nightly fuzz run --target x86_64-unknown-linux-gnu "${{ matrix.target }}"
+          -- -max_total_time="$SECONDS_TO_RUN"
       - name: Keep the crashing input
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
