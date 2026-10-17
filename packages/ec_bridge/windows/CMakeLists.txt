@@ -9,7 +9,13 @@ set(PROJECT_NAME "ec_bridge")
 project(${PROJECT_NAME} LANGUAGES CXX)
 
 include("../cargokit/cmake/cargokit.cmake")
-apply_cargokit(${PROJECT_NAME} ../../../crates/ec-ffi ec_ffi "")
+# Flutter reaches this plugin through a symlink (.plugin_symlinks), and Windows resolves
+# ".." in paths textually, so "../../../crates/ec-ffi" would point into Flutter's
+# ephemeral folder. Find the crate from cargokit's resolved real path instead, and give
+# cargokit a path relative to this folder that resolves correctly when read as text.
+get_filename_component(EC_FFI_DIR "${cargokit_cmake_root}/../../../crates/ec-ffi" ABSOLUTE)
+file(RELATIVE_PATH EC_FFI_RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "${EC_FFI_DIR}")
+apply_cargokit(${PROJECT_NAME} "${EC_FFI_RELATIVE}" ec_ffi "")
 
 # List of absolute paths to libraries that should be bundled with the plugin.
 # This list could contain prebuilt libraries, or libraries created by an
