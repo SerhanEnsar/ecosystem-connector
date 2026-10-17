@@ -6,6 +6,8 @@ library;
 
 export 'src/app.dart';
 export 'src/controller.dart';
+export 'src/fling/fling_overlay.dart';
+export 'src/fling/fling_setup_card.dart';
 export 'src/model.dart';
 export 'src/platform.dart';
 export 'src/screens/home_screen.dart';

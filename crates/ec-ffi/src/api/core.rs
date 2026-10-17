@@ -91,6 +91,19 @@ pub enum CoreEvent {
     Saved {
         /// Its path.
         path: String,
+        /// The sender flung it: open it now.
+        open: bool,
+        /// The page to open at, for documents.
+        page: Option<u32>,
+    },
+    /// A paired device flung a web page to open here.
+    FlingUrl {
+        /// Short id of the sender.
+        from: String,
+        /// The address (validated: http or https).
+        url: String,
+        /// The page title.
+        title: String,
     },
     /// A transfer finished.
     ReceiveFinished,
@@ -296,8 +309,16 @@ impl EcCore {
         }
     }
 
-    /// Sends files and folders to a paired device.
-    pub fn send(&self, device_id: String, paths: Vec<String>, sink: StreamSink<SendUpdate>) {
+    /// Sends files and folders to a paired device. With `open`, it opens them on
+    /// arrival (a fling), at `page` if given.
+    pub fn send(
+        &self,
+        device_id: String,
+        paths: Vec<String>,
+        open: bool,
+        page: Option<u32>,
+        sink: StreamSink<SendUpdate>,
+    ) {
         let runtime = self.runtime.clone();
         RT.spawn(async move {
             let id = match device_id.parse::<DeviceId>() {
@@ -327,7 +348,8 @@ impl EcCore {
                 let _ = progress.add(update);
             });
             let paths = paths.into_iter().map(PathBuf::from).collect();
-            let update = match runtime.send(id, paths, events).await {
+            let hint = open.then_some(ec_transfer::OpenHint { page });
+            let update = match runtime.send(id, paths, hint, events).await {
                 Ok(report) => SendUpdate::Done {
                     files: report.files as u32,
                     bytes: report.bytes_sent,
@@ -340,6 +362,20 @@ impl EcCore {
             };
             let _ = sink.add(update);
         });
+    }
+
+    /// Flings a web page to a paired device, which opens it in its browser.
+    pub async fn fling_url(
+        &self,
+        device_id: String,
+        url: String,
+        title: String,
+    ) -> anyhow::Result<()> {
+        let id: DeviceId = device_id.parse()?;
+        let runtime = self.runtime.clone();
+        RT.spawn(async move { runtime.fling_url(id, url, title).await })
+            .await??;
+        Ok(())
     }
 
     /// Removes a paired device.
@@ -383,6 +419,13 @@ fn convert(event: Event) -> Option<CoreEvent> {
     Some(match event {
         Event::DevicesChanged => CoreEvent::DevicesChanged,
         Event::Paired { name, .. } => CoreEvent::Paired { name },
+        Event::Fling { from, item } => match item {
+            ec_fling::FlingItem::Url { url, title } => CoreEvent::FlingUrl {
+                from: from.short(),
+                url,
+                title,
+            },
+        },
         Event::Receive(event) => match event {
             ReceiveEvent::Started {
                 peer,
@@ -398,8 +441,10 @@ fn convert(event: Event) -> Option<CoreEvent> {
             ReceiveEvent::Progress { received, total } => {
                 CoreEvent::ReceiveProgress { received, total }
             }
-            ReceiveEvent::Saved { path } => CoreEvent::Saved {
+            ReceiveEvent::Saved { path, open } => CoreEvent::Saved {
                 path: path.to_string_lossy().into_owned(),
+                open: open.is_some(),
+                page: open.and_then(|o| o.page),
             },
             ReceiveEvent::Finished => CoreEvent::ReceiveFinished,
             ReceiveEvent::Interrupted { reason } => CoreEvent::ReceiveInterrupted { reason },

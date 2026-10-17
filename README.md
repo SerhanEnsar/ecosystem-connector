@@ -90,7 +90,7 @@ Download the latest build from [Releases](https://github.com/SerhanEnsar/ecosyst
 | Android phone or tablet | `…-android-arm64-v8a.apk` (most devices) or `…-android-universal.apk` |
 | macOS | `…-macos-universal.zip` |
 | Windows | `…-windows-x64.zip` |
-| Command line | `ec-cli-…` |
+| Command line tool (optional) | `…-command-line-…` |
 
 Early releases are marked as pre-releases. The apps can pair (QR code or link), see
 paired devices and send and receive files; the `ec` command line tool works too. Every file

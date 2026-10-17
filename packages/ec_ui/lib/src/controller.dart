@@ -31,6 +31,19 @@ abstract class EcController extends ChangeNotifier {
   /// Whether a VPN is on, which can stop other devices from reaching this one.
   bool get vpnActive;
 
+  /// Flinging from the screen edge, where the platform supports it (Android);
+  /// null elsewhere.
+  FlingSetup? get flingSetup;
+
+  /// Shows or hides the edge handle.
+  Future<void> setFlingHandle(bool on);
+
+  /// Opens the system page where the app may be allowed to draw over other apps.
+  Future<void> openOverlaySettings();
+
+  /// Opens the system accessibility settings, to turn on screen access.
+  Future<void> openScreenAccessSettings();
+
   /// Whether this platform can scan a QR code with a camera.
   bool get canScan;
 
@@ -51,6 +64,9 @@ abstract class EcController extends ChangeNotifier {
 
   /// Sends [paths] to [device].
   Stream<SendStatus> send(EcDevice device, List<String> paths);
+
+  /// Sends [content] to [device], which opens it on arrival.
+  Stream<SendStatus> fling(EcDevice device, FlingContent content);
 
   /// Removes a paired device.
   Future<void> forget(EcDevice device);

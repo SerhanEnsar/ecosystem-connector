@@ -28,7 +28,7 @@ use tokio::time::timeout;
 use crate::fileio::read_exact_at;
 use crate::manifest::SourceFile;
 use crate::proto::{
-    CHUNK_KIND, CONTROL_KIND, ChunkHeader, Control, MAX_HASHES_PER_MSG, TransferId,
+    CHUNK_KIND, CONTROL_KIND, ChunkHeader, Control, MAX_HASHES_PER_MSG, OpenHint, TransferId,
 };
 use crate::{Error, Result};
 
@@ -58,6 +58,8 @@ pub struct SendOptions {
     /// peer cannot accept new connections (VPN, NAT, firewall). It is not closed
     /// afterwards.
     pub reuse: Option<ConnSource>,
+    /// Asks the receiver to open the files once saved (a fling).
+    pub open: Option<OpenHint>,
 }
 
 /// Returns an existing connection with the peer, if any.
@@ -70,6 +72,7 @@ impl Default for SendOptions {
             max_attempts: 5,
             rediscover: None,
             reuse: None,
+            open: None,
         }
     }
 }
@@ -260,7 +263,7 @@ async fn run_attempt(
         None => node.connect(peer, addrs).await?,
     };
     let (mut send, mut recv) = conn.open_bi(CONTROL_KIND).await?;
-    write_offer(&mut send, id, files).await?;
+    write_offer(&mut send, id, files, options.open).await?;
     let needed = read_needs(&mut recv, files).await?;
 
     let to_send: u64 = needed
@@ -456,6 +459,7 @@ async fn write_offer(
     send: &mut ec_net::SendStream,
     id: TransferId,
     files: &[SourceFile],
+    open: Option<OpenHint>,
 ) -> Result<()> {
     let total_bytes = files.iter().map(|f| f.entry.size).sum();
     write_msg(
@@ -484,6 +488,13 @@ async fn write_offer(
             };
             write_msg(send, &msg).await?;
         }
+    }
+    if let Some(hint) = open {
+        let msg = Control::Hint {
+            open: true,
+            page: hint.page,
+        };
+        write_msg(send, &msg).await?;
     }
     write_msg(send, &Control::OfferEnd).await?;
     Ok(())

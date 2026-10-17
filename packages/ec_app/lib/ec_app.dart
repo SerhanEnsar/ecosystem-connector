@@ -17,27 +17,34 @@ export 'src/hooks.dart';
 Future<void> runEcApp(EcPlatform platform, PlatformHooks hooks) async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await RustLib.init();
     await hooks.beforeStart?.call();
-    final support = await getApplicationSupportDirectory();
-    final core = await EcCore.start(
-      config: CoreConfig(
-        home: '${support.path}/core',
-        deviceName: await hooks.deviceName(),
-        receiveDir: await hooks.receiveDir(),
-      ),
-    );
-    final notifier = Notifier();
-    await notifier.init();
-    runApp(
-      EcosystemConnectorApp(
-        platform: platform,
-        controller: BridgeController(core, hooks, notifier),
-      ),
-    );
+    final controller = await startController(hooks);
+    runApp(EcosystemConnectorApp(platform: platform, controller: controller));
   } catch (error) {
     runApp(_StartupError(error));
   }
+}
+
+/// Starts (or joins) the core and returns a controller for it, without showing the
+/// app. With [notify] false the controller posts no notifications; use that for a
+/// second Flutter engine in the same process, such as the Android fling overlay.
+Future<EcController> startController(
+  PlatformHooks hooks, {
+  bool notify = true,
+}) async {
+  await initRustCore();
+  final support = await getApplicationSupportDirectory();
+  // Joins the running core when another engine in this process started it.
+  final core = await EcCore.start(
+    config: CoreConfig(
+      home: '${support.path}/core',
+      deviceName: await hooks.deviceName(),
+      receiveDir: await hooks.receiveDir(),
+    ),
+  );
+  final notifier = Notifier(enabled: notify);
+  await notifier.init();
+  return BridgeController(core, hooks, notifier);
 }
 
 class _StartupError extends StatelessWidget {

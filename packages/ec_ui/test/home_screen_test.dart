@@ -137,6 +137,37 @@ void main() {
     expect(find.text('A VPN is on'), findsNothing);
   });
 
+  testWidgets('fling setup walks through what is missing', (tester) async {
+    final c = FakeController()
+      ..flingSetup = const FlingSetup(
+        handleOn: false,
+        canDrawOverlays: false,
+        screenAccess: false,
+      );
+    await tester.pumpWidget(app(c));
+    expect(find.text('Fling from the edge of the screen'), findsOneWidget);
+    await tester.tap(find.text('Allow'));
+    await tester.tap(find.text('Open settings'));
+    expect(c.setupCalls, ['overlay', 'access']);
+
+    c.flingSetup = const FlingSetup(
+      handleOn: false,
+      canDrawOverlays: true,
+      screenAccess: true,
+    );
+    await tester.pump();
+    await tester.tap(find.byType(Switch));
+    expect(c.setupCalls.last, 'handle:true');
+
+    c.flingSetup = const FlingSetup(
+      handleOn: true,
+      canDrawOverlays: true,
+      screenAccess: true,
+    );
+    await tester.pump();
+    expect(find.text('Fling from the edge of the screen'), findsNothing);
+  });
+
   test('formats byte counts', () {
     expect(formatBytes(999), '999 B');
     expect(formatBytes(314572800), '314.6 MB');

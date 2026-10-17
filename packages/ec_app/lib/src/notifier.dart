@@ -2,6 +2,11 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// System notifications for received files.
 class Notifier {
+  Notifier({this.enabled = true});
+
+  /// When false, nothing is shown (another engine already notifies).
+  final bool enabled;
+
   final _plugin = FlutterLocalNotificationsPlugin();
   var _ready = false;
   var _nextId = 1;
@@ -14,6 +19,7 @@ class Notifier {
   );
 
   Future<void> init() async {
+    if (!enabled) return;
     try {
       _ready =
           await _plugin.initialize(

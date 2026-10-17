@@ -151,7 +151,7 @@ jobs:
         shell: bash
         run: |
           version="${GITHUB_REF_NAME#v}"
-          name="ec-cli-$version-${{ matrix.name }}"
+          name="EcosystemConnector-$version-command-line-${{ matrix.name }}"
           mkdir -p "$name" dist
           cp "target/release/${{ matrix.bin }}" LICENSE NOTICE "$name/"
           if [ "$RUNNER_OS" = "Windows" ]; then

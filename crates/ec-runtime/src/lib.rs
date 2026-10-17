@@ -18,13 +18,14 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use ec_core::{DeviceId, DeviceIdentity, PairingInvite, TrustStore, TrustedDevice};
+use ec_fling::{FLING_KIND, FlingItem, FlingService};
 use ec_net::pairing::{PairedDevice, PairingListener, PairingPrompt, pair_with};
 use ec_net::{
     DiscoveredDevice, Node, PeerConnection, Presence, Router, local_addrs, serve_connection,
 };
 use ec_transfer::{
-    CHUNK_KIND, CONTROL_KIND, ReceiveEvent, Receiver, SendEvents, SendOptions, SendReport,
-    send_paths,
+    CHUNK_KIND, CONTROL_KIND, OpenHint, ReceiveEvent, Receiver, SendEvents, SendOptions,
+    SendReport, send_paths,
 };
 use tokio::sync::broadcast;
 
@@ -48,6 +49,9 @@ pub enum Error {
     /// Transfer error.
     #[error(transparent)]
     Transfer(#[from] ec_transfer::Error),
+    /// Fling error.
+    #[error(transparent)]
+    Fling(#[from] ec_fling::Error),
     /// The device is not paired.
     #[error("this device is not paired")]
     NotPaired,
@@ -88,6 +92,13 @@ pub enum Event {
     },
     /// Something happened while receiving files.
     Receive(ReceiveEvent),
+    /// A paired device flung something to open here.
+    Fling {
+        /// The sending device.
+        from: DeviceId,
+        /// What it sent (already validated).
+        item: FlingItem,
+    },
 }
 
 /// A paired device and whether it is reachable now.
@@ -230,6 +241,13 @@ impl Runtime {
         let mut router = Router::with_session(identity.name(), |_, _| {});
         router.add(CONTROL_KIND, receiver.clone())?;
         router.add(CHUNK_KIND, receiver)?;
+        let fling_events = events.clone();
+        router.add(
+            FLING_KIND,
+            Arc::new(FlingService::new(Arc::new(move |from, item| {
+                let _ = fling_events.send(Event::Fling { from, item });
+            }))),
+        )?;
         let router = Arc::new(router);
         let shared = Arc::new(Shared {
             trust: Mutex::new(trust),
@@ -420,6 +438,7 @@ impl Runtime {
         &self,
         id: DeviceId,
         paths: Vec<PathBuf>,
+        open: Option<OpenHint>,
         events: SendEvents,
     ) -> Result<SendReport> {
         if !self.shared.trust().contains(&id) {
@@ -438,9 +457,31 @@ impl Runtime {
         let options = SendOptions {
             rediscover: Some(rediscover),
             reuse: Some(Arc::new(move || shared.live_conn(&id))),
+            open,
             ..SendOptions::default()
         };
         Ok(send_paths(self.node.clone(), id, addrs, paths, options, events).await?)
+    }
+
+    /// Flings a web page to a paired device, which opens it in its browser.
+    pub async fn fling_url(&self, id: DeviceId, url: String, title: String) -> Result<()> {
+        if !self.shared.trust().contains(&id) {
+            return Err(Error::NotPaired);
+        }
+        let conn = match self.shared.live_conn(&id) {
+            Some(conn) => conn,
+            None => {
+                let addrs = self.candidate_addrs(&id);
+                if addrs.is_empty() {
+                    return Err(Error::Offline);
+                }
+                let conn = self.node.connect(id, &addrs).await?;
+                self.shared.adopt(conn.clone());
+                conn
+            }
+        };
+        ec_fling::fling(&conn, FlingItem::Url { url, title }).await?;
+        Ok(())
     }
 
     /// Stops listening and announcing.

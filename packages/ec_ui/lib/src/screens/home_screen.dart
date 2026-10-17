@@ -7,6 +7,7 @@ import '../widgets/device_spine.dart';
 import '../widgets/receive_banner.dart';
 import '../widgets/share_bar.dart';
 import '../widgets/vpn_notice.dart';
+import '../fling/fling_setup_card.dart';
 import 'pairing_sheet.dart';
 import 'send_sheet.dart';
 
@@ -27,6 +28,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   var _vpnDismissed = false;
+  var _flingDismissed = false;
 
   EcController get controller => widget.controller;
 
@@ -77,6 +79,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (controller.flingSetup case final setup?
+                        when !setup.ready && !_flingDismissed)
+                      FlingSetupCard(
+                        controller: controller,
+                        setup: setup,
+                        onDismiss: () => setState(() => _flingDismissed = true),
+                      ),
                     if (controller.vpnActive && !_vpnDismissed)
                       VpnNotice(
                         onDismiss: () => setState(() => _vpnDismissed = true),

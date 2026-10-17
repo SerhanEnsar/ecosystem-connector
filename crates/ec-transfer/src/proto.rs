@@ -57,6 +57,16 @@ pub enum Control {
     FileDone { file: u32 },
     /// Receiver → sender: every file was saved.
     Done,
+    /// Sender → receiver, optional, before `OfferEnd`: open the files once saved (a
+    /// fling), at `page` if given.
+    Hint { open: bool, page: Option<u32> },
+}
+
+/// Asks the receiver to open the files once they are saved.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct OpenHint {
+    /// The page to show, for documents that have pages.
+    pub page: Option<u32>,
 }
 
 /// Header at the start of every chunk stream, followed by exactly the chunk's bytes.

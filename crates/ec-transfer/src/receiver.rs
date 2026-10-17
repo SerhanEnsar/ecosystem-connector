@@ -16,7 +16,7 @@ use crate::fileio::write_all_at;
 use crate::manifest::{FileEntry, MAX_FILES, hash_chunks};
 use crate::path::{ensure_real_dir, unique_destination};
 use crate::proto::{
-    ChunkHeader, Control, MAX_HASHES_PER_MSG, MAX_RANGES_PER_MSG, TransferId, to_ranges,
+    ChunkHeader, Control, MAX_HASHES_PER_MSG, MAX_RANGES_PER_MSG, OpenHint, TransferId, to_ranges,
 };
 use crate::{Error, Result};
 
@@ -67,6 +67,8 @@ pub enum ReceiveEvent {
     Saved {
         /// Where.
         path: PathBuf,
+        /// The sender asked to open it (a fling), at this page if given.
+        open: Option<OpenHint>,
     },
     /// The transfer finished.
     Finished,
@@ -142,7 +144,7 @@ impl Receiver {
         mut recv: RecvStream,
     ) -> Result<()> {
         let peer = conn.peer();
-        let (id, entries) = read_offer(&mut recv).await?;
+        let (id, entries, open) = read_offer(&mut recv).await?;
         let total: u64 = entries.iter().map(|e| e.size).sum();
         let offer = Offer {
             peer,
@@ -231,7 +233,7 @@ impl Receiver {
             let saved = finalize(&self.dir, &incoming).await?;
             for (index, path) in saved.into_iter().enumerate() {
                 write_msg(&mut send, &Control::FileDone { file: index as u32 }).await?;
-                (self.events)(ReceiveEvent::Saved { path });
+                (self.events)(ReceiveEvent::Saved { path, open });
             }
             write_msg(&mut send, &Control::Done).await?;
             let _ = send.finish();
@@ -417,7 +419,10 @@ impl IncomingFile {
 }
 
 /// Reads and validates a complete offer from the control stream.
-async fn read_offer(recv: &mut RecvStream) -> Result<(TransferId, Vec<FileEntry>)> {
+async fn read_offer(
+    recv: &mut RecvStream,
+) -> Result<(TransferId, Vec<FileEntry>, Option<OpenHint>)> {
+    let mut hint = None;
     let Control::Offer {
         id,
         files,
@@ -480,6 +485,12 @@ async fn read_offer(recv: &mut RecvStream) -> Result<(TransferId, Vec<FileEntry>
                 }
                 entry.hashes.extend(hashes);
             }
+            Control::Hint { open, page } => {
+                if hint.is_some() {
+                    return Err(Error::Protocol("duplicate hint"));
+                }
+                hint = Some(open.then_some(OpenHint { page }));
+            }
             Control::OfferEnd => break,
             _ => return Err(Error::Protocol("unexpected message in offer")),
         }
@@ -498,7 +509,7 @@ async fn read_offer(recv: &mut RecvStream) -> Result<(TransferId, Vec<FileEntry>
     if !entries.iter().all(|e| seen.insert(&e.path)) {
         return Err(Error::Protocol("duplicate path"));
     }
-    Ok((id, entries))
+    Ok((id, entries, hint.flatten()))
 }
 
 fn expected_chunks(entry: &FileEntry) -> u64 {

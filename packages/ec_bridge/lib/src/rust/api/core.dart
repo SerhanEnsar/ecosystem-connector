@@ -9,7 +9,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'core.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `confirm_through`, `convert`, `finish_pairing`
+// These functions are ignored because they are not marked as `pub`: `confirm_through`, `convert`, `finish_pairing`, `running`, `wrap`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EcCore>>
 abstract class EcCore implements RustOpaqueInterface {
@@ -21,6 +22,13 @@ abstract class EcCore implements RustOpaqueInterface {
 
   /// Streams background events until the stream is closed on the Dart side.
   Stream<CoreEvent> events();
+
+  /// Flings a web page to a paired device, which opens it in its browser.
+  Future<void> flingUrl({
+    required String deviceId,
+    required String url,
+    required String title,
+  });
 
   /// Removes a paired device.
   void forget({required String deviceId});
@@ -40,13 +48,20 @@ abstract class EcCore implements RustOpaqueInterface {
   /// This device's short id.
   String myShortId();
 
-  /// Sends files and folders to a paired device.
+  /// Sends files and folders to a paired device. With `open`, it opens them on
+  /// arrival (a fling), at `page` if given.
   Stream<SendUpdate> send({
     required String deviceId,
     required List<String> paths,
+    required bool open,
+    int? page,
   });
 
   /// Starts the device: identity, network presence and receiving.
+  ///
+  /// The core outlives the Dart side: on Android the activity (and its Dart isolate)
+  /// can be recreated while the process keeps receiving in the background. Starting
+  /// again with the same home returns the running core instead of a second one.
   static Future<EcCore> start({required CoreConfig config}) =>
       RustLib.instance.api.crateApiCoreEcCoreStart(config: config);
 }
@@ -122,7 +137,25 @@ sealed class CoreEvent with _$CoreEvent {
   const factory CoreEvent.saved({
     /// Its path.
     required String path,
+
+    /// The sender flung it: open it now.
+    required bool open,
+
+    /// The page to open at, for documents.
+    int? page,
   }) = CoreEvent_Saved;
+
+  /// A paired device flung a web page to open here.
+  const factory CoreEvent.flingUrl({
+    /// Short id of the sender.
+    required String from,
+
+    /// The address (validated: http or https).
+    required String url,
+
+    /// The page title.
+    required String title,
+  }) = CoreEvent_FlingUrl;
 
   /// A transfer finished.
   const factory CoreEvent.receiveFinished() = CoreEvent_ReceiveFinished;

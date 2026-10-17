@@ -77,6 +77,16 @@ enum Command {
         #[arg(long, default_value_t = 8)]
         streams: usize,
     },
+    /// Fling a web page to a paired device, which opens it in its browser.
+    Fling {
+        /// The device id, or a unique prefix of it.
+        device: String,
+        /// The page address (http or https).
+        url: String,
+        /// The page title.
+        #[arg(long, default_value = "")]
+        title: String,
+    },
     /// Connect to a paired device and measure the round-trip time.
     Ping {
         /// The device id, or a unique prefix of it.
@@ -177,6 +187,19 @@ async fn main() -> Result<()> {
         } => {
             let device = find(&trust, &device)?.clone();
             send(Arc::new(identity), &trust, &device, paths, streams).await?;
+        }
+        Command::Fling { device, url, title } => {
+            let device = find(&trust, &device)?.clone();
+            let addrs = addrs_for(&device, Duration::from_secs(3)).await?;
+            let node = Node::bind(
+                Arc::new(identity),
+                trust.devices().map(|d| d.id),
+                SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)),
+            )?;
+            let conn = node.connect(device.id, &addrs).await?;
+            ec_fling::fling(&conn, ec_fling::FlingItem::Url { url, title }).await?;
+            println!("Flung to {}.", device.name);
+            node.shutdown().await;
         }
         Command::Ping { device, count } => {
             let device = find(&trust, &device)?.clone();
@@ -300,7 +323,14 @@ async fn serve(
             println!("  resuming: {} already here", human_bytes(already_have));
         }
         ReceiveEvent::Progress { received, total } => progress.show(received, total, None),
-        ReceiveEvent::Saved { path } => println!("\r  saved {}", path.display()),
+        ReceiveEvent::Saved { path, open } => {
+            let open = if open.is_some() {
+                " (sender asked to open it)"
+            } else {
+                ""
+            };
+            println!("\r  saved {}{open}", path.display())
+        }
         ReceiveEvent::Interrupted { reason } => {
             println!("\r  interrupted ({reason}); it will resume when sent again")
         }
@@ -309,6 +339,16 @@ async fn serve(
     let receiver = Arc::new(Receiver::new(dir.clone(), accept, events));
     router.add(ec_transfer::CONTROL_KIND, receiver.clone())?;
     router.add(ec_transfer::CHUNK_KIND, receiver)?;
+    router.add(
+        ec_fling::FLING_KIND,
+        Arc::new(ec_fling::FlingService::new(Arc::new(
+            |from, item| match item {
+                ec_fling::FlingItem::Url { url, title } => {
+                    println!("{} flung a page: {title} {url}", from.short())
+                }
+            },
+        ))),
+    )?;
     let router = Arc::new(router);
 
     println!(

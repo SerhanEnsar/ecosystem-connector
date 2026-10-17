@@ -15,6 +15,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 [dependencies]
 anyhow = "1.0.104"
 ec-core = { version = "0.0.1", path = "../ec-core" }
+ec-fling = { version = "0.0.1", path = "../ec-fling" }
 ec-net = { version = "0.0.1", path = "../ec-net" }
 ec-runtime = { version = "0.0.1", path = "../ec-runtime" }
 ec-transfer = { version = "0.0.1", path = "../ec-transfer" }

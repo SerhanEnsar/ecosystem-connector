@@ -3,9 +3,9 @@
 | Platform | File | How |
 |---|---|---|
 | Android phone or tablet | `EcosystemConnector-{{VERSION}}-android-arm64-v8a.apk` (most devices) or `-universal.apk` | Open the file on the device and allow installing from this source. Later versions update in place. |
-| macOS | `EcosystemConnector-{{VERSION}}-macos-universal.zip` | Unzip and move the app to Applications. The app is not notarized yet: the first time, right-click it and choose **Open**. |
+| macOS | `EcosystemConnector-{{VERSION}}-macos-universal.zip` | **This is the Mac app.** Unzip and move "Ecosystem Connector" to Applications. It is not notarized yet: the first time, right-click it and choose **Open** (or System Settings → Privacy & Security → Open Anyway). Allow local network access when asked. |
 | Windows | `EcosystemConnector-{{VERSION}}-windows-x64.zip` | Unzip anywhere and run `EcosystemConnector.exe`. SmartScreen may warn because the app is not code-signed yet. |
-| Command line | `ec-cli-{{VERSION}}-<platform>` | Unpack and run `ec --help`. |
+| Command line tool (optional, for developers) | `EcosystemConnector-{{VERSION}}-command-line-<platform>` | Not the app. Unpack and run `ec --help` in a terminal. |
 
 ## Verify
 

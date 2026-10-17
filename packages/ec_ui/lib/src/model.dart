@@ -131,3 +131,64 @@ String formatBytes(num bytes) {
       ? '${bytes.toInt()} B'
       : '${value.toStringAsFixed(1)} ${units[unit]}';
 }
+
+/// What a fling sends: the thing on screen, opened on the other device on arrival.
+sealed class FlingContent {
+  const FlingContent();
+
+  /// What the header shows while dragging, such as `Web page · QUIC`.
+  String get label;
+}
+
+/// A file, opened at [page] if it has pages.
+class FlingFile extends FlingContent {
+  const FlingFile(this.path, {this.page});
+  final String path;
+  final int? page;
+
+  String get name => path.split(RegExp(r'[/\\]')).last;
+
+  @override
+  String get label =>
+      page == null ? 'File · $name' : 'File · $name · page $page';
+}
+
+/// A web page, opened in the browser.
+class FlingPage extends FlingContent {
+  const FlingPage(this.url, {this.title = ''});
+  final String url;
+  final String title;
+
+  @override
+  String get label => 'Web page · ${title.isEmpty ? url : title}';
+}
+
+/// A screenshot of the screen, saved to [path].
+class FlingScreenshot extends FlingContent {
+  const FlingScreenshot(this.path);
+  final String path;
+
+  @override
+  String get label => 'Screenshot';
+}
+
+/// What flinging from the screen edge needs on this device (Android).
+class FlingSetup {
+  const FlingSetup({
+    required this.handleOn,
+    required this.canDrawOverlays,
+    required this.screenAccess,
+  });
+
+  /// The user turned the edge handle on.
+  final bool handleOn;
+
+  /// The app may draw over other apps (needed for the handle).
+  final bool canDrawOverlays;
+
+  /// The accessibility service is on (needed for screenshots and web pages).
+  final bool screenAccess;
+
+  /// Everything is in place.
+  bool get ready => handleOn && canDrawOverlays && screenAccess;
+}

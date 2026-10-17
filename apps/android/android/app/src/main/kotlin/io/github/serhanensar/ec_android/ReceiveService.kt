@@ -56,6 +56,7 @@ class ReceiveService : Service() {
                 acquire()
             }
         }
+        FlingHandle.get(this).sync()
         // Not sticky: after the process dies the core is gone too, so a restarted
         // service would claim to be ready when it is not.
         return START_NOT_STICKY
