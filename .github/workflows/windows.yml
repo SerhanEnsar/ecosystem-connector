@@ -54,3 +54,8 @@ jobs:
         working-directory: apps/windows
       - run: flutter build windows --debug
         working-directory: apps/windows
+      - name: Show the full build log
+        if: failure()
+        working-directory: apps/windows
+        shell: bash
+        run: flutter build windows --debug --verbose 2>&1 | grep -iE "cargokit|error|SEVERE|exception|rustc|cargo" | head -150
