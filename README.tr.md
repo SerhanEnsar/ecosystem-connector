@@ -49,7 +49,7 @@ sayfasından indir:
 | Android telefon veya tablet | `…-android-arm64-v8a.apk` (çoğu cihaz) ya da `…-android-universal.apk` |
 | macOS | `…-macos-universal.zip` |
 | Windows | `…-windows-x64.zip` |
-| Komut satırı | `ec-cli-…` |
+| Komut satırı aracı (isteğe bağlı) | `…-command-line-…` |
 
 İlk sürümler ön sürüm (pre-release) olarak işaretlenir. Uygulamalar eşleşebilir (QR kod
 ya da link), eşleşmiş cihazları görür, dosya gönderip alabilir; `ec` aracı da çalışır.
