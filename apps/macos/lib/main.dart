@@ -10,6 +10,7 @@ void main() {
   runEcApp(
     EcPlatform.macos,
     PlatformHooks(
+      opensFlings: true,
       deviceName: () async => Platform.localHostname.split('.').first,
       receiveDir: () async {
         final downloads = await getDownloadsDirectory();

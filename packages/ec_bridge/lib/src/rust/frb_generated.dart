@@ -69,7 +69,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1455101375;
+  int get rustContentHash => -20268719;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -89,6 +89,13 @@ abstract class RustLibApi extends BaseApi {
   List<DeviceView> crateApiCoreEcCoreDevices({required EcCore that});
 
   Stream<CoreEvent> crateApiCoreEcCoreEvents({required EcCore that});
+
+  Future<void> crateApiCoreEcCoreFlingUrl({
+    required EcCore that,
+    required String deviceId,
+    required String url,
+    required String title,
+  });
 
   void crateApiCoreEcCoreForget({
     required EcCore that,
@@ -112,6 +119,8 @@ abstract class RustLibApi extends BaseApi {
     required EcCore that,
     required String deviceId,
     required List<String> paths,
+    required bool open,
+    int? page,
   });
 
   Future<EcCore> crateApiCoreEcCoreStart({required CoreConfig config});
@@ -231,6 +240,47 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiCoreEcCoreFlingUrl({
+    required EcCore that,
+    required String deviceId,
+    required String url,
+    required String title,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEcCore(
+            that,
+            serializer,
+          );
+          sse_encode_String(deviceId, serializer);
+          sse_encode_String(url, serializer);
+          sse_encode_String(title, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiCoreEcCoreFlingUrlConstMeta,
+        argValues: [that, deviceId, url, title],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreEcCoreFlingUrlConstMeta => const TaskConstMeta(
+    debugName: "EcCore_fling_url",
+    argNames: ["that", "deviceId", "url", "title"],
+  );
+
+  @override
   void crateApiCoreEcCoreForget({
     required EcCore that,
     required String deviceId,
@@ -244,7 +294,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_String(deviceId, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -278,7 +328,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 5,
+              funcId: 6,
               port: port_,
             );
           },
@@ -321,7 +371,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 6,
+              funcId: 7,
               port: port_,
             );
           },
@@ -354,7 +404,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -380,7 +430,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -406,7 +456,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -427,6 +477,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required EcCore that,
     required String deviceId,
     required List<String> paths,
+    required bool open,
+    int? page,
   }) {
     final sink = RustStreamSink<SendUpdate>();
     unawaited(
@@ -440,11 +492,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             );
             sse_encode_String(deviceId, serializer);
             sse_encode_list_String(paths, serializer);
+            sse_encode_bool(open, serializer);
+            sse_encode_opt_box_autoadd_u_32(page, serializer);
             sse_encode_StreamSink_send_update_Sse(sink, serializer);
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 10,
+              funcId: 11,
               port: port_,
             );
           },
@@ -453,7 +507,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             decodeErrorData: null,
           ),
           constMeta: kCrateApiCoreEcCoreSendConstMeta,
-          argValues: [that, deviceId, paths, sink],
+          argValues: [that, deviceId, paths, open, page, sink],
           apiImpl: this,
         ),
       ),
@@ -463,7 +517,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCoreEcCoreSendConstMeta => const TaskConstMeta(
     debugName: "EcCore_send",
-    argNames: ["that", "deviceId", "paths", "sink"],
+    argNames: ["that", "deviceId", "paths", "open", "page", "sink"],
   );
 
   @override
@@ -476,7 +530,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 12,
             port: port_,
           );
         },
@@ -504,7 +558,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 13,
             port: port_,
           );
         },
@@ -604,6 +658,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
   CoreConfig dco_decode_core_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -637,10 +697,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           total: dco_decode_u_64(raw[2]),
         );
       case 4:
-        return CoreEvent_Saved(path: dco_decode_String(raw[1]));
+        return CoreEvent_Saved(
+          path: dco_decode_String(raw[1]),
+          open: dco_decode_bool(raw[2]),
+          page: dco_decode_opt_box_autoadd_u_32(raw[3]),
+        );
       case 5:
-        return CoreEvent_ReceiveFinished();
+        return CoreEvent_FlingUrl(
+          from: dco_decode_String(raw[1]),
+          url: dco_decode_String(raw[2]),
+          title: dco_decode_String(raw[3]),
+        );
       case 6:
+        return CoreEvent_ReceiveFinished();
+      case 7:
         return CoreEvent_ReceiveInterrupted(reason: dco_decode_String(raw[1]));
       default:
         throw Exception("unreachable");
@@ -677,6 +747,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
+  }
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_32(raw);
   }
 
   @protected
@@ -843,6 +919,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_32(deserializer));
+  }
+
+  @protected
   CoreConfig sse_decode_core_config(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_home = sse_decode_String(deserializer);
@@ -886,10 +968,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
       case 4:
         var var_path = sse_decode_String(deserializer);
-        return CoreEvent_Saved(path: var_path);
+        var var_open = sse_decode_bool(deserializer);
+        var var_page = sse_decode_opt_box_autoadd_u_32(deserializer);
+        return CoreEvent_Saved(path: var_path, open: var_open, page: var_page);
       case 5:
-        return CoreEvent_ReceiveFinished();
+        var var_from = sse_decode_String(deserializer);
+        var var_url = sse_decode_String(deserializer);
+        var var_title = sse_decode_String(deserializer);
+        return CoreEvent_FlingUrl(
+          from: var_from,
+          url: var_url,
+          title: var_title,
+        );
       case 6:
+        return CoreEvent_ReceiveFinished();
+      case 7:
         var var_reason = sse_decode_String(deserializer);
         return CoreEvent_ReceiveInterrupted(reason: var_reason);
       default:
@@ -941,6 +1034,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_32(deserializer));
+    } else {
+      return null;
+    }
   }
 
   @protected
@@ -1165,6 +1269,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self, serializer);
+  }
+
+  @protected
   void sse_encode_core_config(CoreConfig self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.home, serializer);
@@ -1199,13 +1309,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(3, serializer);
         sse_encode_u_64(received, serializer);
         sse_encode_u_64(total, serializer);
-      case CoreEvent_Saved(path: final path):
+      case CoreEvent_Saved(
+        path: final path,
+        open: final open,
+        page: final page,
+      ):
         sse_encode_i_32(4, serializer);
         sse_encode_String(path, serializer);
-      case CoreEvent_ReceiveFinished():
+        sse_encode_bool(open, serializer);
+        sse_encode_opt_box_autoadd_u_32(page, serializer);
+      case CoreEvent_FlingUrl(
+        from: final from,
+        url: final url,
+        title: final title,
+      ):
         sse_encode_i_32(5, serializer);
-      case CoreEvent_ReceiveInterrupted(reason: final reason):
+        sse_encode_String(from, serializer);
+        sse_encode_String(url, serializer);
+        sse_encode_String(title, serializer);
+      case CoreEvent_ReceiveFinished():
         sse_encode_i_32(6, serializer);
+      case CoreEvent_ReceiveInterrupted(reason: final reason):
+        sse_encode_i_32(7, serializer);
         sse_encode_String(reason, serializer);
     }
   }
@@ -1248,6 +1373,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_32(self, serializer);
+    }
   }
 
   @protected
@@ -1375,6 +1510,18 @@ class EcCoreImpl extends RustOpaque implements EcCore {
   Stream<CoreEvent> events() =>
       RustLib.instance.api.crateApiCoreEcCoreEvents(that: this);
 
+  /// Flings a web page to a paired device, which opens it in its browser.
+  Future<void> flingUrl({
+    required String deviceId,
+    required String url,
+    required String title,
+  }) => RustLib.instance.api.crateApiCoreEcCoreFlingUrl(
+    that: this,
+    deviceId: deviceId,
+    url: url,
+    title: title,
+  );
+
   /// Removes a paired device.
   void forget({required String deviceId}) => RustLib.instance.api
       .crateApiCoreEcCoreForget(that: this, deviceId: deviceId);
@@ -1399,13 +1546,18 @@ class EcCoreImpl extends RustOpaque implements EcCore {
   String myShortId() =>
       RustLib.instance.api.crateApiCoreEcCoreMyShortId(that: this);
 
-  /// Sends files and folders to a paired device.
+  /// Sends files and folders to a paired device. With `open`, it opens them on
+  /// arrival (a fling), at `page` if given.
   Stream<SendUpdate> send({
     required String deviceId,
     required List<String> paths,
+    required bool open,
+    int? page,
   }) => RustLib.instance.api.crateApiCoreEcCoreSend(
     that: this,
     deviceId: deviceId,
     paths: paths,
+    open: open,
+    page: page,
   );
 }

@@ -8,6 +8,57 @@ import 'package:url_launcher/url_launcher.dart';
 import 'hooks.dart';
 import 'notifier.dart';
 
+/// File types that can run code when opened. A flung file of one of these types is
+/// shown in its folder instead of being opened.
+const runnableExtensions = {
+  'app',
+  'pkg',
+  'mpkg',
+  'dmg',
+  'iso',
+  'command',
+  'tool',
+  'terminal',
+  'workflow',
+  'action',
+  'scpt',
+  'applescript',
+  'sh',
+  'bash',
+  'zsh',
+  'csh',
+  'fish',
+  'py',
+  'rb',
+  'pl',
+  'php',
+  'jar',
+  'exe',
+  'msi',
+  'msix',
+  'appx',
+  'bat',
+  'cmd',
+  'com',
+  'scr',
+  'ps1',
+  'psm1',
+  'vbs',
+  'vbe',
+  'js',
+  'jse',
+  'wsf',
+  'wsh',
+  'hta',
+  'lnk',
+  'reg',
+  'url',
+  'webloc',
+  'inetloc',
+  'desktop',
+  'apk',
+};
+
 /// [EcController] backed by the Rust core.
 class BridgeController extends EcController {
   BridgeController(this._core, this._hooks, this._notifier) {
@@ -134,10 +185,13 @@ class BridgeController extends EcController {
             total: total.toInt(),
           );
         }
-      case CoreEvent_Saved(:final path):
+      case CoreEvent_Saved(:final path, :final open):
         _savedInTransfer++;
         _recent.insert(0, path);
         if (_recent.length > 20) _recent.removeLast();
+        if (open && _hooks.opensFlings) unawaited(openSafely(path));
+      case CoreEvent_FlingUrl(:final from, :final url, :final title):
+        unawaited(_openPage(url, title, _nameOf(from)));
       case CoreEvent_ReceiveFinished():
         final from = _receiving?.from ?? 'a paired device';
         final name = _recent.isEmpty
@@ -185,33 +239,88 @@ class BridgeController extends EcController {
     return files.map((f) => f.path).toList();
   }
 
+  Future<void> _openPage(String url, String title, String from) async {
+    final uri = Uri.tryParse(url);
+    // The core already accepts only http and https; check again before launching.
+    if (uri == null || !(uri.isScheme('http') || uri.isScheme('https'))) return;
+    if (_hooks.opensFlings) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+    await _notifier.received(
+      title.isEmpty ? url : title,
+      'Web page from $from',
+    );
+  }
+
+  /// Opens a flung file with its default app, unless it could run code: those are
+  /// only shown in their folder.
+  Future<void> openSafely(String path) async {
+    final name = path.split(RegExp(r'[/\\]')).last;
+    final dot = name.lastIndexOf('.');
+    final ext = dot < 0 ? '' : name.substring(dot + 1).toLowerCase();
+    if (runnableExtensions.contains(ext)) {
+      final folder = path.substring(0, path.length - name.length);
+      await launchUrl(Uri.directory(folder));
+      return;
+    }
+    await open(path);
+  }
+
   @override
-  Stream<SendStatus> send(EcDevice device, List<String> paths) => _core
-      .send(deviceId: device.id, paths: paths)
-      .map(
-        (update) => switch (update) {
-          SendUpdate_Progress(:final sent, :final toSend, :final paths) =>
-            SendProgress(
-              sent: sent.toInt(),
-              total: toSend.toInt(),
-              paths: paths,
-            ),
-          SendUpdate_Retrying(:final reason) => SendRetrying(reason),
-          SendUpdate_Done(
-            :final files,
-            :final bytes,
-            :final millis,
-            :final paths,
-          ) =>
-            SendDone(
-              files: files,
-              bytes: bytes.toInt(),
-              elapsed: Duration(milliseconds: millis.toInt()),
-              paths: paths,
-            ),
-          SendUpdate_Failed(:final reason) => SendFailed(reason),
-        },
-      );
+  Stream<SendStatus> send(EcDevice device, List<String> paths) =>
+      _sendStatus(_core.send(deviceId: device.id, paths: paths, open: false));
+
+  @override
+  Stream<SendStatus> fling(EcDevice device, FlingContent content) =>
+      switch (content) {
+        FlingFile(:final path, :final page) => _sendStatus(
+          _core.send(
+            deviceId: device.id,
+            paths: [path],
+            open: true,
+            page: page,
+          ),
+        ),
+        FlingScreenshot(:final path) => _sendStatus(
+          _core.send(deviceId: device.id, paths: [path], open: true),
+        ),
+        FlingPage(:final url, :final title) => _flingPage(device, url, title),
+      };
+
+  Stream<SendStatus> _flingPage(
+    EcDevice device,
+    String url,
+    String title,
+  ) async* {
+    final watch = Stopwatch()..start();
+    try {
+      await _core.flingUrl(deviceId: device.id, url: url, title: title);
+      yield SendDone(files: 0, bytes: 0, elapsed: watch.elapsed, paths: 1);
+    } catch (e) {
+      yield SendFailed('$e');
+    }
+  }
+
+  Stream<SendStatus> _sendStatus(Stream<SendUpdate> updates) => updates.map(
+    (update) => switch (update) {
+      SendUpdate_Progress(:final sent, :final toSend, :final paths) =>
+        SendProgress(sent: sent.toInt(), total: toSend.toInt(), paths: paths),
+      SendUpdate_Retrying(:final reason) => SendRetrying(reason),
+      SendUpdate_Done(
+        :final files,
+        :final bytes,
+        :final millis,
+        :final paths,
+      ) =>
+        SendDone(
+          files: files,
+          bytes: bytes.toInt(),
+          elapsed: Duration(milliseconds: millis.toInt()),
+          paths: paths,
+        ),
+      SendUpdate_Failed(:final reason) => SendFailed(reason),
+    },
+  );
 
   @override
   Future<void> forget(EcDevice device) async {

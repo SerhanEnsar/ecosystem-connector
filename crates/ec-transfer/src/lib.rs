@@ -18,7 +18,7 @@ mod sender;
 pub use error::{Error, Result};
 pub use manifest::{FileEntry, SourceFile, prepare};
 pub use path::RelPath;
-pub use proto::{CHUNK_KIND, CONTROL_KIND};
+pub use proto::{CHUNK_KIND, CONTROL_KIND, OpenHint};
 pub use receiver::{AcceptPolicy, Offer, PARTIAL_DIR, ReceiveEvent, ReceiveEvents, Receiver};
 pub use sender::{
     AddrSource, SendEvent, SendEvents, SendOptions, SendReport, send_paths, send_prepared,

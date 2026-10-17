@@ -52,6 +52,9 @@ abstract class EcController extends ChangeNotifier {
   /// Sends [paths] to [device].
   Stream<SendStatus> send(EcDevice device, List<String> paths);
 
+  /// Sends [content] to [device], which opens it on arrival.
+  Stream<SendStatus> fling(EcDevice device, FlingContent content);
+
   /// Removes a paired device.
   Future<void> forget(EcDevice device);
 

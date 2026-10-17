@@ -77,7 +77,7 @@ async fn pair_then_send_a_file() {
     let src = root.path().join("notes.txt");
     std::fs::write(&src, b"from the tablet").unwrap();
     let report = tablet
-        .send(mac.id(), vec![src], Arc::new(|_| {}))
+        .send(mac.id(), vec![src], None, Arc::new(|_| {}))
         .await
         .unwrap();
     assert_eq!(report.files, 1);
@@ -125,7 +125,7 @@ async fn works_without_mdns() {
     let src = root.path().join("doc.pdf");
     std::fs::write(&src, b"no multicast needed").unwrap();
     tablet
-        .send(mac.id(), vec![src], Arc::new(|_| {}))
+        .send(mac.id(), vec![src], None, Arc::new(|_| {}))
         .await
         .unwrap();
     assert_eq!(
@@ -150,12 +150,36 @@ async fn works_without_mdns() {
     // And the other way, over the connection the tablet opened.
     let back = root.path().join("reply.txt");
     std::fs::write(&back, b"from the Mac").unwrap();
-    mac.send(tablet.id(), vec![back], Arc::new(|_| {}))
+    mac.send(tablet.id(), vec![back], None, Arc::new(|_| {}))
         .await
         .unwrap();
     assert_eq!(
         std::fs::read(root.path().join("Tablet/inbox/reply.txt")).unwrap(),
         b"from the Mac"
+    );
+
+    // A web page flung from the tablet arrives as an event on the Mac.
+    let mut mac_events = mac.subscribe();
+    tablet
+        .fling_url(mac.id(), "https://example.com/notes".into(), "Notes".into())
+        .await
+        .unwrap();
+    let flung = async {
+        loop {
+            if let Event::Fling { item, .. } = mac_events.recv().await.unwrap() {
+                return item;
+            }
+        }
+    };
+    let item = tokio::time::timeout(Duration::from_secs(5), flung)
+        .await
+        .unwrap();
+    assert_eq!(
+        item,
+        ec_fling::FlingItem::Url {
+            url: "https://example.com/notes".into(),
+            title: "Notes".into()
+        }
     );
 }
 
@@ -164,6 +188,6 @@ async fn sending_to_an_unpaired_device_is_refused() {
     let root = tempfile::tempdir().unwrap();
     let a = runtime("A", root.path()).await;
     let b = runtime("B", root.path()).await;
-    let result = a.send(b.id(), vec![], Arc::new(|_| {})).await;
+    let result = a.send(b.id(), vec![], None, Arc::new(|_| {})).await;
     assert!(matches!(result, Err(ec_runtime::Error::NotPaired)));
 }

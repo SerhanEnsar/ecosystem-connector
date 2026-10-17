@@ -143,6 +143,59 @@ async fn sends_a_folder_with_large_small_and_empty_files() {
 }
 
 #[tokio::test]
+async fn the_open_hint_reaches_the_receiver() {
+    let a = Arc::new(DeviceIdentity::generate("Tablet").unwrap());
+    let b = Arc::new(DeviceIdentity::generate("Mac").unwrap());
+    let sender = Arc::new(Node::bind(a.clone(), [b.id()], SocketAddr::new(LOCALHOST, 0)).unwrap());
+    let receiver =
+        Arc::new(Node::bind(b.clone(), [a.id()], SocketAddr::new(LOCALHOST, 0)).unwrap());
+    let dir = tempfile::tempdir().unwrap();
+    let saved = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let sink = saved.clone();
+    let service = Arc::new(Receiver::new(
+        dir.path().to_path_buf(),
+        Arc::new(|_| true),
+        Arc::new(move |e| {
+            if let ec_transfer::ReceiveEvent::Saved { open, .. } = e {
+                sink.lock().unwrap().push(open);
+            }
+        }),
+    ));
+    let mut router = Router::with_session("Mac", |_, _| {});
+    router.add(CONTROL_KIND, service.clone()).unwrap();
+    router.add(CHUNK_KIND, service).unwrap();
+    let router = Arc::new(router);
+    let addr = SocketAddr::new(LOCALHOST, receiver.local_addr().unwrap().port());
+    tokio::spawn(async move {
+        while let Some(Ok(conn)) = receiver.accept().await {
+            tokio::spawn(serve_connection(conn, router.clone()));
+        }
+    });
+
+    let src = tempfile::tempdir().unwrap();
+    let file = src.path().join("slides.pdf");
+    std::fs::write(&file, b"%PDF-1.7").unwrap();
+    let options = SendOptions {
+        open: Some(ec_transfer::OpenHint { page: Some(12) }),
+        ..SendOptions::default()
+    };
+    send_paths(
+        sender,
+        b.id(),
+        vec![addr],
+        vec![file],
+        options,
+        Arc::new(|_| {}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        *saved.lock().unwrap(),
+        vec![Some(ec_transfer::OpenHint { page: Some(12) })]
+    );
+}
+
+#[tokio::test]
 async fn sending_twice_never_overwrites() {
     let pair = pair(LOCALHOST).await;
     let src = tempfile::tempdir().unwrap();

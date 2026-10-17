@@ -465,6 +465,7 @@ dependencies = [
  "anyhow",
  "clap",
  "ec-core",
+ "ec-fling",
  "ec-net",
  "ec-transfer",
  "gethostname",
@@ -494,6 +495,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ec-fling"
+version = "0.0.1"
+dependencies = [
+ "ec-core",
+ "ec-net",
+ "postcard",
+ "serde",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "ec-handoff"
 version = "0.0.1"
 
@@ -520,6 +534,7 @@ name = "ec-runtime"
 version = "0.0.1"
 dependencies = [
  "ec-core",
+ "ec-fling",
  "ec-net",
  "ec-transfer",
  "tempfile",
@@ -556,6 +571,7 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "ec-core",
+ "ec-fling",
  "ec-net",
  "ec-runtime",
  "ec-transfer",

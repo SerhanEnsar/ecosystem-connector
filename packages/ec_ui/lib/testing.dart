@@ -101,6 +101,15 @@ class FakeController extends EcController {
     return sending.stream;
   }
 
+  /// Flings requested through [fling].
+  final flings = <(EcDevice, FlingContent)>[];
+
+  @override
+  Stream<SendStatus> fling(EcDevice device, FlingContent content) {
+    flings.add((device, content));
+    return sending.stream;
+  }
+
   @override
   Future<void> forget(EcDevice device) async {
     devices = _devices.where((d) => d.id != device.id).toList();

@@ -8,6 +8,7 @@ class PlatformHooks {
     this.openFile,
     this.sharedFiles,
     this.vpnActive,
+    this.opensFlings = false,
   });
 
   /// The name this device gets when it is set up for the first time.
@@ -31,4 +32,9 @@ class PlatformHooks {
 
   /// Whether a VPN is on, which can stop other devices from reaching this one.
   final Future<bool> Function()? vpnActive;
+
+  /// Whether flung files and pages are opened as soon as they arrive. True on
+  /// desktops; phones and tablets only notify, because Android does not let apps
+  /// open things from the background.
+  final bool opensFlings;
 }
