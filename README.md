@@ -62,18 +62,58 @@ flowchart LR
   verified with BLAKE3, so an interrupted transfer only sends what is missing and an edited
   file only sends what changed.
 
-Details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the wire format in
+[docs/PROTOCOL.md](docs/PROTOCOL.md) and the security analysis in
+[docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).
 
 ## Roadmap
 
 - [x] Phase 0: project skeleton, CI, security policy
-- [ ] Phase 1: device identity, pairing, discovery, encrypted connection
+- [x] Phase 1: device identity, pairing, discovery, encrypted connection
 - [ ] Phase 2: fast resumable transfer and cable boost, first benchmarks
 - [ ] Phase 3: desktop and Android app v0
 - [ ] Phase 4: linked files
 - [ ] Phase 5: shared clipboard and browser extension
 - [ ] Phase 6: handoff
 - [ ] Phase 7: signed releases
+
+## Try it: the `ec` command line tool
+
+The apps are not ready yet, but the core already works from the command line. On two
+computers in the same network (or two terminals on one, each with its own `--home`):
+
+```sh
+cargo install --path crates/ec-cli   # installs the `ec` command
+```
+
+```console
+mac$ ec pair
+█▀▀▀▀▀█ ▄▀█▄ ...   (QR code)
+Scan the code, or run this on the other device:
+  ec join 'ecpair:1?id=1abe79d4...&s=...&a=192.168.1.20:50112'
+
+tablet$ ec join 'ecpair:1?id=1abe79d4...'
+Serhan's Mac (1ABE-79D4) wants to pair.
+Does the other device show the code 057 116? [y/N] y
+Paired with Serhan's Mac (1ABE-79D4).
+
+tablet$ ec serve
+Galaxy Tab (9703-2A5D) is online on UDP port 50430. Press Ctrl-C to stop.
+
+mac$ ec discover
+9703-2A5D  Galaxy Tab               paired      192.168.1.31:50430
+
+mac$ ec ping 9703
+Connected to "Galaxy Tab" at 192.168.1.31:50430 (encrypted, identity verified).
+  ping 1: 0.43 ms
+```
+
+A device that is not paired is refused during the TLS handshake:
+
+```console
+stranger$ ec ping 9703
+Error: ... invalid peer certificate: ApplicationVerificationFailure
+```
 
 ## Building from source
 
@@ -90,7 +130,8 @@ cd app && flutter run # app (choose macOS, Windows or an Android device)
 ## Repository layout
 
 ```
-crates/      Rust core: identity, networking, transfer, sync, clipboard, handoff
+crates/      Rust core: identity, networking, transfer, sync, clipboard, handoff,
+             and the `ec` command line tool
 app/         Flutter app for macOS, Windows and Android
 extension/   Browser extension (planned)
 bench/       Reproducible benchmarks that produce the charts in this README

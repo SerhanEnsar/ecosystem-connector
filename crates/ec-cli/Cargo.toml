@@ -1,0 +1,27 @@
+[package]
+name = "ec-cli"
+description = "Command line tool for trying out Ecosystem Connector: pairing, discovery and connections."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "ec"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.104"
+clap = { version = "4.6.7", features = ["derive", "env"] }
+ec-core = { version = "0.0.1", path = "../ec-core" }
+ec-net = { version = "0.0.1", path = "../ec-net" }
+gethostname = "1.1.0"
+qrcode = { version = "0.14.1", default-features = false }
+tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "signal", "time"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+
+[lints]
+workspace = true

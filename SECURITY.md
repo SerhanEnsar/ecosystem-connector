@@ -20,12 +20,22 @@ The project is in early development. Only the latest commit on `main` receives f
 
 ## Security design
 
+In place today:
+
 - No cloud service: traffic stays on the local network between paired devices.
-- Pairing uses a QR code plus a short verification code shown on both devices.
-- All connections use mutual TLS 1.3 over QUIC with pinned device keys. Connections from
+- Pairing uses a single-use QR code invite plus a 6-digit verification code that the
+  user confirms on both devices.
+- All connections use mutual TLS 1.3 over QUIC with pinned device keys. Handshakes from
   unpaired devices are refused.
-- Incoming file names are sanitised; a peer can never write outside the receive folder.
-- Network messages have size limits and the parsers are fuzz tested.
+- Network messages are size-limited before any allocation; device names from other
+  devices are sanitised.
 - Dependencies are checked against the RustSec advisory database in CI.
 
-The full threat model will be documented in `docs/THREAT_MODEL.md`.
+Planned:
+
+- Incoming file names will be sanitised so a peer can never write outside the receive
+  folder (phase 2, with file transfer).
+- Fuzz targets for every network parser (phase 2).
+- Private keys moved into the OS keychain or keystore.
+
+The full analysis is in [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).

@@ -47,34 +47,37 @@ flowchart TB
 | `ec-transfer` | Splits files into chunks, sends them over parallel streams, verifies BLAKE3 hashes, resumes from the missing chunks, sends only changed chunks of edited files. |
 | `ec-sync` | Linked files: a stable file ID shared by all devices, version vectors, file watching, history of previous versions, conflict copies. |
 | `ec-clipboard` | Clipboard and link messages. |
+| `ec-cli` | The `ec` command line tool: pairing, discovery and connection checks without the app. |
 | `ec-handoff` | Broadcasts the "active item" (a file, or a URL with scroll position) so another device can offer to continue it. |
 
-## Key flows (planned)
+## Key flows
 
 ### Pairing
+
+Implemented in phase 1. The exact messages are in [PROTOCOL.md](PROTOCOL.md).
 
 ```mermaid
 sequenceDiagram
     participant M as Mac
     participant A as Android
-    M->>M: Show QR code (device key fingerprint + one-time secret)
+    M->>M: Show QR code (device id + one-time secret + addresses)
     A->>M: Scan QR, connect
-    M-->>A: Handshake bound to the one-time secret
+    A->>M: TLS handshake (Mac pinned by id), then proof of the secret
     Note over M,A: Both show the same 6-digit code
     M->>M: User confirms
     A->>A: User confirms
-    M->>M: Store Android's public key
-    A->>A: Store Mac's public key
+    M->>M: Store Android's device id
+    A->>A: Store Mac's device id
 ```
 
-### Cable boost
+### Cable boost (planned)
 
 When a new network interface appears (USB tethering on Android, a Thunderbolt or USB-C
 bridge between computers), `ec-net` probes the peer over it. If the new path is faster,
 the QUIC connection migrates to it; if migration is not possible, a new connection is
 opened and `ec-transfer` resumes from the chunks already received.
 
-### Linked files
+### Linked files (planned)
 
 A linked file has the same ID on every device. When it changes on disk, the watcher waits
 for writes to settle, hashes the chunks, and sends only the changed ones to the peers.
