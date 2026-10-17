@@ -1,0 +1,28 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# Secrets and signing material: never commit these
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+key.properties
+*.mobileprovision
+
+# Local device identity and trust store created during development
+.ecosystem-connector/
+
+# Benchmark raw output (charts in docs/media are committed)
+/bench/out/
