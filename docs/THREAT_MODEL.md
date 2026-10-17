@@ -2,7 +2,7 @@
 
 This document lists what Ecosystem Connector protects, who it protects against, and
 which risks remain. It is updated whenever a feature changes what crosses the network.
-Last reviewed for **phase 2** (identity, pairing, discovery, connections, file transfer).
+Last reviewed for **phase 3a** (apps, remembered addresses, connection reuse).
 
 ## Assets
 
@@ -35,6 +35,7 @@ Last reviewed for **phase 2** (identity, pairing, discovery, connections, file t
 | **Malicious paired device or peer** | Send malformed or huge messages, hostile device names | Messages are limited to 64 KiB before allocation, decoding rejects trailing bytes, device names are stripped of control and bidi characters and cut to 64 characters (prevents terminal or UI spoofing). |
 | **Malicious sender: file names** | Write outside the receive folder (`../`, absolute paths, symlinked folders), overwrite files, disguise extensions, use names Windows treats as devices | Every received path is a `RelPath`: 1–32 components, no `.`/`..`, separators, drive colons, control or bidi characters, trailing dots/spaces or reserved Windows names. Folders are created one by one and refused if they are links. Files are never overwritten (` (1)` is appended). Tested in `path_traversal_in_an_offer_is_refused` and fuzzed (`rel_path`). |
 | **Malicious sender: data** | Corrupt files, send more data than announced, exhaust memory | Each chunk is checked against its BLAKE3 hash before it is written; a stream must hold exactly the chunk's length. At most 256 MiB of chunk data is held in memory and 8 transfers run at once. Offers are limited to 100 000 files and 8192 chunks per file. Tested in `corrupted_chunk_is_rejected_and_can_be_resent`. |
+| **Address spoofing** | Answer at a paired device's remembered address | The remembered address is only a hint for where to dial; the handshake still requires the pinned certificate, so an impostor at that address fails like any other. |
 | **Hijacking another device's transfer** | Send chunks into a transfer started by a different device | Chunk streams are matched to a transfer by id **and** by the authenticated device of the connection; chunks from another device are dropped. |
 
 ## Known risks and limitations (phase 1)
@@ -51,6 +52,10 @@ Last reviewed for **phase 2** (identity, pairing, discovery, connections, file t
   device is refused either way.
 - **IPv4 only.** The node listens on IPv4. IPv6 support needs scoped link-local
   addresses and is planned.
+- **Remembered addresses are stored.** `trusted-devices.json` now holds the last known
+  addresses of paired devices (local network addresses, not secrets).
+- **Phones and tablets behind a VPN** cannot accept connections from the Wi-Fi; the app
+  shows a notice and relies on connections it opens itself.
 - **No disk quota.** A paired device can send as much as the receiving disk holds.
   Paired devices are trusted with this; a per-transfer confirmation for large offers is
   planned for the apps.

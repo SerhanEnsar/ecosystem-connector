@@ -13,6 +13,7 @@ class FakeController extends EcController {
     this.myShortId = '1ABE-79D4',
     List<EcDevice>? devices,
     this.canScan = false,
+    this.vpnActive = false,
   }) : _devices = devices ?? [];
 
   @override
@@ -23,6 +24,9 @@ class FakeController extends EcController {
 
   @override
   final bool canScan;
+
+  @override
+  final bool vpnActive;
 
   List<EcDevice> _devices;
   ReceiveStatus? _receiving;

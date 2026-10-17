@@ -3,6 +3,8 @@ package io.github.serhanensar.ec_android
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -32,6 +34,7 @@ class MainActivity : FlutterActivity() {
                     "prepare" -> prepare(result)
                     "scanInvite" -> scan(result)
                     "takeShared" -> result.success(sharedFiles.take())
+                    "vpnActive" -> result.success(vpnActive())
                     else -> result.notImplemented()
                 }
             }
@@ -47,6 +50,17 @@ class MainActivity : FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         sharedFiles.handle(intent)
+    }
+
+    /**
+     * Whether traffic goes through a VPN. Android then delivers only packets that
+     * arrive through the VPN, so other devices on the Wi-Fi cannot open connections to
+     * this one (they still work over connections this device opens).
+     */
+    private fun vpnActive(): Boolean {
+        val connectivity = getSystemService(ConnectivityManager::class.java)
+        val capabilities = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
+        return capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
     }
 
     private fun deviceName(): String =

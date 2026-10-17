@@ -7,6 +7,7 @@ class PlatformHooks {
     this.scanInvite,
     this.openFile,
     this.sharedFiles,
+    this.vpnActive,
   });
 
   /// The name this device gets when it is set up for the first time.
@@ -27,4 +28,7 @@ class PlatformHooks {
 
   /// Files shared to the app from other apps (Android share sheet).
   final Stream<List<String>>? sharedFiles;
+
+  /// Whether a VPN is on, which can stop other devices from reaching this one.
+  final Future<bool> Function()? vpnActive;
 }

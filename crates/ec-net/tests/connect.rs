@@ -40,13 +40,13 @@ fn confirm_with(
 #[tokio::test]
 async fn pairing_succeeds_and_both_sides_see_the_same_code() {
     let (mac, phone) = (identity("Mac"), identity("Phone"));
-    let listener = PairingListener::bind(mac.clone(), any_port()).unwrap();
+    let listener = PairingListener::bind(mac.clone(), any_port(), 4000).unwrap();
     let invite = listener.invite(&[LOCALHOST]).unwrap();
 
     let (mac_confirm, mac_code) = confirm_with(true);
     let responder = tokio::spawn(async move { listener.accept(mac_confirm).await });
     let (phone_confirm, phone_code) = confirm_with(true);
-    let paired_mac = pair_with(phone.clone(), &invite, phone_confirm)
+    let paired_mac = pair_with(phone.clone(), &invite, 5000, phone_confirm)
         .await
         .unwrap();
     let paired_phone = responder.await.unwrap().unwrap();
@@ -55,20 +55,23 @@ async fn pairing_succeeds_and_both_sides_see_the_same_code() {
     assert_eq!(paired_mac.name, "Mac");
     assert_eq!(paired_phone.id, phone.id());
     assert_eq!(paired_phone.name, "Phone");
+    // Each side learns where the other's node listens.
+    assert_eq!(paired_mac.addr.unwrap().port(), 4000);
+    assert_eq!(paired_phone.addr.unwrap().port(), 5000);
     assert_eq!(mac_code.await.unwrap(), phone_code.await.unwrap());
 }
 
 #[tokio::test]
 async fn pairing_with_wrong_secret_is_rejected_and_closes_the_window() {
     let (mac, phone) = (identity("Mac"), identity("Phone"));
-    let listener = PairingListener::bind(mac, any_port()).unwrap();
+    let listener = PairingListener::bind(mac, any_port(), 4000).unwrap();
     let mut invite = listener.invite(&[LOCALHOST]).unwrap();
     invite.secret = PairingSecret::generate();
 
     let (mac_confirm, _) = confirm_with(true);
     let responder = tokio::spawn(async move { listener.accept(mac_confirm).await });
     let (phone_confirm, _) = confirm_with(true);
-    let initiator = pair_with(phone, &invite, phone_confirm).await;
+    let initiator = pair_with(phone, &invite, 5000, phone_confirm).await;
 
     assert!(
         matches!(initiator, Err(Error::PairingFailed(_))),
@@ -83,13 +86,13 @@ async fn pairing_with_wrong_secret_is_rejected_and_closes_the_window() {
 #[tokio::test]
 async fn pairing_fails_when_one_user_declines() {
     let (mac, phone) = (identity("Mac"), identity("Phone"));
-    let listener = PairingListener::bind(mac, any_port()).unwrap();
+    let listener = PairingListener::bind(mac, any_port(), 4000).unwrap();
     let invite = listener.invite(&[LOCALHOST]).unwrap();
 
     let (mac_confirm, _) = confirm_with(false);
     let responder = tokio::spawn(async move { listener.accept(mac_confirm).await });
     let (phone_confirm, _) = confirm_with(true);
-    let initiator = pair_with(phone, &invite, phone_confirm).await;
+    let initiator = pair_with(phone, &invite, 5000, phone_confirm).await;
 
     assert!(
         matches!(initiator, Err(Error::PairingFailed(_))),
@@ -107,7 +110,7 @@ async fn pairing_refuses_a_listener_with_another_identity() {
     // answered on the invite's address. TLS pinning must refuse it, and the real
     // invite must still work afterwards.
     let (mac, phone) = (identity("Mac"), identity("Phone"));
-    let listener = PairingListener::bind(mac, any_port()).unwrap();
+    let listener = PairingListener::bind(mac, any_port(), 4000).unwrap();
     let invite = listener.invite(&[LOCALHOST]).unwrap();
     let mut forged = invite.clone();
     forged.responder = DeviceId::from_bytes([9; 32]);
@@ -116,11 +119,11 @@ async fn pairing_refuses_a_listener_with_another_identity() {
     let responder = tokio::spawn(async move { listener.accept(mac_confirm).await });
 
     let (c, _) = confirm_with(true);
-    let attempt = pair_with(phone.clone(), &forged, c).await;
+    let attempt = pair_with(phone.clone(), &forged, 5000, c).await;
     assert!(matches!(attempt, Err(Error::Unreachable)), "{attempt:?}");
 
     let (c, _) = confirm_with(true);
-    pair_with(phone, &invite, c).await.unwrap();
+    pair_with(phone, &invite, 5000, c).await.unwrap();
     responder.await.unwrap().unwrap();
 }
 

@@ -129,6 +129,14 @@ void main() {
     expect(c.pendingShare, isEmpty);
   });
 
+  testWidgets('a VPN shows a dismissible notice', (tester) async {
+    await tester.pumpWidget(app(FakeController(vpnActive: true)));
+    expect(find.text('A VPN is on'), findsOneWidget);
+    await tester.tap(find.byTooltip('Dismiss'));
+    await tester.pump();
+    expect(find.text('A VPN is on'), findsNothing);
+  });
+
   test('formats byte counts', () {
     expect(formatBytes(999), '999 B');
     expect(formatBytes(314572800), '314.6 MB');

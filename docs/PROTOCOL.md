@@ -54,11 +54,11 @@ sequenceDiagram
     participant R as Responder (shows QR)
     I->>R: QUIC/TLS handshake, server pinned to invite id
     Note over I,R: both export 32 bytes of keying material:<br/>label "EXPORTER-ecosystem-connector-pairing", empty context = B
-    I->>R: Request { name, proof }
+    I->>R: Request { name, proof, port }
     alt proof invalid
         R->>I: Rejected (invite is used up)
     else proof valid
-        R->>I: Accepted { name }
+        R->>I: Accepted { name, port }
         Note over I,R: both show code = SAS(secret, I, R, B)
         I->>R: Decision { accept }
         R->>I: Decision { accept }
@@ -73,10 +73,28 @@ h     = BLAKE3-keyed(secret, "ecosystem-connector pairing code v1"  ‖ I ‖ R 
 code  = (first 8 bytes of h as u64 LE) mod 1 000 000, shown as "ddd ddd"
 ```
 
+`port` is the sender's regular node port. Each side stores the other's address (the
+IP the pairing connection came from, with that port) so it can find the device again
+on networks where mDNS does not work.
+
 The proof is compared in constant time. Pairing succeeds only if both decisions are
 `accept`. Then each side stores the other's id in its trust store.
 
 Timeouts: 120 s for a device to connect, 10 s per protocol step, 90 s for each user decision.
+
+## Finding paired devices
+
+Devices listen on UDP port **47820** by default (another free port if it is taken).
+They are found in two ways:
+
+1. **mDNS** (above) on networks that deliver multicast.
+2. **Remembered addresses.** Every few seconds a device connects to each paired device
+   it has no connection with, using the addresses mDNS reported, the address of the
+   last connection from that device, or the address learned during pairing.
+
+A device keeps **one connection per paired device**, whichever side opened it, and both
+sides answer streams on it. So if only one side can accept connections (a VPN, a
+firewall or NAT in front of the other), files still flow both ways.
 
 ## Stream kinds (`ec/1`)
 

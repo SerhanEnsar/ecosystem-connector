@@ -28,6 +28,9 @@ abstract class EcController extends ChangeNotifier {
   /// Drops [pendingShare] without sending.
   void dismissShare();
 
+  /// Whether a VPN is on, which can stop other devices from reaching this one.
+  bool get vpnActive;
+
   /// Whether this platform can scan a QR code with a camera.
   bool get canScan;
 

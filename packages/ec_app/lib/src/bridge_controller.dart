@@ -18,6 +18,22 @@ class BridgeController extends EcController {
       _pendingShare = [..._pendingShare, ...paths];
       notifyListeners();
     });
+    if (_hooks.vpnActive != null) {
+      unawaited(_checkVpn());
+      // A VPN can be switched on or off at any time.
+      _vpnTimer = Timer.periodic(
+        const Duration(seconds: 15),
+        (_) => _checkVpn(),
+      );
+    }
+  }
+
+  Future<void> _checkVpn() async {
+    final active = await _hooks.vpnActive!();
+    if (active != _vpnActive) {
+      _vpnActive = active;
+      notifyListeners();
+    }
   }
 
   final EcCore _core;
@@ -26,6 +42,8 @@ class BridgeController extends EcController {
   late final StreamSubscription<CoreEvent> _events;
   StreamSubscription<List<String>>? _shares;
   List<String> _pendingShare = const [];
+  Timer? _vpnTimer;
+  var _vpnActive = false;
 
   List<EcDevice> _devices = const [];
   ReceiveStatus? _receiving;
@@ -55,6 +73,9 @@ class BridgeController extends EcController {
     _pendingShare = const [];
     notifyListeners();
   }
+
+  @override
+  bool get vpnActive => _vpnActive;
 
   @override
   bool get canScan => _hooks.scanInvite != null;
@@ -210,6 +231,7 @@ class BridgeController extends EcController {
   void dispose() {
     _events.cancel();
     _shares?.cancel();
+    _vpnTimer?.cancel();
     super.dispose();
   }
 }

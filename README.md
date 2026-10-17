@@ -75,7 +75,7 @@ Details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the wire format in
 - [x] Phase 0: project skeleton, CI, security policy
 - [x] Phase 1: device identity, pairing, discovery, encrypted connection
 - [x] Phase 2: fast resumable transfer and cable boost, first benchmarks
-- [ ] Phase 3: desktop and Android app v0
+- [ ] Phase 3: desktop and Android apps (3a: apps on the core ✓, 3b: Fling gesture)
 - [ ] Phase 4: linked files
 - [ ] Phase 5: shared clipboard and browser extension
 - [ ] Phase 6: handoff
@@ -92,8 +92,8 @@ Download the latest build from [Releases](https://github.com/SerhanEnsar/ecosyst
 | Windows | `…-windows-x64.zip` |
 | Command line | `ec-cli-…` |
 
-Early releases are marked as pre-releases. The apps only show their main screen until
-phase 3 connects them to the core; the `ec` command line tool already works. Every file
+Early releases are marked as pre-releases. The apps can pair (QR code or link), see
+paired devices and send and receive files; the `ec` command line tool works too. Every file
 can be checked with `gh attestation verify <file> -R SerhanEnsar/ecosystem-connector`.
 
 ## Try it: the `ec` command line tool

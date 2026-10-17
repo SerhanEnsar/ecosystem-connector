@@ -6,11 +6,12 @@ import '../platform.dart';
 import '../widgets/device_spine.dart';
 import '../widgets/receive_banner.dart';
 import '../widgets/share_bar.dart';
+import '../widgets/vpn_notice.dart';
 import 'pairing_sheet.dart';
 import 'send_sheet.dart';
 
 /// The main screen: this device, paired devices, and incoming transfers.
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
     required this.controller,
@@ -19,6 +20,15 @@ class HomeScreen extends StatelessWidget {
 
   final EcController controller;
   final EcPlatform platform;
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  var _vpnDismissed = false;
+
+  EcController get controller => widget.controller;
 
   Future<void> _forget(BuildContext context, EcDevice device) async {
     final confirmed = await showDialog<bool>(
@@ -62,20 +72,29 @@ class HomeScreen extends StatelessWidget {
                 onTap: (device) => pickAndSend(context, controller, device),
                 onForget: (device) => _forget(context, device),
               ),
-              if (controller.pendingShare.isNotEmpty)
-                Align(
-                  alignment: Alignment.topCenter,
-                  child: ShareBar(
-                    count: controller.pendingShare.length,
-                    devices: controller.devices,
-                    onDismiss: controller.dismissShare,
-                    onSend: (device) {
-                      final paths = controller.pendingShare;
-                      controller.dismissShare();
-                      sendWithProgress(context, controller, device, paths);
-                    },
-                  ),
+              Align(
+                alignment: Alignment.topCenter,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (controller.vpnActive && !_vpnDismissed)
+                      VpnNotice(
+                        onDismiss: () => setState(() => _vpnDismissed = true),
+                      ),
+                    if (controller.pendingShare.isNotEmpty)
+                      ShareBar(
+                        count: controller.pendingShare.length,
+                        devices: controller.devices,
+                        onDismiss: controller.dismissShare,
+                        onSend: (device) {
+                          final paths = controller.pendingShare;
+                          controller.dismissShare();
+                          sendWithProgress(context, controller, device, paths);
+                        },
+                      ),
+                  ],
                 ),
+              ),
               if (controller.devices.isEmpty)
                 Align(
                   alignment: const Alignment(0, 0.15),

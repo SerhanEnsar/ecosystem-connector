@@ -48,6 +48,8 @@ flowchart TB
 | `ec-net` | mDNS advertisement and discovery, QUIC connections (quinn) with mutual TLS 1.3 using pinned certificates derived from device keys, path changes. |
 | `ec-transfer` | Splits files into chunks, sends them over parallel streams, verifies BLAKE3 hashes, resumes from the missing chunks, sends only changed chunks of edited files. |
 | `ec-sync` | Linked files: a stable file ID shared by all devices, version vectors, file watching, history of previous versions, conflict copies. |
+| `ec-runtime` | A running device: identity, trust store, node, presence, remembered addresses, one connection per paired device, pairing, sending and receiving. Used by the apps and tested on its own. |
+| `ec-ffi` | flutter_rust_bridge API over `ec-runtime` for the Flutter apps (crate `ec_ffi`). |
 | `ec-clipboard` | Clipboard and link messages. |
 | `ec-cli` | The `ec` command line tool: pairing, discovery and connection checks without the app. |
 | `ec-handoff` | Broadcasts the "active item" (a file, or a URL with scroll position) so another device can offer to continue it. |

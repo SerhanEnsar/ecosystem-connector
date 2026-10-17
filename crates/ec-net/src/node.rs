@@ -11,6 +11,10 @@ use crate::router::{SESSION_KIND, Service, ServiceFuture};
 use crate::tls::{self, ClientPolicy, TrustedSet};
 use crate::{ALPN_SESSION, Error, Result};
 
+/// UDP port devices listen on by default. A fixed port lets paired devices find each
+/// other at a remembered address on networks that block mDNS.
+pub const DEFAULT_PORT: u16 = 47820;
+
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 const HELLO_TIMEOUT: Duration = Duration::from_secs(10);
 

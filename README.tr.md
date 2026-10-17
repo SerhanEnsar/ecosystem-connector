@@ -51,8 +51,8 @@ sayfasından indir:
 | Windows | `…-windows-x64.zip` |
 | Komut satırı | `ec-cli-…` |
 
-İlk sürümler ön sürüm (pre-release) olarak işaretlenir. Uygulamalar faz 3'e kadar yalnızca
-ana ekranı gösterir; `ec` komut satırı aracı şimdiden çalışır.
+İlk sürümler ön sürüm (pre-release) olarak işaretlenir. Uygulamalar eşleşebilir (QR kod
+ya da link), eşleşmiş cihazları görür, dosya gönderip alabilir; `ec` aracı da çalışır.
 
 ## Nasıl çalışır
 

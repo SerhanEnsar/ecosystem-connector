@@ -186,7 +186,8 @@ impl EcCore {
             home: PathBuf::from(config.home),
             default_name: config.device_name,
             receive_dir: PathBuf::from(config.receive_dir),
-            port: 0,
+            port: ec_runtime::DEFAULT_PORT,
+            mdns: true,
         };
         let runtime = RT.spawn(Runtime::start(config)).await??;
         *RUNNING.lock().unwrap_or_else(|e| e.into_inner()) = Some((home, runtime.clone()));
