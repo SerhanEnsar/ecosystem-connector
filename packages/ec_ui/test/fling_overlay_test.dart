@@ -9,6 +9,12 @@ final mac = EcDevice(
   name: "Serhan's Mac",
   online: true,
 );
+final laptop = EcDevice(
+  id: 'w' * 64,
+  shortId: '3333-4444',
+  name: 'Windows PC',
+  online: true,
+);
 final phone = EcDevice(
   id: 'p' * 64,
   shortId: '1111-2222',
@@ -21,6 +27,8 @@ const size = Size(800, 1200);
 Future<(FakeController, FlingGesture, List<FlingResult>)> pumpOverlay(
   WidgetTester tester, {
   List<EcDevice>? devices,
+  FlingContent content = const FlingScreenshot('/nope.png'),
+  Offset? finger = const Offset(10, 600),
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -41,64 +49,132 @@ Future<(FakeController, FlingGesture, List<FlingResult>)> pumpOverlay(
       ),
     ),
   );
+  gesture.start(content, finger);
+  await tester.pump();
+  // The screenshot shrinks into the card.
+  await tester.pumpAndSettle();
   return (controller, gesture, results);
 }
 
-Offset target(int index, int count) =>
-    FlingOverlay.targetCentres(size, count)[index];
+Rect zone() => FlingOverlay.dropZone(size, EdgeInsets.zero);
+
+Offset section(int index, int count) =>
+    FlingOverlay.sections(zone(), count)[index].center;
+
+Offset restCentre() => FlingOverlay.restRect(size).center;
 
 void main() {
+  test('the zone is split evenly, left to right', () {
+    final parts = FlingOverlay.sections(zone(), 3);
+    expect(parts, hasLength(3));
+    expect(parts.first.left, zone().left);
+    expect(parts.last.right, closeTo(zone().right, 0.001));
+    expect(parts[1].width, closeTo(zone().width / 3, 0.001));
+  });
+
   testWidgets('the header names what is being sent', (tester) async {
-    final (_, gesture, _) = await pumpOverlay(tester);
-    gesture.start(
-      const FlingPage('https://example.com', title: 'Lecture 3'),
-      const Offset(20, 600),
+    await pumpOverlay(
+      tester,
+      content: const FlingPage('https://example.com', title: 'Lecture 3'),
     );
-    await tester.pump();
     expect(find.text('Web page · Lecture 3'), findsOneWidget);
   });
 
-  testWidgets('only online devices are targets', (tester) async {
-    final (_, gesture, _) = await pumpOverlay(tester);
-    gesture.start(const FlingScreenshot('/nope.png'), const Offset(20, 600));
-    await tester.pump();
+  testWidgets('each online device gets a section, offline ones none', (
+    tester,
+  ) async {
+    await pumpOverlay(tester, devices: [mac, phone, laptop]);
     expect(find.text("Serhan's Mac"), findsOneWidget);
+    expect(find.text('Windows PC'), findsOneWidget);
     expect(find.text('Pixel'), findsNothing);
   });
 
-  testWidgets('dropping on a device flings the content to it', (tester) async {
-    final (controller, gesture, results) = await pumpOverlay(tester);
-    const content = FlingFile('/docs/slides.pdf', page: 12);
-    gesture.start(content, const Offset(20, 600));
-    gesture.move(const Offset(400, 600));
-    gesture.release(target(0, 1));
+  testWidgets('dragging from the handle into a section sends to that device', (
+    tester,
+  ) async {
+    final (controller, gesture, results) = await pumpOverlay(
+      tester,
+      devices: [mac, laptop],
+    );
+    const content = FlingScreenshot('/nope.png');
+    gesture.move(const Offset(200, 800));
+    await tester.pump(const Duration(milliseconds: 100));
+    gesture.move(section(1, 2));
+    await tester.pump(const Duration(milliseconds: 100));
+    gesture.release(section(1, 2));
     await tester.pump();
-    expect(controller.flings.single.$1.id, mac.id);
-    expect(controller.flings.single.$2, content);
+    expect(controller.flings.single.$1.id, laptop.id);
+    expect(controller.flings.single.$2, isA<FlingScreenshot>());
+    expect((controller.flings.single.$2 as FlingScreenshot).path, content.path);
 
     controller.sending.add(
       const SendProgress(sent: 1000, total: 2000, paths: 1),
     );
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Sent'), findsOneWidget);
     await tester.pumpAndSettle();
-    // The overlay lingers briefly after the card lands.
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
     expect(results, [FlingResult.sent]);
   });
 
-  testWidgets('letting go anywhere else cancels', (tester) async {
+  testWidgets('the card can also be dragged by touch once it rests', (
+    tester,
+  ) async {
+    final (controller, gesture, results) = await pumpOverlay(
+      tester,
+      finger: null,
+    );
+    final start = restCentre();
+    final gestureTouch = await tester.startGesture(start);
+    for (var i = 1; i <= 10; i++) {
+      await gestureTouch.moveTo(Offset.lerp(start, section(0, 1), i / 10)!);
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await gestureTouch.up();
+    await tester.pump();
+    expect(controller.flings.single.$1.id, mac.id);
+    controller.sending.add(const SendProgress(sent: 1, total: 1, paths: 1));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(results, [FlingResult.sent]);
+  });
+
+  testWidgets('letting go elsewhere springs back and waits', (tester) async {
     final (controller, gesture, results) = await pumpOverlay(tester);
-    gesture.start(const FlingScreenshot('/nope.png'), const Offset(20, 600));
     gesture.move(const Offset(300, 300));
+    await tester.pump(const Duration(milliseconds: 100));
     gesture.release(const Offset(300, 300));
+    await tester.pumpAndSettle();
+    expect(controller.flings, isEmpty);
+    expect(results, isEmpty);
+    expect(
+      find.text('Drag onto a device · tap outside to close'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a tap outside the card closes the layer', (tester) async {
+    final (controller, _, results) = await pumpOverlay(tester);
+    await tester.tapAt(const Offset(20, 40));
     await tester.pumpAndSettle();
     expect(controller.flings, isEmpty);
     expect(results, [FlingResult.cancelled]);
   });
 
+  testWidgets('a tap on the card does not close it', (tester) async {
+    final (_, _, results) = await pumpOverlay(tester);
+    await tester.tapAt(restCentre());
+    await tester.pumpAndSettle();
+    expect(results, isEmpty);
+  });
+
   testWidgets('a failed fling explains why', (tester) async {
     final (controller, gesture, results) = await pumpOverlay(tester);
-    gesture.start(const FlingScreenshot('/nope.png'), const Offset(20, 600));
-    gesture.release(target(0, 1));
+    gesture.move(section(0, 1));
+    await tester.pump(const Duration(milliseconds: 100));
+    gesture.release(section(0, 1));
     await tester.pump();
     controller.sending.add(
       const SendFailed('the device is not on the network'),
@@ -109,12 +185,19 @@ void main() {
     expect(results, [FlingResult.failed]);
   });
 
-  testWidgets('with no device online, letting go cancels', (tester) async {
-    final (_, gesture, results) = await pumpOverlay(tester, devices: [phone]);
-    gesture.start(const FlingScreenshot('/nope.png'), const Offset(20, 600));
-    await tester.pump();
+  testWidgets('with no device online the zone says so', (tester) async {
+    final (controller, gesture, results) = await pumpOverlay(
+      tester,
+      devices: [phone],
+    );
     expect(find.text('No device online'), findsOneWidget);
-    gesture.release(const Offset(700, 600));
+    gesture.move(zone().center);
+    await tester.pump(const Duration(milliseconds: 100));
+    gesture.release(zone().center);
+    await tester.pumpAndSettle();
+    expect(controller.flings, isEmpty);
+    expect(results, isEmpty);
+    await tester.tapAt(zone().center);
     await tester.pumpAndSettle();
     expect(results, [FlingResult.cancelled]);
   });

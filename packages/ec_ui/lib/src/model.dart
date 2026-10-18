@@ -153,11 +153,13 @@ class FlingFile extends FlingContent {
       page == null ? 'File · $name' : 'File · $name · page $page';
 }
 
-/// A web page, opened in the browser.
+/// A web page, opened in the browser. [preview] is a screenshot of it, shown while
+/// flinging.
 class FlingPage extends FlingContent {
-  const FlingPage(this.url, {this.title = ''});
+  const FlingPage(this.url, {this.title = '', this.preview});
   final String url;
   final String title;
+  final String? preview;
 
   @override
   String get label => 'Web page · ${title.isEmpty ? url : title}';

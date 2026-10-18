@@ -62,14 +62,13 @@ class _FlingLayerState extends State<FlingLayer> {
     _channel.invokeMethod<void>('layer', mode);
   }
 
-  /// Native positions are in physical pixels.
-  Offset _at(Map<Object?, Object?> args) {
+  /// Native positions are in physical pixels; null when no finger is down.
+  Offset? _at(Map<Object?, Object?> args) {
+    final (x, y) = (args['x'] as num?, args['y'] as num?);
+    if (x == null || y == null) return null;
     final ratio =
         WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
-    return Offset(
-      (args['x'] as num).toDouble() / ratio,
-      (args['y'] as num).toDouble() / ratio,
-    );
+    return Offset(x.toDouble() / ratio, y.toDouble() / ratio);
   }
 
   Future<void> _onCall(MethodCall call) async {
@@ -80,6 +79,7 @@ class _FlingLayerState extends State<FlingLayer> {
           'page' => FlingPage(
             args['url'] as String,
             title: (args['title'] as String?) ?? '',
+            preview: args['path'] as String?,
           ),
           'file' => FlingFile(
             args['path'] as String,
@@ -94,9 +94,9 @@ class _FlingLayerState extends State<FlingLayer> {
           _gesture = FlingGesture()..start(content, _at(args));
         });
       case 'move':
-        _gesture?.move(_at(args));
+        if (_at(args) case final at?) _gesture?.move(at);
       case 'release':
-        _gesture?.release(_at(args));
+        if (_at(args) case final at?) _gesture?.release(at);
     }
   }
 

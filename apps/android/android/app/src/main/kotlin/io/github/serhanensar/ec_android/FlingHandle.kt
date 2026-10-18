@@ -29,10 +29,11 @@ import kotlin.math.hypot
  * The fling handle on the left edge of the screen, and the full-screen layer that
  * appears when it is held.
  *
- * The gesture stays on the handle's window from start to finish: Android keeps
- * delivering a touch to the window where it began, even after the finger leaves it.
- * The handle forwards the finger's position to the layer, which is drawn by Flutter
- * (`flingMain` in lib/main.dart) and takes no touches itself.
+ * Holding the handle opens the layer, drawn by Flutter (`flingMain` in lib/main.dart).
+ * The press-hold-drag can go on in one motion: Android keeps delivering a touch to the
+ * window where it began, so the handle forwards the finger's position to the layer.
+ * A tap, or a hold released without moving, leaves the card resting in the layer,
+ * which then takes touches itself: the card is dragged there, a tap outside closes.
  */
 class FlingHandle private constructor(private val context: Context) {
     private val windows = context.getSystemService(WindowManager::class.java)
@@ -106,8 +107,8 @@ class FlingHandle private constructor(private val context: Context) {
     private fun showLayer() = setLayer("fling")
 
     /**
-     * Sizes the layer window for its job. "fling": the whole screen, letting touches
-     * through (the handle forwards them). "arrival": a strip at the top that can be
+     * Sizes the layer window for its job. "fling": the whole screen, taking touches
+     * (a touch still going on the handle stays with the handle). "arrival": a strip at the top that can be
      * touched, sized to the arrival cards, so the rest of the screen keeps working.
      * "none": no window.
      */
@@ -122,8 +123,7 @@ class FlingHandle private constructor(private val context: Context) {
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                     WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT,
@@ -163,7 +163,8 @@ class FlingHandle private constructor(private val context: Context) {
 
     /**
      * Works out what to fling: the web page in the browser in front, otherwise a
-     * screenshot. Both need screen access; without it, explains how to turn it on.
+     * screenshot. A screenshot is taken either way, as the card's picture. Both need
+     * screen access; without it, explains how to turn it on.
      */
     private fun resolveContent(done: (Map<String, Any?>?) -> Unit) {
         val access = ScreenAccessService.instance
@@ -178,9 +179,7 @@ class FlingHandle private constructor(private val context: Context) {
             )
             return done(null)
         }
-        access.currentPage()?.let { (url, title) ->
-            return done(mapOf("type" to "page", "url" to url, "title" to title))
-        }
+        val page = access.currentPage()
         // Keep the handle out of the screenshot. Fade it rather than hide it: a hidden
         // window loses the touch that is still in progress on it.
         val view = handle
@@ -188,10 +187,16 @@ class FlingHandle private constructor(private val context: Context) {
         val capture = {
             access.capture { path ->
                 view?.alpha = 1f
-                if (path == null) {
-                    Toast.makeText(context, "Could not take a screenshot.", Toast.LENGTH_SHORT).show()
+                when {
+                    page != null -> done(
+                        mapOf("type" to "page", "url" to page.first, "title" to page.second, "path" to path),
+                    )
+                    path != null -> done(mapOf("type" to "screenshot", "path" to path))
+                    else -> {
+                        Toast.makeText(context, "Could not take a screenshot.", Toast.LENGTH_SHORT).show()
+                        done(null)
+                    }
                 }
-                done(path?.let { mapOf("type" to "screenshot", "path" to it) })
             }
         }
         if (view != null) view.postDelayed(capture, 48) else capture()
@@ -251,7 +256,11 @@ class FlingHandle private constructor(private val context: Context) {
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     removeCallbacks(beginHold)
+                    val tapped = event.actionMasked == MotionEvent.ACTION_UP && !holding &&
+                        hypot(lastX - downX, lastY - downY) <= slop
                     released = true
+                    // A tap opens the layer too; the card then waits to be dragged.
+                    if (tapped) begin()
                     if (event.actionMasked == MotionEvent.ACTION_CANCEL) lastX = -1000f
                     if (started) channel?.invokeMethod("release", position())
                 }
@@ -260,6 +269,8 @@ class FlingHandle private constructor(private val context: Context) {
         }
 
         private fun begin() {
+            // Already flinging: the layer is in front and handles the touch.
+            if (layerMode == "fling" || resolving) return
             Log.d(TAG, "hold")
             holding = true
             resolving = true
@@ -267,11 +278,11 @@ class FlingHandle private constructor(private val context: Context) {
             resolveContent { content ->
                 Log.d(TAG, "content: ${content?.get("type")}, released early: $released")
                 resolving = false
-                if (content == null || released && !started) return@resolveContent
+                if (content == null) return@resolveContent
                 showLayer()
                 started = true
-                channel?.invokeMethod("start", content + position())
-                if (released) channel?.invokeMethod("release", position())
+                // With the finger already up, the card just rests in the layer.
+                channel?.invokeMethod("start", if (released) content else content + position())
             }
         }
 
