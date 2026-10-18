@@ -1628,7 +1628,7 @@ class EcCoreImpl extends RustOpaque implements EcCore {
   Stream<CoreEvent> events() =>
       RustLib.instance.api.crateApiCoreEcCoreEvents(that: this);
 
-  /// Flings a web page to a paired device, which opens it in its browser.
+  /// Flings a web page to a paired device, which offers to open it in its browser.
   Future<void> flingUrl({
     required String deviceId,
     required String url,

@@ -2,7 +2,7 @@
 
 This document lists what Ecosystem Connector protects, who it protects against, and
 which risks remain. It is updated whenever a feature changes what crosses the network.
-Last reviewed for **phase 3a** (apps, remembered addresses, connection reuse).
+Last reviewed for **phase 3b** (fling, arrival cards, pairing links, receive folder).
 
 ## Assets
 
@@ -37,6 +37,18 @@ Last reviewed for **phase 3a** (apps, remembered addresses, connection reuse).
 | **Malicious sender: data** | Corrupt files, send more data than announced, exhaust memory | Each chunk is checked against its BLAKE3 hash before it is written; a stream must hold exactly the chunk's length. At most 256 MiB of chunk data is held in memory and 8 transfers run at once. Offers are limited to 100 000 files and 8192 chunks per file. Tested in `corrupted_chunk_is_rejected_and_can_be_resent`. |
 | **Address spoofing** | Answer at a paired device's remembered address | The remembered address is only a hint for where to dial; the handshake still requires the pinned certificate, so an impostor at that address fails like any other. |
 | **Hijacking another device's transfer** | Send chunks into a transfer started by a different device | Chunk streams are matched to a transfer by id **and** by the authenticated device of the connection; chunks from another device are dropped. |
+
+## Apps: fling, arrival cards and pairing links (phase 3b)
+
+| Concern | Design |
+|---|---|
+| **A paired device makes this one open things** | Nothing received is opened automatically. Files and pages arrive as a card; the user chooses to open them, show them in the folder or save them elsewhere. Flung web pages must be `http`/`https`, at most 4096 bytes, with no whitespace or control characters (`validate_url`), and are opened only when the user taps "Open in browser". |
+| **Screen access (Android accessibility service)** | Optional and off until the user turns it on in the system settings. It records only which app is in front. It reads the browser's address bar and takes a screenshot only when the user taps or holds the fling handle, and the result goes only to the device the user drops it on. Screenshots are kept in the app's cache. |
+| **Drawing over other apps (Android)** | Used for the edge handle and the fling layer. The layer covers the screen only while flinging and closes on a tap outside the card; arrival cards use a window the size of the cards at the top of the screen. |
+| **Four-finger gesture** | Not offered. Android reports multi-finger gestures only in touch exploration mode (the TalkBack mode), which changes how every touch and many apps behave. With a full-screen passthrough region normal touches work again, but then no gesture is reported at all (tested on a Galaxy Tab S10+). The edge handle stays the only trigger. |
+| **`ecpair:` links** | Opening a pairing link (for example by scanning the QR code with the system camera) only starts the join flow with the invite filled in. The user still compares the verification code on both screens and confirms, exactly as with the in-app scanner. |
+| **Receive folder** | The chosen folder is stored in `settings.json` next to the trust store. On macOS the sandbox allows writing there through a security-scoped bookmark for that one folder; going back to the default releases it. A chosen folder that has disappeared falls back to the default instead of failing. Received paths stay confined to the folder as before. |
+| **Opening received files on Android** | Files are shared with the chosen app through a `FileProvider` limited to `Download/Ecosystem Connector`, with a read grant for that one file. |
 
 ## Known risks and limitations (phase 1)
 

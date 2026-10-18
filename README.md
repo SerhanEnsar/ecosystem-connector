@@ -38,6 +38,8 @@ across platforms: Mac ↔ Android, Android ↔ Android, Windows ↔ Mac, Windows
 | Feature | What it does | Status |
 |---|---|---|
 | **Fast send** | Send any file or folder to a nearby device. Transfers resume after a drop and every chunk is verified. | Core done (CLI) |
+| **Fling** | On Android, tap or hold the handle on the screen edge: the screen shrinks into a card. Drag it onto a device at the bottom to send the screenshot or the web page in the browser. | Android, pre-release |
+| **Arrival cards** | Received files and pages arrive as a drop at the top of the screen that spreads into a card: show in folder, open, save elsewhere. Nothing opens by itself. | macOS and Android, pre-release |
 | **Cable boost** | Plug in a USB-C cable (USB tethering or Thunderbolt bridge) and an active transfer starts using the faster path without restarting. | Core done, device test pending |
 | **Linked files** | One file, one version on every device. Edit it anywhere and the others update within seconds. No duplicate copies. | Planned |
 | **Shared clipboard** | Copy on one device, paste on another. Send the current browser tab. | Planned |
@@ -75,7 +77,7 @@ Details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the wire format in
 - [x] Phase 0: project skeleton, CI, security policy
 - [x] Phase 1: device identity, pairing, discovery, encrypted connection
 - [x] Phase 2: fast resumable transfer and cable boost, first benchmarks
-- [ ] Phase 3: desktop and Android apps (3a: apps on the core ✓, 3b: Fling gesture)
+- [ ] Phase 3: desktop and Android apps (3a: apps on the core ✓, 3b: Fling and arrival cards ✓)
 - [ ] Phase 4: linked files
 - [ ] Phase 5: shared clipboard and browser extension
 - [ ] Phase 6: handoff
@@ -92,8 +94,10 @@ Download the latest build from [Releases](https://github.com/SerhanEnsar/ecosyst
 | Windows | `…-windows-x64.zip` |
 | Command line tool (optional) | `…-command-line-…` |
 
-Early releases are marked as pre-releases. The apps can pair (QR code or link), see
-paired devices and send and receive files; the `ec` command line tool works too. Every file
+Early releases are marked as pre-releases. The apps can pair (QR code, link, or by
+scanning the code with the phone's own camera), send and receive files, choose where
+received files go, and fling from the Android screen edge; the `ec` command line tool
+works too. Every file
 can be checked with `gh attestation verify <file> -R SerhanEnsar/ecosystem-connector`.
 
 ## Try it: the `ec` command line tool

@@ -1,14 +1,14 @@
-//! Flinging small items to another device so it opens them right away.
+//! Flinging small items to another device, which offers to open them.
 //!
-//! Files are flung with `ec-transfer` (with an "open on arrival" hint); this crate
-//! carries what is not a file, starting with web pages. A fling is one short
-//! bidirectional stream of kind [`FLING_KIND`]: the sender writes one [`FlingItem`], the
-//! receiver validates it, answers with [`FlingAck`] and hands it to the app.
+//! Files are flung with `ec-transfer` (with an "open" hint); this crate carries what is
+//! not a file, starting with web pages. A fling is one short bidirectional stream of
+//! kind [`FLING_KIND`]: the sender writes one [`FlingItem`], the receiver validates it,
+//! answers with [`FlingAck`] and hands it to the app.
 //!
-//! The receiving device opens what arrives without asking, because only paired devices
-//! can connect. That is why everything is validated here first: only `http` and
-//! `https` links are accepted, so a peer cannot make this device launch an app through a
-//! custom URL scheme or open a local file.
+//! The apps show what arrives in a card and open it only when the user asks. Even so,
+//! everything is validated here first: only `http` and `https` links are accepted, so a
+//! peer can never get this device to launch an app through a custom URL scheme or open
+//! a local file.
 
 use std::sync::Arc;
 use std::time::Duration;

@@ -391,7 +391,7 @@ impl EcCore {
         });
     }
 
-    /// Flings a web page to a paired device, which opens it in its browser.
+    /// Flings a web page to a paired device, which offers to open it in its browser.
     pub async fn fling_url(
         &self,
         device_id: String,

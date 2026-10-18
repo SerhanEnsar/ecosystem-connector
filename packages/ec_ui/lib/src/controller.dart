@@ -71,7 +71,7 @@ abstract class EcController extends ChangeNotifier {
   /// Sends [paths] to [device].
   Stream<SendStatus> send(EcDevice device, List<String> paths);
 
-  /// Sends [content] to [device], which opens it on arrival.
+  /// Sends [content] to [device], which shows it in an arrival card.
   Stream<SendStatus> fling(EcDevice device, FlingContent content);
 
   /// The folder received files are saved to.

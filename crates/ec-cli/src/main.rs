@@ -77,7 +77,7 @@ enum Command {
         #[arg(long, default_value_t = 8)]
         streams: usize,
     },
-    /// Fling a web page to a paired device, which opens it in its browser.
+    /// Fling a web page to a paired device, which offers to open it in its browser.
     Fling {
         /// The device id, or a unique prefix of it.
         device: String,

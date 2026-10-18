@@ -132,7 +132,7 @@ String formatBytes(num bytes) {
       : '${value.toStringAsFixed(1)} ${units[unit]}';
 }
 
-/// What a fling sends: the thing on screen, opened on the other device on arrival.
+/// What a fling sends: the thing on screen, shown on the other device in an arrival card.
 sealed class FlingContent {
   const FlingContent();
 

@@ -534,7 +534,7 @@ impl Runtime {
         Ok(send_paths(self.node.clone(), id, addrs, paths, options, events).await?)
     }
 
-    /// Flings a web page to a paired device, which opens it in its browser.
+    /// Flings a web page to a paired device, which offers to open it in its browser.
     pub async fn fling_url(&self, id: DeviceId, url: String, title: String) -> Result<()> {
         if !self.shared.trust().contains(&id) {
             return Err(Error::NotPaired);
