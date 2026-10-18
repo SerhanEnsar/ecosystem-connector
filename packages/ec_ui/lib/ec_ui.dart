@@ -14,4 +14,5 @@ export 'src/platform.dart';
 export 'src/screens/home_screen.dart';
 export 'src/screens/pairing_sheet.dart';
 export 'src/screens/send_sheet.dart';
+export 'src/screens/settings_screen.dart';
 export 'src/theme.dart';

@@ -48,6 +48,12 @@ abstract class EcCore implements RustOpaqueInterface {
   /// This device's short id.
   String myShortId();
 
+  /// The folder received files are saved to.
+  String receiveDir();
+
+  /// Whether received files go to the app's default folder.
+  bool receiveDirIsDefault();
+
   /// Sends files and folders to a paired device. With `open`, it opens them on
   /// arrival (a fling), at `page` if given.
   Stream<SendUpdate> send({
@@ -56,6 +62,10 @@ abstract class EcCore implements RustOpaqueInterface {
     required bool open,
     int? page,
   });
+
+  /// Saves received files to `path` from the next transfer on; `None` goes back to
+  /// the default folder. Returns the folder now in use.
+  String setReceiveDir({String? path});
 
   /// Starts the device: identity, network presence and receiving.
   ///

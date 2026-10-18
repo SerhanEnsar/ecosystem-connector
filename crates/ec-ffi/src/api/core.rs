@@ -239,6 +239,26 @@ impl EcCore {
         self.runtime.name().to_owned()
     }
 
+    /// The folder received files are saved to.
+    #[frb(sync)]
+    pub fn receive_dir(&self) -> String {
+        self.runtime.receive_dir().to_string_lossy().into_owned()
+    }
+
+    /// Whether received files go to the app's default folder.
+    #[frb(sync)]
+    pub fn receive_dir_is_default(&self) -> bool {
+        self.runtime.receive_dir_is_default()
+    }
+
+    /// Saves received files to `path` from the next transfer on; `None` goes back to
+    /// the default folder. Returns the folder now in use.
+    #[frb(sync)]
+    pub fn set_receive_dir(&self, path: Option<String>) -> anyhow::Result<String> {
+        let dir = self.runtime.set_receive_dir(path.map(PathBuf::from))?;
+        Ok(dir.to_string_lossy().into_owned())
+    }
+
     /// Paired devices.
     #[frb(sync)]
     pub fn devices(&self) -> Vec<DeviceView> {

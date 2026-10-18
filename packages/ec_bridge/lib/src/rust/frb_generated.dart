@@ -69,7 +69,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -20268719;
+  int get rustContentHash => 2025290132;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -115,6 +115,10 @@ abstract class RustLibApi extends BaseApi {
 
   String crateApiCoreEcCoreMyShortId({required EcCore that});
 
+  String crateApiCoreEcCoreReceiveDir({required EcCore that});
+
+  bool crateApiCoreEcCoreReceiveDirIsDefault({required EcCore that});
+
   Stream<SendUpdate> crateApiCoreEcCoreSend({
     required EcCore that,
     required String deviceId,
@@ -122,6 +126,8 @@ abstract class RustLibApi extends BaseApi {
     required bool open,
     int? page,
   });
+
+  String crateApiCoreEcCoreSetReceiveDir({required EcCore that, String? path});
 
   Future<EcCore> crateApiCoreEcCoreStart({required CoreConfig config});
 
@@ -473,6 +479,61 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "EcCore_my_short_id", argNames: ["that"]);
 
   @override
+  String crateApiCoreEcCoreReceiveDir({required EcCore that}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEcCore(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCoreEcCoreReceiveDirConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreEcCoreReceiveDirConstMeta =>
+      const TaskConstMeta(debugName: "EcCore_receive_dir", argNames: ["that"]);
+
+  @override
+  bool crateApiCoreEcCoreReceiveDirIsDefault({required EcCore that}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEcCore(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCoreEcCoreReceiveDirIsDefaultConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreEcCoreReceiveDirIsDefaultConstMeta =>
+      const TaskConstMeta(
+        debugName: "EcCore_receive_dir_is_default",
+        argNames: ["that"],
+      );
+
+  @override
   Stream<SendUpdate> crateApiCoreEcCoreSend({
     required EcCore that,
     required String deviceId,
@@ -498,7 +559,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 11,
+              funcId: 13,
               port: port_,
             );
           },
@@ -521,6 +582,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  String crateApiCoreEcCoreSetReceiveDir({required EcCore that, String? path}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEcCore(
+            that,
+            serializer,
+          );
+          sse_encode_opt_String(path, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiCoreEcCoreSetReceiveDirConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreEcCoreSetReceiveDirConstMeta =>
+      const TaskConstMeta(
+        debugName: "EcCore_set_receive_dir",
+        argNames: ["that", "path"],
+      );
+
+  @override
   Future<EcCore> crateApiCoreEcCoreStart({required CoreConfig config}) {
     return handler.executeNormal(
       NormalTask(
@@ -530,7 +621,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 15,
             port: port_,
           );
         },
@@ -558,7 +649,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 16,
             port: port_,
           );
         },
@@ -747,6 +838,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
+  }
+
+  @protected
+  String? dco_decode_opt_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_String(raw);
   }
 
   @protected
@@ -1034,6 +1131,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
   }
 
   @protected
@@ -1376,6 +1484,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_String(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -1546,6 +1664,14 @@ class EcCoreImpl extends RustOpaque implements EcCore {
   String myShortId() =>
       RustLib.instance.api.crateApiCoreEcCoreMyShortId(that: this);
 
+  /// The folder received files are saved to.
+  String receiveDir() =>
+      RustLib.instance.api.crateApiCoreEcCoreReceiveDir(that: this);
+
+  /// Whether received files go to the app's default folder.
+  bool receiveDirIsDefault() =>
+      RustLib.instance.api.crateApiCoreEcCoreReceiveDirIsDefault(that: this);
+
   /// Sends files and folders to a paired device. With `open`, it opens them on
   /// arrival (a fling), at `page` if given.
   Stream<SendUpdate> send({
@@ -1560,4 +1686,9 @@ class EcCoreImpl extends RustOpaque implements EcCore {
     open: open,
     page: page,
   );
+
+  /// Saves received files to `path` from the next transfer on; `None` goes back to
+  /// the default folder. Returns the folder now in use.
+  String setReceiveDir({String? path}) => RustLib.instance.api
+      .crateApiCoreEcCoreSetReceiveDir(that: this, path: path);
 }

@@ -10,6 +10,7 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     registerArrivalChannel(flutterViewController.engine.binaryMessenger)
+    registerFolderChannel(flutterViewController.engine.binaryMessenger)
 
     super.awakeFromNib()
   }

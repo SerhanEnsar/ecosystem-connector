@@ -1,4 +1,10 @@
 import 'package:ec_ui/ec_ui.dart';
+import 'package:file_selector/file_selector.dart';
+
+/// The system folder picker, for [PlatformHooks.chooseFolder] where nothing more is
+/// needed to keep access to the folder (Windows).
+Future<String?> pickFolder() =>
+    getDirectoryPath(confirmButtonText: 'Save received files here');
 
 /// Flinging from the screen edge (Android).
 class FlingHooks {
@@ -72,6 +78,8 @@ class PlatformHooks {
     this.showArrival,
     this.fling,
     this.incomingInvites,
+    this.chooseFolder,
+    this.folderReset,
   });
 
   /// The name this device gets when it is set up for the first time.
@@ -107,4 +115,13 @@ class PlatformHooks {
 
   /// Pairing links the app was opened with (scanned with the system camera).
   final Stream<String>? incomingInvites;
+
+  /// Lets the user pick a folder for received files and returns its path, or null
+  /// if cancelled. The app must be able to write there afterwards, also after a
+  /// restart (macOS keeps a security-scoped bookmark). Null where the folder is fixed.
+  final Future<String?> Function()? chooseFolder;
+
+  /// Called when the user goes back to the default folder, so a platform can let go
+  /// of the folder chosen before.
+  final Future<void> Function()? folderReset;
 }

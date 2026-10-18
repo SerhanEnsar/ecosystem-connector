@@ -245,6 +245,31 @@ class BridgeController extends EcController with WidgetsBindingObserver {
     return files.map((f) => f.path).toList();
   }
 
+  @override
+  String get receiveDir => _core.receiveDir();
+
+  @override
+  bool get receiveDirIsDefault => _core.receiveDirIsDefault();
+
+  @override
+  bool get canChooseReceiveDir => _hooks.chooseFolder != null;
+
+  @override
+  Future<bool> chooseReceiveDir() async {
+    final path = await _hooks.chooseFolder?.call();
+    if (path == null) return false;
+    _core.setReceiveDir(path: path);
+    notifyListeners();
+    return true;
+  }
+
+  @override
+  Future<void> useDefaultReceiveDir() async {
+    _core.setReceiveDir();
+    await _hooks.folderReset?.call();
+    notifyListeners();
+  }
+
   /// Shows the arrival card where the platform has one, a notification otherwise.
   Future<void> _arrived(ArrivalInfo arrival) async {
     final show = _hooks.showArrival;

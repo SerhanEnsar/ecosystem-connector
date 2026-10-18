@@ -12,8 +12,12 @@
 	<!-- Saving received files to ~/Downloads/Ecosystem Connector. -->
 	<key>com.apple.security.files.downloads.read-write</key>
 	<true/>
-	<!-- Sending files the user picks. -->
-	<key>com.apple.security.files.user-selected.read-only</key>
+	<!-- Sending files the user picks, saving to a folder the user picks for received
+	     files, and "Save to…" on the arrival card. -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<!-- Remembering the chosen receive folder across restarts. -->
+	<key>com.apple.security.files.bookmarks.app-scope</key>
 	<true/>
 </dict>
 </plist>

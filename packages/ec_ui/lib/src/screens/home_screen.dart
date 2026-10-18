@@ -10,6 +10,7 @@ import '../widgets/vpn_notice.dart';
 import '../fling/fling_setup_card.dart';
 import 'pairing_sheet.dart';
 import 'send_sheet.dart';
+import 'settings_screen.dart';
 
 /// The main screen: this device, paired devices, and incoming transfers.
 class HomeScreen extends StatefulWidget {
@@ -70,7 +71,16 @@ class _HomeScreenState extends State<HomeScreen> {
         final receiving = controller.receiving;
         final text = Theme.of(context).textTheme;
         return Scaffold(
-          appBar: AppBar(title: const Text('Ecosystem Connector')),
+          appBar: AppBar(
+            title: const Text('Ecosystem Connector'),
+            actions: [
+              IconButton(
+                tooltip: 'Settings',
+                onPressed: () => showSettings(context, controller),
+                icon: const Icon(Icons.settings_outlined),
+              ),
+            ],
+          ),
           body: Stack(
             children: [
               DeviceSpine(

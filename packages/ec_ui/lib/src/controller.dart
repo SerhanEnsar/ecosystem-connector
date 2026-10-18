@@ -74,6 +74,22 @@ abstract class EcController extends ChangeNotifier {
   /// Sends [content] to [device], which opens it on arrival.
   Stream<SendStatus> fling(EcDevice device, FlingContent content);
 
+  /// The folder received files are saved to.
+  String get receiveDir;
+
+  /// Whether [receiveDir] is the app's default folder.
+  bool get receiveDirIsDefault;
+
+  /// Whether the user can choose another folder on this platform.
+  bool get canChooseReceiveDir;
+
+  /// Lets the user pick a folder for received files. Returns false if cancelled;
+  /// throws if the folder cannot be used.
+  Future<bool> chooseReceiveDir();
+
+  /// Goes back to the default folder for received files.
+  Future<void> useDefaultReceiveDir();
+
   /// Removes a paired device.
   Future<void> forget(EcDevice device);
 
