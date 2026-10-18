@@ -124,14 +124,16 @@ async fn works_without_mdns() {
 
     let src = root.path().join("doc.pdf");
     std::fs::write(&src, b"no multicast needed").unwrap();
+    // Listed twice, as a share can: it arrives once.
     tablet
-        .send(mac.id(), vec![src], None, Arc::new(|_| {}))
+        .send(mac.id(), vec![src.clone(), src], None, Arc::new(|_| {}))
         .await
         .unwrap();
     assert_eq!(
         std::fs::read(root.path().join("Mac/inbox/doc.pdf")).unwrap(),
         b"no multicast needed"
     );
+    assert!(!root.path().join("Mac/inbox/doc (1).pdf").exists());
 
     // The Mac learned the tablet's address from the incoming connection.
     let mac_sees_tablet = async {

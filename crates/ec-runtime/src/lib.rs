@@ -515,6 +515,13 @@ impl Runtime {
         if !self.shared.trust().contains(&id) {
             return Err(Error::NotPaired);
         }
+        // A path listed twice (a share can offer the same file more than once) is
+        // sent once, rather than arriving as "name (1)".
+        let mut seen = std::collections::HashSet::new();
+        let paths: Vec<PathBuf> = paths
+            .into_iter()
+            .filter(|p| seen.insert(p.clone()))
+            .collect();
         let addrs = self.candidate_addrs(&id);
         if addrs.is_empty() && self.shared.live_conn(&id).is_none() {
             return Err(Error::Offline);
