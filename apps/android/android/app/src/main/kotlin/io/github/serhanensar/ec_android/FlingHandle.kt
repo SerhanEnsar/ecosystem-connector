@@ -1,6 +1,7 @@
 package io.github.serhanensar.ec_android
 
 import android.annotation.SuppressLint
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Canvas
@@ -189,9 +190,10 @@ class FlingHandle private constructor(private val context: Context) {
     }
 
     /**
-     * Works out what to fling: the web page in the browser in front, otherwise a
-     * screenshot. A screenshot is taken either way, as the card's picture. Both need
-     * screen access; without it, explains how to turn it on.
+     * Works out what to fling: text the user selected (or just copied), otherwise the
+     * web page in the browser in front, otherwise a screenshot. For a page a screenshot
+     * is taken too, as the card's picture. All need screen access; without it, explains
+     * how to turn it on.
      */
     private fun resolveContent(done: (Map<String, Any?>?) -> Unit) {
         val access = ScreenAccessService.instance
@@ -206,7 +208,29 @@ class FlingHandle private constructor(private val context: Context) {
             )
             return done(null)
         }
-        val page = access.currentPage()
+        if (access.copySelection()) {
+            // Give the app a moment to put the text on the clipboard.
+            handle?.postDelayed({
+                readClipboard { text ->
+                    if (text != null) {
+                        done(mapOf("type" to "text", "text" to text.take(ShareActivity.MAX_TEXT_CHARS)))
+                    } else {
+                        resolveScreen(access, done)
+                    }
+                }
+            }, 120)
+            return
+        }
+        resolveScreen(access, done)
+    }
+
+    /**
+     * A link whose menu is open, otherwise the web page in the browser in front,
+     * otherwise a screenshot.
+     */
+    private fun resolveScreen(access: ScreenAccessService, done: (Map<String, Any?>?) -> Unit) {
+        val link = access.menuLink()
+        val page = link ?: access.currentPage()
         // Keep the handle out of the screenshot. Fade it rather than hide it: a hidden
         // window loses the touch that is still in progress on it.
         val view = handle
@@ -226,7 +250,42 @@ class FlingHandle private constructor(private val context: Context) {
                 }
             }
         }
-        if (view != null) view.postDelayed(capture, 48) else capture()
+        // After closing a link menu, wait for it to leave the screen.
+        val delay = if (link != null) 250L else 48L
+        if (view != null) view.postDelayed(capture, delay) else capture()
+    }
+
+    /**
+     * Reads the clipboard. Android lets only the app with focus read it, so a tiny,
+     * invisible window takes focus for a moment. Called only right after pressing Copy
+     * for the user, never to look at what they copied before.
+     */
+    private fun readClipboard(done: (String?) -> Unit) {
+        var finished = false
+        lateinit var probe: View
+        fun finish(text: String?) {
+            if (finished) return
+            finished = true
+            runCatching { windows.removeView(probe) }
+            done(text)
+        }
+        probe = object : View(context) {
+            override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
+                super.onWindowFocusChanged(hasWindowFocus)
+                if (!hasWindowFocus) return
+                val clip = context.getSystemService(ClipboardManager::class.java).primaryClip
+                val text = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)
+                finish(text?.toString()?.trim()?.ifEmpty { null })
+            }
+        }
+        val params = WindowManager.LayoutParams(
+            1, 1,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT,
+        ).apply { gravity = Gravity.TOP or Gravity.START }
+        windows.addView(probe, params)
+        probe.postDelayed({ finish(null) }, 600)
     }
 
     private fun dp(value: Int) = (value * density).toInt()
@@ -340,7 +399,8 @@ class FlingHandle private constructor(private val context: Context) {
         private const val TAG = "EcFling"
         private const val CHANNEL = "io.github.serhanensar.ecosystemconnector/fling"
         private const val ARRIVAL_HEIGHT_DP = 420
-        private const val HANDLE_WIDTH_DP = 20
+        // Wide enough to start a swipe on easily; the visible pill stays thin.
+        private const val HANDLE_WIDTH_DP = 32
         private const val PREFS = "fling"
         private const val KEY_HANDLE = "handle"
 

@@ -150,7 +150,15 @@ pub async fn fling(conn: &PeerConnection, item: FlingItem) -> Result<()> {
     write_msg(&mut send, &item).await?;
     let ack: FlingAck = timeout(STEP_TIMEOUT, read_msg(&mut recv))
         .await
-        .map_err(|_| Error::Timeout)??;
+        .map_err(|_| Error::Timeout)?
+        .map_err(|e| match e {
+            // The receiver dropped the stream without answering: it could not read
+            // the item, which happens when its version does not know the kind.
+            ec_net::Error::Read(ec_net::ReadExactError::FinishedEarly(_)) => {
+                Error::Refused("the other device could not read it; it may need an update")
+            }
+            e => e.into(),
+        })?;
     let _ = send.finish();
     match ack {
         FlingAck::Accepted => Ok(()),

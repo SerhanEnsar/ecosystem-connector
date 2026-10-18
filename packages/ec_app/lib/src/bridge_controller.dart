@@ -315,7 +315,7 @@ class BridgeController extends EcController with WidgetsBindingObserver {
       await send();
       yield SendDone(files: 0, bytes: 0, elapsed: watch.elapsed, paths: 1);
     } catch (e) {
-      yield SendFailed('$e');
+      yield SendFailed(_reason(e));
     }
   }
 
@@ -363,4 +363,13 @@ class BridgeController extends EcController with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
+}
+
+/// The first line of an error from the core, without the exception wrapper and the
+/// backtrace, fit to show to the user.
+String _reason(Object error) {
+  var text = '$error';
+  const wrapper = 'AnyhowException(';
+  if (text.startsWith(wrapper)) text = text.substring(wrapper.length);
+  return text.split('\n').first.trim();
 }
