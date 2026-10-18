@@ -1,10 +1,12 @@
 package io.github.serhanensar.ec_android
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.GestureDescription
 import android.content.ComponentName
 import android.content.Context
 import android.content.res.Resources
 import android.graphics.Bitmap
+import android.graphics.Path
 import android.graphics.Rect
 import android.os.Build
 import android.provider.Settings
@@ -20,8 +22,8 @@ import java.util.Locale
 
 /**
  * Optional accessibility service behind "screen access". It only remembers which app
- * is in front; it copies the selected text, reads the browser's address bar or takes a
- * screenshot only when the user swipes in from the fling handle. Nothing is sent
+ * is in front; it copies the selected text when the fling handle is touched, and reads
+ * the browser's address bar or takes a screenshot only when the user swipes in from it. Nothing is sent
  * anywhere except by an explicit fling.
  */
 class ScreenAccessService : AccessibilityService() {
@@ -108,7 +110,11 @@ class ScreenAccessService : AccessibilityService() {
      * shows that menu, and Copy is labelled with the system's own word for it. Returns
      * whether Copy was pressed; the text is then on the clipboard.
      */
-    fun copySelection(): Boolean {
+    fun copySelection(): Boolean =
+        findCopy()?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true
+
+    /** The Copy item of the selection menu on screen, if any. */
+    fun findCopy(): AccessibilityNodeInfo? {
         val labels = setOf(Resources.getSystem().getString(android.R.string.copy), "Copy")
         val screen = resources.displayMetrics.heightPixels
         val bounds = Rect()
@@ -130,15 +136,34 @@ class ScreenAccessService : AccessibilityService() {
                 if (name != null && labels.any { it.equals(name, ignoreCase = true) }) {
                     var target: AccessibilityNodeInfo? = node
                     while (target != null && !target.isClickable) target = target.parent
-                    if (target?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true) {
-                        Log.d(TAG, "pressed Copy in ${root.packageName}")
-                        return true
+                    if (target != null) {
+                        Log.d(TAG, "found Copy in ${root.packageName}")
+                        return target
                     }
                 }
                 for (i in 0 until node.childCount) node.getChild(i)?.let(queue::add)
             }
         }
-        return false
+        return null
+    }
+
+    /**
+     * Taps [node] on screen. For menus that ignore an accessibility click (Samsung
+     * Notes reports Copy as clickable yet does nothing). The tap ends any touch in
+     * progress, the swipe on the handle included.
+     */
+    fun tap(node: AccessibilityNodeInfo, done: (Boolean) -> Unit) {
+        val bounds = Rect().also(node::getBoundsInScreen)
+        if (bounds.isEmpty) return done(false)
+        val path = Path().apply { moveTo(bounds.exactCenterX(), bounds.exactCenterY()) }
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, TAP_MS))
+            .build()
+        val sent = dispatchGesture(gesture, object : GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription) = done(true)
+            override fun onCancelled(gestureDescription: GestureDescription) = done(false)
+        }, null)
+        if (!sent) done(false)
     }
 
     /** Takes a screenshot and saves it as a JPEG in the cache; null on failure. */
@@ -169,6 +194,7 @@ class ScreenAccessService : AccessibilityService() {
     companion object {
         private const val TAG = "EcScreenAccess"
         private const val MAX_MENU_NODES = 200
+        private const val TAP_MS = 40L
 
         @Volatile var instance: ScreenAccessService? = null
             private set

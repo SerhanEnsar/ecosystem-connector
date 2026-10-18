@@ -10,6 +10,8 @@ import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.RectF
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
@@ -195,7 +197,7 @@ class FlingHandle private constructor(private val context: Context) {
      * is taken too, as the card's picture. All need screen access; without it, explains
      * how to turn it on.
      */
-    private fun resolveContent(done: (Map<String, Any?>?) -> Unit) {
+    private fun resolveContent(copied: Boolean, done: (Map<String, Any?>?) -> Unit) {
         val access = ScreenAccessService.instance
         if (access == null) {
             Toast.makeText(
@@ -208,20 +210,29 @@ class FlingHandle private constructor(private val context: Context) {
             )
             return done(null)
         }
-        if (access.copySelection()) {
-            // Give the app a moment to put the text on the clipboard.
-            handle?.postDelayed({
-                readClipboard { text ->
-                    if (text != null) {
-                        done(mapOf("type" to "text", "text" to text.take(ShareActivity.MAX_TEXT_CHARS)))
-                    } else {
-                        resolveScreen(access, done)
-                    }
-                }
-            }, 120)
-            return
+        val pressed = copied || access.copySelection()
+        Log.d(TAG, "copied the selection: $pressed")
+        if (pressed) return readCopied(access, done)
+        // Some menus ignore an accessibility click; tap Copy instead.
+        val copy = access.findCopy() ?: return resolveScreen(access, done)
+        access.tap(copy) { tapped ->
+            Log.d(TAG, "tapped Copy: $tapped")
+            if (tapped) readCopied(access, done) else resolveScreen(access, done)
         }
-        resolveScreen(access, done)
+    }
+
+    /** The text just copied, or what is on screen if the clipboard has none. */
+    private fun readCopied(access: ScreenAccessService, done: (Map<String, Any?>?) -> Unit) {
+        // Give the app a moment to put the text on the clipboard.
+        Handler(Looper.getMainLooper()).postDelayed({
+            readClipboard { text ->
+                if (text != null) {
+                    done(mapOf("type" to "text", "text" to text.take(ShareActivity.MAX_TEXT_CHARS)))
+                } else {
+                    resolveScreen(access, done)
+                }
+            }
+        }, 120)
     }
 
     /**
@@ -306,6 +317,8 @@ class FlingHandle private constructor(private val context: Context) {
         private var resolving = false
         private var released = false
         private var started = false
+        // Whether Copy in a selection menu was pressed when the finger landed.
+        private var copied = false
         // Set once the touch is a swipe in (it opened the layer) or clearly not one.
         private var decided = false
 
@@ -347,6 +360,9 @@ class FlingHandle private constructor(private val context: Context) {
                     released = false
                     started = false
                     decided = false
+                    // Some apps hide their selection menu while the screen is touched,
+                    // and a hidden menu cannot be pressed: copy the selection now.
+                    copied = ScreenAccessService.instance?.copySelection() == true
                 }
                 MotionEvent.ACTION_MOVE -> when {
                     started -> channel?.invokeMethod("move", position())
@@ -381,7 +397,7 @@ class FlingHandle private constructor(private val context: Context) {
             Log.d(TAG, "swipe in")
             resolving = true
             performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-            resolveContent { content ->
+            resolveContent(copied) { content ->
                 Log.d(TAG, "content: ${content?.get("type")}, released early: $released")
                 resolving = false
                 if (content == null) return@resolveContent
