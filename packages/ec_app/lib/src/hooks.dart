@@ -91,6 +91,7 @@ class PlatformHooks {
     this.scanInvite,
     this.openFile,
     this.sharedFiles,
+    this.sharedItems,
     this.vpnActive,
     this.showArrival,
     this.fling,
@@ -117,6 +118,9 @@ class PlatformHooks {
 
   /// Files shared to the app from other apps (Android share sheet).
   final Stream<List<String>>? sharedFiles;
+
+  /// Links and text shared to the app from other apps (macOS share menu).
+  final Stream<FlingContent>? sharedItems;
 
   /// Whether a VPN is on, which can stop other devices from reaching this one.
   final Future<bool> Function()? vpnActive;

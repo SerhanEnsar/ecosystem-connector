@@ -25,7 +25,11 @@ abstract class EcController extends ChangeNotifier {
   /// Files shared from another app, waiting for the user to pick a device.
   List<String> get pendingShare;
 
-  /// Drops [pendingShare] without sending.
+  /// A link or text shared from another app, waiting for the user to pick a device
+  /// ([FlingPage] or [FlingText]).
+  FlingContent? get pendingItem;
+
+  /// Drops [pendingShare] and [pendingItem] without sending.
   void dismissShare();
 
   /// Whether a VPN is on, which can stop other devices from reaching this one.

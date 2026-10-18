@@ -129,6 +129,24 @@ void main() {
     expect(c.pendingShare, isEmpty);
   });
 
+  testWidgets('a link shared from another app goes to the chosen device', (
+    tester,
+  ) async {
+    final c = FakeController(devices: [tablet, phone])
+      ..pendingItem = const FlingPage('https://example.com', title: 'Notes');
+    await tester.pumpWidget(app(c));
+    expect(find.text('Send “Notes” to'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ActionChip, 'Galaxy Tab'));
+    await tester.pump();
+    expect((c.flings.single.$2 as FlingPage).url, 'https://example.com');
+    expect(c.pendingItem, isNull);
+    c.sending.add(
+      SendDone(files: 0, bytes: 0, elapsed: Duration.zero, paths: 1),
+    );
+    await tester.pump();
+    expect(find.text('Sent to Galaxy Tab'), findsOneWidget);
+  });
+
   testWidgets('a VPN shows a dismissible notice', (tester) async {
     await tester.pumpWidget(app(FakeController(vpnActive: true)));
     expect(find.text('A VPN is on'), findsOneWidget);

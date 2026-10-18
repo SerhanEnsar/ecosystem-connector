@@ -11,6 +11,7 @@ class MainFlutterWindow: NSWindow {
     RegisterGeneratedPlugins(registry: flutterViewController)
     registerArrivalChannel(flutterViewController.engine.binaryMessenger)
     registerFolderChannel(flutterViewController.engine.binaryMessenger)
+    ShareInbox.shared.attach(flutterViewController.engine.binaryMessenger)
 
     super.awakeFromNib()
   }

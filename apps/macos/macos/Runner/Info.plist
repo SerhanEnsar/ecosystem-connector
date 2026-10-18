@@ -30,6 +30,35 @@
 	<string>NSApplication</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>ECOnnector finds your paired devices on this network and sends files to them.</string>
+	<!-- "Share → ECOnnector" (the share extension) hands links and text over as
+	     econnector://share addresses, and files by opening them with the app. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>io.github.serhanensar.ecosystemconnector.share</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>econnector</string>
+			</array>
+		</dict>
+	</array>
+	<!-- Any file can be opened with the app, to send it. Rank None: never the default. -->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Any file</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>None</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.item</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_ecconnect._udp</string>

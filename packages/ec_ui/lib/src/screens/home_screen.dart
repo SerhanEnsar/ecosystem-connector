@@ -32,6 +32,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   EcController get controller => widget.controller;
 
+  /// Sends a shared link or text, then says how it went.
+  Future<void> _sendItem(EcDevice device, FlingContent item) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final status = await controller
+        .fling(device, item)
+        .firstWhere((s) => s is SendDone || s is SendFailed)
+        .catchError((Object e) => SendFailed('$e'));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          status is SendFailed
+              ? 'Could not send to ${device.name}: ${status.reason}'
+              : 'Sent to ${device.name}',
+        ),
+      ),
+    );
+  }
+
   Future<void> _forget(BuildContext context, EcDevice device) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -95,15 +113,31 @@ class _HomeScreenState extends State<HomeScreen> {
                 VpnNotice(
                   onDismiss: () => setState(() => _vpnDismissed = true),
                 ),
-              if (controller.pendingShare.isNotEmpty)
+              if (controller.pendingShare case final paths
+                  when paths.isNotEmpty)
                 ShareBar(
-                  count: controller.pendingShare.length,
+                  title: paths.length == 1
+                      ? 'Send 1 file to'
+                      : 'Send ${paths.length} files to',
                   devices: controller.devices,
                   onDismiss: controller.dismissShare,
                   onSend: (device) {
-                    final paths = controller.pendingShare;
                     controller.dismissShare();
                     sendWithProgress(context, controller, device, paths);
+                  },
+                )
+              else if (controller.pendingItem case final item?)
+                ShareBar(
+                  title: switch (item) {
+                    FlingPage(:final title, :final url) =>
+                      'Send “${title.isEmpty ? url : title}” to',
+                    _ => 'Send the text to',
+                  },
+                  devices: controller.devices,
+                  onDismiss: controller.dismissShare,
+                  onSend: (device) {
+                    controller.dismissShare();
+                    _sendItem(device, item);
                   },
                 ),
               Expanded(
