@@ -346,6 +346,9 @@ async fn serve(
                 ec_fling::FlingItem::Url { url, title } => {
                     println!("{} flung a page: {title} {url}", from.short())
                 }
+                ec_fling::FlingItem::Text { text } => {
+                    println!("{} flung text:\n{text}", from.short())
+                }
             },
         ))),
     )?;

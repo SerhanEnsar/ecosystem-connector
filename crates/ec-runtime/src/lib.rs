@@ -536,6 +536,15 @@ impl Runtime {
 
     /// Flings a web page to a paired device, which offers to open it in its browser.
     pub async fn fling_url(&self, id: DeviceId, url: String, title: String) -> Result<()> {
+        self.fling(id, FlingItem::Url { url, title }).await
+    }
+
+    /// Flings text to a paired device, which offers to copy it.
+    pub async fn fling_text(&self, id: DeviceId, text: String) -> Result<()> {
+        self.fling(id, FlingItem::Text { text }).await
+    }
+
+    async fn fling(&self, id: DeviceId, item: FlingItem) -> Result<()> {
         if !self.shared.trust().contains(&id) {
             return Err(Error::NotPaired);
         }
@@ -551,7 +560,7 @@ impl Runtime {
                 conn
             }
         };
-        ec_fling::fling(&conn, FlingItem::Url { url, title }).await?;
+        ec_fling::fling(&conn, item).await?;
         Ok(())
     }
 

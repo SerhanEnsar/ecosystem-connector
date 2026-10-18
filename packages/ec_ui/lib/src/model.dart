@@ -153,6 +153,29 @@ class FlingFile extends FlingContent {
       page == null ? 'File · $name' : 'File · $name · page $page';
 }
 
+/// Files shared from another app, sent together.
+class FlingFiles extends FlingContent {
+  const FlingFiles(this.paths);
+  final List<String> paths;
+
+  /// The single file's name, or the number of files.
+  String get name => paths.length == 1
+      ? paths.single.split(RegExp(r'[/\\]')).last
+      : '${paths.length} files';
+
+  @override
+  String get label => paths.length == 1 ? 'File · $name' : name;
+}
+
+/// Text, offered to copy on the other device.
+class FlingText extends FlingContent {
+  const FlingText(this.text);
+  final String text;
+
+  @override
+  String get label => 'Text';
+}
+
 /// A web page, opened in the browser. [preview] is a screenshot of it, shown while
 /// flinging.
 class FlingPage extends FlingContent {

@@ -108,6 +108,13 @@ pub enum CoreEvent {
         /// The page title.
         title: String,
     },
+    /// A paired device flung text, to offer to copy.
+    FlingText {
+        /// Short id of the sender.
+        from: String,
+        /// The text (validated: no control characters but line breaks and tabs).
+        text: String,
+    },
     /// A transfer finished.
     ReceiveFinished,
     /// A transfer stopped early; it resumes when sent again.
@@ -405,6 +412,15 @@ impl EcCore {
         Ok(())
     }
 
+    /// Flings text to a paired device, which offers to copy it.
+    pub async fn fling_text(&self, device_id: String, text: String) -> anyhow::Result<()> {
+        let id: DeviceId = device_id.parse()?;
+        let runtime = self.runtime.clone();
+        RT.spawn(async move { runtime.fling_text(id, text).await })
+            .await??;
+        Ok(())
+    }
+
     /// Removes a paired device.
     #[frb(sync)]
     pub fn forget(&self, device_id: String) -> anyhow::Result<()> {
@@ -451,6 +467,10 @@ fn convert(event: Event) -> Option<CoreEvent> {
                 from: from.short(),
                 url,
                 title,
+            },
+            ec_fling::FlingItem::Text { text } => CoreEvent::FlingText {
+                from: from.short(),
+                text,
             },
         },
         Event::Receive(event) => match event {

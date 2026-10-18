@@ -181,6 +181,28 @@ async fn works_without_mdns() {
             title: "Notes".into()
         }
     );
+
+    // And text.
+    tablet
+        .fling_text(mac.id(), "Room 204, 14:00".into())
+        .await
+        .unwrap();
+    let flung = async {
+        loop {
+            if let Event::Fling { item, .. } = mac_events.recv().await.unwrap() {
+                return item;
+            }
+        }
+    };
+    let item = tokio::time::timeout(Duration::from_secs(5), flung)
+        .await
+        .unwrap();
+    assert_eq!(
+        item,
+        ec_fling::FlingItem::Text {
+            text: "Room 204, 14:00".into()
+        }
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]

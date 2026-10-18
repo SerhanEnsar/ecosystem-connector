@@ -23,6 +23,9 @@ abstract class EcCore implements RustOpaqueInterface {
   /// Streams background events until the stream is closed on the Dart side.
   Stream<CoreEvent> events();
 
+  /// Flings text to a paired device, which offers to copy it.
+  Future<void> flingText({required String deviceId, required String text});
+
   /// Flings a web page to a paired device, which offers to open it in its browser.
   Future<void> flingUrl({
     required String deviceId,
@@ -166,6 +169,15 @@ sealed class CoreEvent with _$CoreEvent {
     /// The page title.
     required String title,
   }) = CoreEvent_FlingUrl;
+
+  /// A paired device flung text, to offer to copy.
+  const factory CoreEvent.flingText({
+    /// Short id of the sender.
+    required String from,
+
+    /// The text (validated: no control characters but line breaks and tabs).
+    required String text,
+  }) = CoreEvent_FlingText;
 
   /// A transfer finished.
   const factory CoreEvent.receiveFinished() = CoreEvent_ReceiveFinished;

@@ -555,6 +555,9 @@ class _FlingOverlayState extends State<FlingOverlay>
 
   IconData _iconFor(FlingContent content) => switch (content) {
     FlingFile() => Icons.description_outlined,
+    FlingFiles(:final paths) =>
+      paths.length == 1 ? Icons.description_outlined : Icons.file_copy_outlined,
+    FlingText() => Icons.notes,
     FlingPage() => Icons.public,
     FlingScreenshot() => Icons.screenshot_monitor_outlined,
   };
@@ -769,7 +772,10 @@ class _Card extends StatelessWidget {
     final preview = switch (content) {
       FlingScreenshot(:final path) => path,
       FlingPage(:final preview) => preview,
-      FlingFile() => null,
+      FlingFiles(:final paths)
+          when paths.length == 1 && _isImage(paths.single) =>
+        paths.single,
+      FlingFile() || FlingFiles() || FlingText() => null,
     };
     final Widget inner = preview != null
         ? Stack(
@@ -798,6 +804,13 @@ class _Card extends StatelessWidget {
                 Icons.description_outlined,
                 name,
               ),
+              FlingFiles(:final name, :final paths) => _Labelled(
+                paths.length == 1
+                    ? Icons.description_outlined
+                    : Icons.file_copy_outlined,
+                name,
+              ),
+              FlingText(:final text) => _TextPreview(text),
               FlingScreenshot() => const Icon(
                 Icons.screenshot_monitor_outlined,
                 size: 40,
@@ -825,6 +838,33 @@ class _Card extends StatelessWidget {
             border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
           ),
           child: inner,
+        ),
+      ),
+    );
+  }
+}
+
+bool _isImage(String path) => RegExp(
+  r'\.(jpe?g|png|webp|gif|bmp|heic)$',
+  caseSensitive: false,
+).hasMatch(path);
+
+/// The start of the text, as on a note card.
+class _TextPreview extends StatelessWidget {
+  const _TextPreview(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(28),
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: Text(
+          text,
+          overflow: TextOverflow.fade,
+          style: Theme.of(context).textTheme.titleLarge,
         ),
       ),
     );

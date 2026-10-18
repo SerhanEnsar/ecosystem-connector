@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="screen_access_label">Ecosystem Connector screen access</string>
-    <string name="screen_access_description">Lets you fling what is on screen to your other devices. When you hold the edge handle, Ecosystem Connector reads the address of the web page you are viewing in your browser, or takes a screenshot. Nothing is read or captured at any other time, and nothing leaves your devices.</string>
+    <string name="screen_access_description">Lets you fling what is on screen to your other devices. When you swipe in from the edge handle, Ecosystem Connector reads the address of the web page you are viewing in your browser, or takes a screenshot. Nothing is read or captured at any other time, and nothing leaves your devices.</string>
 </resources>

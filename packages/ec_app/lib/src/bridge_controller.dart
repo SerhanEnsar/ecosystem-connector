@@ -198,6 +198,8 @@ class BridgeController extends EcController with WidgetsBindingObserver {
         unawaited(
           _arrived(ArrivalInfo.page(url, title: title, from: _nameOf(from))),
         );
+      case CoreEvent_FlingText(:final from, :final text):
+        unawaited(_arrived(ArrivalInfo.text(text, from: _nameOf(from))));
       case CoreEvent_ReceiveFinished():
         final paths = List<String>.of(_savedInTransfer);
         if (paths.isNotEmpty) {
@@ -292,20 +294,25 @@ class BridgeController extends EcController with WidgetsBindingObserver {
             page: page,
           ),
         ),
+        FlingFiles(:final paths) => _sendStatus(
+          _core.send(deviceId: device.id, paths: paths, open: true),
+        ),
         FlingScreenshot(:final path) => _sendStatus(
           _core.send(deviceId: device.id, paths: [path], open: true),
         ),
-        FlingPage(:final url, :final title) => _flingPage(device, url, title),
+        FlingPage(:final url, :final title) => _flingItem(
+          () => _core.flingUrl(deviceId: device.id, url: url, title: title),
+        ),
+        FlingText(:final text) => _flingItem(
+          () => _core.flingText(deviceId: device.id, text: text),
+        ),
       };
 
-  Stream<SendStatus> _flingPage(
-    EcDevice device,
-    String url,
-    String title,
-  ) async* {
+  /// A page or text: one short message, done when the other device accepts it.
+  Stream<SendStatus> _flingItem(Future<void> Function() send) async* {
     final watch = Stopwatch()..start();
     try {
-      await _core.flingUrl(deviceId: device.id, url: url, title: title);
+      await send();
       yield SendDone(files: 0, bytes: 0, elapsed: watch.elapsed, paths: 1);
     } catch (e) {
       yield SendFailed('$e');

@@ -39,6 +39,14 @@ class _FlingLayerState extends State<FlingLayer> {
   void initState() {
     super.initState();
     _channel.setMethodCallHandler(_onCall);
+    // Something shared while this engine started waits on the native side.
+    unawaited(
+      _channel.invokeMethod<Map<Object?, Object?>>('takePending').then((
+        pending,
+      ) {
+        if (pending != null) _onCall(MethodCall('start', pending));
+      }),
+    );
     _arrivals = arrivals.stream.listen((arrival) {
       setState(() => _cards.add((_nextCard++, arrival)));
       _syncWindow();
@@ -85,6 +93,8 @@ class _FlingLayerState extends State<FlingLayer> {
             args['path'] as String,
             page: args['page'] as int?,
           ),
+          'files' => FlingFiles(List<String>.from(args['paths'] as List)),
+          'text' => FlingText(args['text'] as String),
           _ => FlingScreenshot(args['path'] as String),
         };
         // FlingHandle.kt already made the window full-screen for the fling.
@@ -123,9 +133,12 @@ class _FlingLayerState extends State<FlingLayer> {
       from: a.from,
       detail: a.url != null
           ? (Uri.tryParse(a.url!)?.host ?? a.url!)
+          : a.text != null
+          ? a.text!.replaceAll(RegExp(r'\s+'), ' ')
           : formatBytes(a.size),
       imagePath: isImage ? single : null,
       isPage: a.url != null,
+      isText: a.text != null,
     );
   }
 
@@ -166,12 +179,14 @@ class _FlingLayerState extends State<FlingLayer> {
                       child: ArrivalCard(
                         key: ValueKey(id),
                         data: _cardData(arrival),
-                        onPrimary: () => arrival.url != null
-                            ? _channel.invokeMethod<bool>(
-                                'openUrl',
-                                arrival.url,
-                              )
-                            : _channel.invokeMethod<bool>('showInFolder'),
+                        onPrimary: () => switch (arrival) {
+                          ArrivalInfo(:final url?) =>
+                            _channel.invokeMethod<bool>('openUrl', url),
+                          ArrivalInfo(:final text?) => Clipboard.setData(
+                            ClipboardData(text: text),
+                          ),
+                          _ => _channel.invokeMethod<bool>('showInFolder'),
+                        },
                         onOpen: arrival.paths.length == 1
                             ? () => _channel.invokeMethod<bool>(
                                 'openFile',

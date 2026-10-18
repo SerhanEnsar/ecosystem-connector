@@ -101,4 +101,22 @@ void main() {
     expect(find.text('Show in folder'), findsNothing);
     expect(find.text('Open'), findsNothing);
   });
+
+  testWidgets('text offers to copy', (tester) async {
+    final calls = await pumpCard(
+      tester,
+      const ArrivalCardData(
+        title: 'Room 204, 14:00',
+        from: 'Mac',
+        detail: 'Room 204, 14:00',
+        isText: true,
+      ),
+    );
+    await settleIn(tester);
+    expect(find.text('Show in folder'), findsNothing);
+    expect(find.text('Open'), findsNothing);
+    await tester.tap(find.text('Copy'));
+    await tester.pumpAndSettle();
+    expect(calls, ['primary', 'closed']);
+  });
 }

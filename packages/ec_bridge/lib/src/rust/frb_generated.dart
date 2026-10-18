@@ -69,7 +69,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 2025290132;
+  int get rustContentHash => -2088401442;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -89,6 +89,12 @@ abstract class RustLibApi extends BaseApi {
   List<DeviceView> crateApiCoreEcCoreDevices({required EcCore that});
 
   Stream<CoreEvent> crateApiCoreEcCoreEvents({required EcCore that});
+
+  Future<void> crateApiCoreEcCoreFlingText({
+    required EcCore that,
+    required String deviceId,
+    required String text,
+  });
 
   Future<void> crateApiCoreEcCoreFlingUrl({
     required EcCore that,
@@ -246,6 +252,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiCoreEcCoreFlingText({
+    required EcCore that,
+    required String deviceId,
+    required String text,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEcCore(
+            that,
+            serializer,
+          );
+          sse_encode_String(deviceId, serializer);
+          sse_encode_String(text, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiCoreEcCoreFlingTextConstMeta,
+        argValues: [that, deviceId, text],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreEcCoreFlingTextConstMeta =>
+      const TaskConstMeta(
+        debugName: "EcCore_fling_text",
+        argNames: ["that", "deviceId", "text"],
+      );
+
+  @override
   Future<void> crateApiCoreEcCoreFlingUrl({
     required EcCore that,
     required String deviceId,
@@ -266,7 +312,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 5,
             port: port_,
           );
         },
@@ -300,7 +346,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_String(deviceId, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -334,7 +380,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 6,
+              funcId: 7,
               port: port_,
             );
           },
@@ -377,7 +423,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 7,
+              funcId: 8,
               port: port_,
             );
           },
@@ -410,7 +456,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -436,7 +482,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -462,7 +508,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -488,7 +534,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -514,7 +560,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -559,7 +605,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 13,
+              funcId: 14,
               port: port_,
             );
           },
@@ -592,7 +638,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_opt_String(path, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -621,7 +667,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 16,
             port: port_,
           );
         },
@@ -649,7 +695,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 17,
             port: port_,
           );
         },
@@ -800,8 +846,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           title: dco_decode_String(raw[3]),
         );
       case 6:
-        return CoreEvent_ReceiveFinished();
+        return CoreEvent_FlingText(
+          from: dco_decode_String(raw[1]),
+          text: dco_decode_String(raw[2]),
+        );
       case 7:
+        return CoreEvent_ReceiveFinished();
+      case 8:
         return CoreEvent_ReceiveInterrupted(reason: dco_decode_String(raw[1]));
       default:
         throw Exception("unreachable");
@@ -1078,8 +1129,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           title: var_title,
         );
       case 6:
-        return CoreEvent_ReceiveFinished();
+        var var_from = sse_decode_String(deserializer);
+        var var_text = sse_decode_String(deserializer);
+        return CoreEvent_FlingText(from: var_from, text: var_text);
       case 7:
+        return CoreEvent_ReceiveFinished();
+      case 8:
         var var_reason = sse_decode_String(deserializer);
         return CoreEvent_ReceiveInterrupted(reason: var_reason);
       default:
@@ -1435,10 +1490,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(from, serializer);
         sse_encode_String(url, serializer);
         sse_encode_String(title, serializer);
-      case CoreEvent_ReceiveFinished():
+      case CoreEvent_FlingText(from: final from, text: final text):
         sse_encode_i_32(6, serializer);
-      case CoreEvent_ReceiveInterrupted(reason: final reason):
+        sse_encode_String(from, serializer);
+        sse_encode_String(text, serializer);
+      case CoreEvent_ReceiveFinished():
         sse_encode_i_32(7, serializer);
+      case CoreEvent_ReceiveInterrupted(reason: final reason):
+        sse_encode_i_32(8, serializer);
         sse_encode_String(reason, serializer);
     }
   }
@@ -1627,6 +1686,14 @@ class EcCoreImpl extends RustOpaque implements EcCore {
   /// Streams background events until the stream is closed on the Dart side.
   Stream<CoreEvent> events() =>
       RustLib.instance.api.crateApiCoreEcCoreEvents(that: this);
+
+  /// Flings text to a paired device, which offers to copy it.
+  Future<void> flingText({required String deviceId, required String text}) =>
+      RustLib.instance.api.crateApiCoreEcCoreFlingText(
+        that: this,
+        deviceId: deviceId,
+        text: text,
+      );
 
   /// Flings a web page to a paired device, which offers to open it in its browser.
   Future<void> flingUrl({

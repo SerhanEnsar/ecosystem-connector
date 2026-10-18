@@ -33,6 +33,8 @@ private func registerArrivalChannel(_ messenger: FlutterBinaryMessenger) {
     let kind: Arrival.Kind
     if let link = args["url"] as? String, let url = URL(string: link) {
       kind = .page(url)
+    } else if let text = args["text"] as? String {
+      kind = .text(text)
     } else if let paths = args["paths"] as? [String], paths.count > 1 {
       kind = .files(paths.map { URL(fileURLWithPath: $0) }, size: size)
     } else if let path = (args["paths"] as? [String])?.first {

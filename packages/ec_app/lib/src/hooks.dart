@@ -25,6 +25,7 @@ class FlingHooks {
 class ArrivalInfo {
   ArrivalInfo.files(this.paths, {required this.from, this.size = 0})
     : url = null,
+      text = null,
       title = paths.length == 1 ? '' : '${paths.length} files';
 
   const ArrivalInfo.page(
@@ -32,13 +33,23 @@ class ArrivalInfo {
     required this.title,
     required this.from,
   }) : paths = const [],
+       text = null,
        size = 0;
 
-  /// Saved files (empty for a page).
+  const ArrivalInfo.text(String this.text, {required this.from})
+    : paths = const [],
+      url = null,
+      title = '',
+      size = 0;
+
+  /// Saved files (empty for a page or text).
   final List<String> paths;
 
-  /// The page address (null for files).
+  /// The page address (null for files and text).
   final String? url;
+
+  /// Text to offer to copy (null for files and pages).
+  final String? text;
 
   /// What the card shows as its title.
   final String title;
@@ -49,9 +60,14 @@ class ArrivalInfo {
   /// Total size of the files in bytes.
   final int size;
 
-  /// The card's title: the file name, the number of files, or the page title.
+  /// The card's title: the file name, the number of files, the page title, or the
+  /// text's first line.
   String get displayTitle {
     if (url != null) return title.isEmpty ? url! : title;
+    if (text case final text?) {
+      final line = text.split('\n').firstWhere((l) => l.trim().isNotEmpty);
+      return line.length > 80 ? '${line.substring(0, 80)}…' : line.trim();
+    }
     if (paths.length == 1) return paths.single.split(RegExp(r'[/\\]')).last;
     return title;
   }
@@ -59,6 +75,7 @@ class ArrivalInfo {
   Map<String, Object?> toMap() => {
     'paths': paths,
     'url': url,
+    'text': text,
     'title': displayTitle,
     'from': from,
     'size': size,

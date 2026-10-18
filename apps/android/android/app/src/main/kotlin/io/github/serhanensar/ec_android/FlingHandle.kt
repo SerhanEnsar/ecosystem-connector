@@ -36,6 +36,9 @@ import kotlin.math.abs
  * layer, which then takes touches itself: the card is dragged there, a tap outside
  * closes. Taps and vertical swipes on the strip do nothing, so brushing the edge does
  * not open the layer by accident.
+ *
+ * Content shared to the app (ShareActivity.kt) opens in the same layer, with or without
+ * the handle.
  */
 class FlingHandle private constructor(private val context: Context) {
     private val windows = context.getSystemService(WindowManager::class.java)
@@ -44,6 +47,9 @@ class FlingHandle private constructor(private val context: Context) {
     private var layer: FlutterView? = null
     private var engine: FlutterEngine? = null
     private var channel: MethodChannel? = null
+    // Whether the layer's Dart code listens yet, and what to show once it does.
+    private var layerReady = false
+    private var pending: Map<String, Any?>? = null
 
     /** Shows or hides the handle to match the user's choice and the permission. */
     fun sync() {
@@ -85,6 +91,14 @@ class FlingHandle private constructor(private val context: Context) {
             setMethodCallHandler { call, result ->
                 when (call.method) {
                     // The layer tells which window it needs: "fling", "arrival" or "none".
+                    // The layer starts listening; it shows what was shared while it started.
+                    "takePending" -> {
+                        layerReady = true
+                        val content = pending
+                        pending = null
+                        if (content != null) showLayer()
+                        result.success(content)
+                    }
                     "layer" -> {
                         setLayer(call.arguments as String)
                         result.success(null)
@@ -107,6 +121,17 @@ class FlingHandle private constructor(private val context: Context) {
     fun isActive(): Boolean = engine != null
 
     private fun showLayer() = setLayer("fling")
+
+    /** Opens the layer with shared [content] (see ShareActivity.kt), ready to drag. */
+    fun share(content: Map<String, Any?>) {
+        warmEngine()
+        if (!layerReady) {
+            pending = content
+            return
+        }
+        showLayer()
+        channel?.invokeMethod("start", content)
+    }
 
     /**
      * Sizes the layer window for its job. "fling": the whole screen, taking touches

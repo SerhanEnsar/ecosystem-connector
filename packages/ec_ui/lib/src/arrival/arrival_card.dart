@@ -12,16 +12,17 @@ class ArrivalCardData {
     required this.detail,
     this.imagePath,
     this.isPage = false,
+    this.isText = false,
     this.canSaveElsewhere = false,
   });
 
-  /// File name, "3 files", or the page title.
+  /// File name, "3 files", the page title, or the text's first line.
   final String title;
 
   /// Name of the sending device.
   final String from;
 
-  /// Size, or the page's domain.
+  /// Size, the page's domain, or more of the text.
   final String detail;
 
   /// An image file to show as the preview.
@@ -29,6 +30,9 @@ class ArrivalCardData {
 
   /// A web page rather than files.
   final bool isPage;
+
+  /// Text to copy rather than files.
+  final bool isText;
 
   /// Offer "Save to…".
   final bool canSaveElsewhere;
@@ -50,7 +54,7 @@ class ArrivalCard extends StatefulWidget {
 
   final ArrivalCardData data;
 
-  /// "Show in folder" for files, "Open in browser" for a page.
+  /// "Show in folder" for files, "Open in browser" for a page, "Copy" for text.
   final VoidCallback onPrimary;
 
   /// "Open" for files, where the platform can open them.
@@ -239,12 +243,18 @@ class _ArrivalCardState extends State<ArrivalCard>
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      if (!data.isPage && widget.onOpen != null) ...[
+                      if (!data.isPage &&
+                          !data.isText &&
+                          widget.onOpen != null) ...[
                         _Pill('Open', onTap: () => _act(widget.onOpen)),
                         const SizedBox(width: 6),
                       ],
                       _Pill(
-                        data.isPage ? 'Open in browser' : 'Show in folder',
+                        data.isPage
+                            ? 'Open in browser'
+                            : data.isText
+                            ? 'Copy'
+                            : 'Show in folder',
                         onTap: () => _act(widget.onPrimary),
                       ),
                       if (data.canSaveElsewhere &&
@@ -292,7 +302,11 @@ class _ArrivalCardState extends State<ArrivalCard>
     final placeholder = ColoredBox(
       color: Colors.white.withValues(alpha: 0.12),
       child: Icon(
-        widget.data.isPage ? Icons.public : Icons.description_outlined,
+        widget.data.isPage
+            ? Icons.public
+            : widget.data.isText
+            ? Icons.notes
+            : Icons.description_outlined,
         size: 32,
         color: Colors.white,
       ),

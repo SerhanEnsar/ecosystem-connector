@@ -8,6 +8,7 @@ struct Arrival: Identifiable {
     case file(URL, size: Int64)
     case files([URL], size: Int64)
     case page(URL)
+    case text(String)
   }
 
   let id = UUID()
@@ -18,7 +19,8 @@ struct Arrival: Identifiable {
 
 /// Shows arrivals at the top of the screen: a drop falls from the top edge and spreads
 /// into a frosted card with a preview. The card stays a few seconds (longer while the
-/// pointer is on it). Clicking shows the file in Finder or opens the page; × closes it.
+/// pointer is on it). Clicking shows the file in Finder, opens the page or copies the
+/// text; × closes it.
 final class ArrivalPresenter {
   static let shared = ArrivalPresenter()
 
@@ -207,6 +209,7 @@ struct ArrivalView: View {
     case .file: return "doc"
     case .files: return "doc.on.doc"
     case .page: return "globe"
+    case .text: return "text.alignleft"
     }
   }
 
@@ -216,6 +219,8 @@ struct ArrivalView: View {
       return ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
     case .page(let url):
       return url.host ?? url.absoluteString
+    case .text(let text):
+      return text.split(whereSeparator: \.isNewline).joined(separator: " ")
     }
   }
 
@@ -223,6 +228,7 @@ struct ArrivalView: View {
     switch arrival.kind {
     case .file, .files: return "Show in folder"
     case .page: return "Open in browser"
+    case .text: return "Copy"
     }
   }
 
@@ -243,6 +249,9 @@ struct ArrivalView: View {
     case .file(let url, _): NSWorkspace.shared.activateFileViewerSelecting([url])
     case .files(let urls, _): NSWorkspace.shared.activateFileViewerSelecting(urls)
     case .page(let url): NSWorkspace.shared.open(url)
+    case .text(let text):
+      NSPasteboard.general.clearContents()
+      NSPasteboard.general.setString(text, forType: .string)
     }
     dismiss()
   }

@@ -53,7 +53,16 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="ecpair" />
             </intent-filter>
-            <!-- "Share" from other apps sends files to a paired device. -->
+        </activity>
+        <!-- "Share" from other apps: files, links and text open in the fling layer,
+             to drag onto a device. No screen of its own. -->
+        <activity
+            android:name=".ShareActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />

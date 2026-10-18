@@ -201,4 +201,32 @@ void main() {
     await tester.pumpAndSettle();
     expect(results, [FlingResult.cancelled]);
   });
+
+  testWidgets('shared text shows on the card and is sent as text', (
+    tester,
+  ) async {
+    final (controller, gesture, _) = await pumpOverlay(
+      tester,
+      content: const FlingText('Room 204, 14:00'),
+    );
+    expect(find.text('Text'), findsOneWidget);
+    expect(find.text('Room 204, 14:00'), findsOneWidget);
+    gesture.move(section(0, 1));
+    await tester.pump(const Duration(milliseconds: 100));
+    gesture.release(section(0, 1));
+    await tester.pump();
+    expect((controller.flings.single.$2 as FlingText).text, 'Room 204, 14:00');
+    controller.sending.add(const SendProgress(sent: 1, total: 1, paths: 1));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('shared files are named in the header', (tester) async {
+    await pumpOverlay(
+      tester,
+      content: const FlingFiles(['/a/notes.pdf', '/a/b.png', '/a/c.txt']),
+    );
+    expect(find.text('3 files'), findsNWidgets(2));
+  });
 }
