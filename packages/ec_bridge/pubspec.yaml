@@ -1,5 +1,5 @@
 name: ec_bridge
-description: Dart bindings for the Rust core of Ecosystem Connector (flutter_rust_bridge + cargokit).
+description: Dart bindings for the Rust core of ECOnnector (flutter_rust_bridge + cargokit).
 publish_to: none
 version: 0.0.1
 resolution: workspace

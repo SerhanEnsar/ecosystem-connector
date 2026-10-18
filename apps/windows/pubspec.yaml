@@ -1,5 +1,5 @@
 name: ec_windows
-description: Ecosystem Connector for Windows.
+description: ECOnnector for Windows.
 publish_to: none
 # Overridden in release builds with the version from the git tag.
 version: 0.0.1+1

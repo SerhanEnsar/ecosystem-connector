@@ -23,6 +23,10 @@ class BridgeController extends EcController with WidgetsBindingObserver {
       _pendingShare = [..._pendingShare, ...paths];
       notifyListeners();
     });
+    _items = _hooks.sharedItems?.listen((item) {
+      _pendingItem = item;
+      notifyListeners();
+    });
     if (_hooks.vpnActive != null || _hooks.fling != null) {
       unawaited(_checkPlatform());
       // A VPN or a permission can change at any time.
@@ -71,6 +75,8 @@ class BridgeController extends EcController with WidgetsBindingObserver {
   final Notifier _notifier;
   late final StreamSubscription<CoreEvent> _events;
   StreamSubscription<List<String>>? _shares;
+  StreamSubscription<FlingContent>? _items;
+  FlingContent? _pendingItem;
   StreamSubscription<String>? _invites;
   String? _pendingInvite;
   List<String> _pendingShare = const [];
@@ -102,8 +108,12 @@ class BridgeController extends EcController with WidgetsBindingObserver {
   List<String> get pendingShare => _pendingShare;
 
   @override
+  FlingContent? get pendingItem => _pendingItem;
+
+  @override
   void dismissShare() {
     _pendingShare = const [];
+    _pendingItem = null;
     notifyListeners();
   }
 
@@ -358,6 +368,7 @@ class BridgeController extends EcController with WidgetsBindingObserver {
   void dispose() {
     _events.cancel();
     _shares?.cancel();
+    _items?.cancel();
     _invites?.cancel();
     _vpnTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);

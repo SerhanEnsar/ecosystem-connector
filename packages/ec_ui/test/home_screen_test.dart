@@ -17,7 +17,7 @@ final phone = EcDevice(
 );
 
 Widget app(FakeController c) =>
-    EcosystemConnectorApp(platform: EcPlatform.macos, controller: c);
+    ECOnnectorApp(platform: EcPlatform.macos, controller: c);
 
 void main() {
   testWidgets('empty state invites pairing', (tester) async {
@@ -127,6 +127,24 @@ void main() {
     await tester.pump();
     expect(c.sends.single.$2, ['/cache/shared/photo.jpg']);
     expect(c.pendingShare, isEmpty);
+  });
+
+  testWidgets('a link shared from another app goes to the chosen device', (
+    tester,
+  ) async {
+    final c = FakeController(devices: [tablet, phone])
+      ..pendingItem = const FlingPage('https://example.com', title: 'Notes');
+    await tester.pumpWidget(app(c));
+    expect(find.text('Send “Notes” to'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ActionChip, 'Galaxy Tab'));
+    await tester.pump();
+    expect((c.flings.single.$2 as FlingPage).url, 'https://example.com');
+    expect(c.pendingItem, isNull);
+    c.sending.add(
+      SendDone(files: 0, bytes: 0, elapsed: Duration.zero, paths: 1),
+    );
+    await tester.pump();
+    expect(find.text('Sent to Galaxy Tab'), findsOneWidget);
   });
 
   testWidgets('a VPN shows a dismissible notice', (tester) async {

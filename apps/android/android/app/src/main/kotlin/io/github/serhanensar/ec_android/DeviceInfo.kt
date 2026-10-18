@@ -12,11 +12,11 @@ object DeviceInfo {
         Settings.Global.getString(context.contentResolver, "device_name")?.takeIf { it.isNotBlank() }
             ?: "${Build.MANUFACTURER} ${Build.MODEL}"
 
-    /** Download/Ecosystem Connector, visible in the Files app. */
+    /** Download/ECOnnector, visible in the Files app. */
     fun receiveDir(): String {
         @Suppress("DEPRECATION")
         val downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val dir = File(downloads, "Ecosystem Connector")
+        val dir = File(downloads, "ECOnnector")
         dir.mkdirs()
         return dir.absolutePath
     }

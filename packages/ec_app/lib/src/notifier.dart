@@ -27,7 +27,7 @@ class Notifier {
               android: AndroidInitializationSettings('@mipmap/ic_launcher'),
               macOS: DarwinInitializationSettings(),
               windows: WindowsInitializationSettings(
-                appName: 'Ecosystem Connector',
+                appName: 'ECOnnector',
                 appUserModelId: 'SerhanEnsar.EcosystemConnector',
                 guid: 'f5e2a5f9-f910-4342-892a-cdccc7ef4169',
               ),

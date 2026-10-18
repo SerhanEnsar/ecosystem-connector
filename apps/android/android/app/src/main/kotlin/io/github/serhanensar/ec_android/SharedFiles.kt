@@ -9,7 +9,7 @@ import android.util.Log
 import java.io.File
 
 /**
- * Files other apps share to Ecosystem Connector arrive as content URIs. The Rust core
+ * Files other apps share to ECOnnector arrive as content URIs. The Rust core
  * reads plain files, so each one is copied into the app's cache first.
  */
 class SharedFiles(private val context: Context) {

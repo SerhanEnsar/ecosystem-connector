@@ -63,8 +63,21 @@ class FakeController extends EcController {
   @override
   List<String> get pendingShare => _pendingShare;
 
+  FlingContent? _pendingItem;
+
+  set pendingItem(FlingContent? value) {
+    _pendingItem = value;
+    notifyListeners();
+  }
+
   @override
-  void dismissShare() => pendingShare = [];
+  FlingContent? get pendingItem => _pendingItem;
+
+  @override
+  void dismissShare() {
+    _pendingItem = null;
+    pendingShare = [];
+  }
 
   set receiving(ReceiveStatus? value) {
     _receiving = value;
@@ -146,7 +159,7 @@ class FakeController extends EcController {
   Future<void> openScreenAccessSettings() async => setupCalls.add('access');
 
   /// The default folder, and what [chooseReceiveDir] picks next (null cancels).
-  String defaultReceiveDir = '/Users/test/Downloads/Ecosystem Connector';
+  String defaultReceiveDir = '/Users/test/Downloads/ECOnnector';
   String? folderToPick;
 
   @override

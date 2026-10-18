@@ -34,7 +34,7 @@ object Files {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         // Not our URI, so no permission flags: the Files app has its own access.
         val folder = DocumentsContract.buildDocumentUri(
-            "com.android.externalstorage.documents", "primary:Download/Ecosystem Connector",
+            "com.android.externalstorage.documents", "primary:Download/ECOnnector",
         )
         val files = Intent(Intent.ACTION_VIEW)
             .setDataAndType(folder, DocumentsContract.Document.MIME_TYPE_DIR)

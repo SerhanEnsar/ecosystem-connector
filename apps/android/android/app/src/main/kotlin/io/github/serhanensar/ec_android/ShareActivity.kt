@@ -7,7 +7,7 @@ import android.provider.Settings
 import android.widget.Toast
 
 /**
- * "Share → Ecosystem Connector" from any app. Has no screen of its own: what is shared
+ * "Share → ECOnnector" from any app. Has no screen of its own: what is shared
  * opens in the fling layer over the app it came from, as a card to drag onto a device.
  *
  * Shared files are copied into the cache first (the core reads plain files, and the

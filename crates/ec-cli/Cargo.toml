@@ -1,6 +1,6 @@
 [package]
 name = "ec-cli"
-description = "Command line tool for trying out Ecosystem Connector: pairing, discovery and connections."
+description = "Command line tool for trying out ECOnnector: pairing, discovery and connections."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -1,4 +1,4 @@
-# Contributing to Ecosystem Connector
+# Contributing to ECOnnector
 
 Thanks for your interest in the project. This guide explains how to set up a development
 environment and how changes get merged.

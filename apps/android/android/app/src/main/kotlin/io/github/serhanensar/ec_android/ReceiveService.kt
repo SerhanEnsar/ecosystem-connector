@@ -29,7 +29,7 @@ class ReceiveService : Service() {
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Ready to receive", NotificationManager.IMPORTANCE_MIN).apply {
-                description = "Shown while Ecosystem Connector can receive files in the background"
+                description = "Shown while ECOnnector can receive files in the background"
             },
         )
         val open = PendingIntent.getActivity(

@@ -1,4 +1,4 @@
-# Ecosystem Connector for Android
+# ECOnnector for Android
 
 The Android app. Screens come from the shared [`ec_ui`](../../packages/ec_ui) package; this
 folder holds only what is specific to Android.

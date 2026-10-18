@@ -1,4 +1,4 @@
-//! Flutter bindings for the Ecosystem Connector runtime.
+//! Flutter bindings for the ECOnnector runtime.
 //!
 //! Everything in [`api`] is exposed to Dart by flutter_rust_bridge; the Dart side lives
 //! in `packages/ec_bridge`. Regenerate the bindings after changing the API:

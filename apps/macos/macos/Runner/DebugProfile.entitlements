@@ -11,7 +11,7 @@
 	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>
-	<!-- Saving received files to ~/Downloads/Ecosystem Connector. -->
+	<!-- Saving received files to ~/Downloads/ECOnnector. -->
 	<key>com.apple.security.files.downloads.read-write</key>
 	<true/>
 	<!-- Sending files the user picks, saving to a folder the user picks for received

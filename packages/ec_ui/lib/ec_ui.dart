@@ -1,4 +1,4 @@
-/// Shared user interface of the Ecosystem Connector apps.
+/// Shared user interface of the ECOnnector apps.
 ///
 /// Each platform app in `apps/` depends on this package and provides an
 /// [EcController]; this package itself contains no platform code.

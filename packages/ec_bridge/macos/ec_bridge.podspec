@@ -5,9 +5,9 @@
 Pod::Spec.new do |s|
   s.name             = 'ec_bridge'
   s.version          = '0.0.1'
-  s.summary          = 'Rust core of Ecosystem Connector, built with cargokit.'
+  s.summary          = 'Rust core of ECOnnector, built with cargokit.'
   s.description      = <<-DESC
-Rust core of Ecosystem Connector, built with cargokit.
+Rust core of ECOnnector, built with cargokit.
                        DESC
   s.homepage         = 'https://github.com/SerhanEnsar/ecosystem-connector'
   s.license          = { :type => 'Apache-2.0' }

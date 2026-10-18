@@ -5,9 +5,9 @@ import 'platform.dart';
 import 'screens/home_screen.dart';
 import 'theme.dart';
 
-/// Root widget of every Ecosystem Connector app.
-class EcosystemConnectorApp extends StatelessWidget {
-  const EcosystemConnectorApp({
+/// Root widget of every ECOnnector app.
+class ECOnnectorApp extends StatelessWidget {
+  const ECOnnectorApp({
     super.key,
     required this.platform,
     required this.controller,
@@ -22,7 +22,7 @@ class EcosystemConnectorApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Ecosystem Connector',
+      title: 'ECOnnector',
       theme: ecLightTheme(),
       darkTheme: ecDarkTheme(),
       home: HomeScreen(controller: controller, platform: platform),

@@ -2,17 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../model.dart';
 
-/// Files shared from another app: choose the device to send them to.
+/// Something shared from another app: choose the device to send it to.
 class ShareBar extends StatelessWidget {
   const ShareBar({
     super.key,
-    required this.count,
+    required this.title,
     required this.devices,
     required this.onSend,
     required this.onDismiss,
   });
 
-  final int count;
+  /// What to send, such as "Send 2 files to".
+  final String title;
   final List<EcDevice> devices;
   final ValueChanged<EcDevice> onSend;
   final VoidCallback onDismiss;
@@ -33,7 +34,9 @@ class ShareBar extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    count == 1 ? 'Send 1 file to' : 'Send $count files to',
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: text.titleSmall,
                   ),
                 ),

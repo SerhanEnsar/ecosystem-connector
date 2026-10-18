@@ -1,6 +1,6 @@
 <div align="center">
 
-# Ecosystem Connector
+# ECOnnector
 
 **Turn your Mac, Windows and Android devices into one ecosystem.**
 Send anything instantly, keep files in sync without duplicates, share your clipboard,
@@ -30,7 +30,7 @@ Working across a laptop, a phone and a tablet usually means sending the same fil
 and again with separate tools. You edit a PDF on the computer, send it to the tablet,
 edit again, send again, and soon every device holds a different copy.
 
-Platform ecosystems solve this only inside their own walls. Ecosystem Connector does it
+Platform ecosystems solve this only inside their own walls. ECOnnector does it
 across platforms: Mac ↔ Android, Android ↔ Android, Windows ↔ Mac, Windows ↔ Android.
 
 ## Features (planned)
@@ -38,7 +38,7 @@ across platforms: Mac ↔ Android, Android ↔ Android, Windows ↔ Mac, Windows
 | Feature | What it does | Status |
 |---|---|---|
 | **Fast send** | Send any file or folder to a nearby device. Transfers resume after a drop and every chunk is verified. | Core done (CLI) |
-| **Fling** | On Android, swipe in from the strip on the screen edge: the screen shrinks into a card. Keep dragging it onto a device at the bottom to send the screenshot or the web page in the browser. Share → Ecosystem Connector in any app opens the same card for files, links and text. | Android, pre-release |
+| **Fling** | On Android, swipe in from the strip on the screen edge: the screen shrinks into a card. Keep dragging it onto a device at the bottom to send the screenshot or the web page in the browser. Share → ECOnnector in any app opens the same card for files, links and text. On the Mac, Share → ECOnnector asks which device to send to. | Android, macOS, pre-release |
 | **Arrival cards** | Received files and pages arrive as a drop at the top of the screen that spreads into a card: show in folder, open, save elsewhere. Nothing opens by itself. | macOS and Android, pre-release |
 | **Cable boost** | Plug in a USB-C cable (USB tethering or Thunderbolt bridge) and an active transfer starts using the faster path without restarting. | Core done, device test pending |
 | **Linked files** | One file, one version on every device. Edit it anywhere and the others update within seconds. No duplicate copies. | Planned |

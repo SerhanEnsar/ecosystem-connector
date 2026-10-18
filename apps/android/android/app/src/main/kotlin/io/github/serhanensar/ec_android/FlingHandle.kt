@@ -202,7 +202,7 @@ class FlingHandle private constructor(private val context: Context) {
         if (access == null) {
             Toast.makeText(
                 context,
-                "Turn on Ecosystem Connector screen access to fling what is on screen.",
+                "Turn on ECOnnector screen access to fling what is on screen.",
                 Toast.LENGTH_LONG,
             ).show()
             context.startActivity(

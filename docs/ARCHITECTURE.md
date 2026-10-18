@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes how Ecosystem Connector is put together. It is updated as each
+This document describes how ECOnnector is put together. It is updated as each
 phase lands; sections marked *planned* describe intent, not existing code.
 
 ## Goals

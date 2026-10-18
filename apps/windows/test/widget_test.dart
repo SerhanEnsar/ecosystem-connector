@@ -5,10 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('starts on the device list', (tester) async {
     await tester.pumpWidget(
-      EcosystemConnectorApp(
-        platform: EcPlatform.windows,
-        controller: FakeController(),
-      ),
+      ECOnnectorApp(platform: EcPlatform.windows, controller: FakeController()),
     );
 
     expect(find.textContaining('No paired devices yet'), findsOneWidget);

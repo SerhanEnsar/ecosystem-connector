@@ -1,6 +1,6 @@
 # Security Policy
 
-Ecosystem Connector moves files and clipboard contents between devices, so security issues
+ECOnnector moves files and clipboard contents between devices, so security issues
 are taken seriously.
 
 ## Reporting a vulnerability
