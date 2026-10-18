@@ -1,5 +1,5 @@
 name: ec_ui
-description: Shared Flutter UI for the Ecosystem Connector apps.
+description: Shared Flutter UI for the ECOnnector apps.
 publish_to: none
 version: 0.0.1
 resolution: workspace

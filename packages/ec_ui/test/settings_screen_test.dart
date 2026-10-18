@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Widget app(FakeController c) =>
-    EcosystemConnectorApp(platform: EcPlatform.macos, controller: c);
+    ECOnnectorApp(platform: EcPlatform.macos, controller: c);
 
 String shownDir(WidgetTester tester) =>
     tester.widget<SelectableText>(find.byKey(const Key('receive-dir'))).data!;

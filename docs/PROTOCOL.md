@@ -1,6 +1,6 @@
 # Protocol
 
-Wire protocol between Ecosystem Connector devices, version 1. Code: `crates/ec-net`.
+Wire protocol between ECOnnector devices, version 1. Code: `crates/ec-net`.
 
 ## Transport
 

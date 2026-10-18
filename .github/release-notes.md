@@ -2,10 +2,10 @@
 
 | Platform | File | How |
 |---|---|---|
-| Android phone or tablet | `EcosystemConnector-{{VERSION}}-android-arm64-v8a.apk` (most devices) or `-universal.apk` | Open the file on the device and allow installing from this source. Later versions update in place. |
-| macOS | `EcosystemConnector-{{VERSION}}-macos-universal.zip` | **This is the Mac app.** Unzip and move "Ecosystem Connector" to Applications. It is not notarized yet: the first time, right-click it and choose **Open** (or System Settings → Privacy & Security → Open Anyway). Allow local network access when asked. |
-| Windows | `EcosystemConnector-{{VERSION}}-windows-x64.zip` | Unzip anywhere and run `EcosystemConnector.exe`. SmartScreen may warn because the app is not code-signed yet. |
-| Command line tool (optional, for developers) | `EcosystemConnector-{{VERSION}}-command-line-<platform>` | Not the app. Unpack and run `ec --help` in a terminal. |
+| Android phone or tablet | `ECOnnector-{{VERSION}}-android-arm64-v8a.apk` (most devices) or `-universal.apk` | Open the file on the device and allow installing from this source. Later versions update in place. |
+| macOS | `ECOnnector-{{VERSION}}-macos-universal.zip` | **This is the Mac app.** Unzip and move "ECOnnector" to Applications. It is not notarized yet: the first time, right-click it and choose **Open** (or System Settings → Privacy & Security → Open Anyway). Allow local network access when asked. |
+| Windows | `ECOnnector-{{VERSION}}-windows-x64.zip` | Unzip anywhere and run `ECOnnector.exe`. SmartScreen may warn because the app is not code-signed yet. |
+| Command line tool (optional, for developers) | `ECOnnector-{{VERSION}}-command-line-<platform>` | Not the app. Unpack and run `ec --help` in a terminal. |
 
 ## Verify
 
@@ -13,5 +13,5 @@ Every file has a SHA-256 checksum in `SHA256SUMS.txt` and a build provenance
 attestation that proves it was built by this repository's release workflow:
 
 ```sh
-gh attestation verify EcosystemConnector-{{VERSION}}-android-arm64-v8a.apk -R SerhanEnsar/ecosystem-connector
+gh attestation verify ECOnnector-{{VERSION}}-android-arm64-v8a.apk -R SerhanEnsar/ecosystem-connector
 ```

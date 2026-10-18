@@ -71,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final text = Theme.of(context).textTheme;
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Ecosystem Connector'),
+            title: const Text('ECOnnector'),
             actions: [
               IconButton(
                 tooltip: 'Settings',

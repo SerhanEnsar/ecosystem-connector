@@ -146,7 +146,7 @@ class FakeController extends EcController {
   Future<void> openScreenAccessSettings() async => setupCalls.add('access');
 
   /// The default folder, and what [chooseReceiveDir] picks next (null cancels).
-  String defaultReceiveDir = '/Users/test/Downloads/Ecosystem Connector';
+  String defaultReceiveDir = '/Users/test/Downloads/ECOnnector';
   String? folderToPick;
 
   @override

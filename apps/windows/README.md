@@ -1,4 +1,4 @@
-# Ecosystem Connector for Windows
+# ECOnnector for Windows
 
 The Windows app. Screens come from the shared [`ec_ui`](../../packages/ec_ui) package; this
 folder holds only what is specific to Windows.

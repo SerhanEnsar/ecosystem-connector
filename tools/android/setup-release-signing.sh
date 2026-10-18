@@ -32,7 +32,7 @@ if [[ ! -f "$keystore" ]]; then
   password="$(cat "$password_file")"
   "$keytool_bin" -genkeypair -keystore "$keystore" -storetype PKCS12 -alias "$alias_name" \
     -keyalg RSA -keysize 4096 -validity 10000 \
-    -dname "CN=SerhanEnsar, O=Ecosystem Connector" \
+    -dname "CN=SerhanEnsar, O=ECOnnector" \
     -storepass "$password" -keypass "$password" >/dev/null
   chmod 600 "$keystore"
 else

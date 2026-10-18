@@ -15,7 +15,7 @@ void main() {
       receiveDir: () async {
         final downloads = await getDownloadsDirectory();
         final dir = Directory(
-          '${downloads!.path}${Platform.pathSeparator}Ecosystem Connector',
+          '${downloads!.path}${Platform.pathSeparator}ECOnnector',
         );
         await dir.create(recursive: true);
         return dir.path;

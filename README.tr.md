@@ -1,6 +1,6 @@
 <div align="center">
 
-# Ecosystem Connector
+# ECOnnector
 
 **Mac, Windows ve Android cihazlarını tek bir ekosistemde birleştir.**
 Her şeyi anında gönder, dosyaları kopya oluşturmadan senkron tut, panonu paylaş
@@ -25,7 +25,7 @@ Bilgisayar, telefon ve tablet arasında çalışmak, aynı dosyayı ayrı araçl
 göndermek demek. Bilgisayarda bir PDF'i düzenliyorsun, tablete gönderiyorsun, yine
 düzenliyorsun, yine gönderiyorsun. Sonunda her cihazda farklı bir kopya birikiyor.
 
-Platform ekosistemleri bunu yalnızca kendi cihazları arasında çözüyor. Ecosystem Connector
+Platform ekosistemleri bunu yalnızca kendi cihazları arasında çözüyor. ECOnnector
 bunu platformlar arasında yapar: Mac ↔ Android, Android ↔ Android, Windows ↔ Mac,
 Windows ↔ Android.
 

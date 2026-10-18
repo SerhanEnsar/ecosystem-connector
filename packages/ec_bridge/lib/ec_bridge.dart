@@ -1,4 +1,4 @@
-/// Dart bindings for the Rust core of Ecosystem Connector.
+/// Dart bindings for the Rust core of ECOnnector.
 ///
 /// Call `await initRustCore()` once at startup, then `EcCore.start(...)`.
 /// The files under `lib/src/rust` are generated; edit `crates/ec-ffi/src/api` instead.

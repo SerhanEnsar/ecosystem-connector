@@ -1,4 +1,4 @@
-//! `ec`: a command line tool for trying out Ecosystem Connector.
+//! `ec`: a command line tool for trying out ECOnnector.
 //!
 //! It exercises the Rust core directly: identity, pairing, discovery and connections.
 //! The desktop and mobile apps will use the same core.
@@ -17,7 +17,7 @@ use ec_net::{Advertiser, Node, Router, browse, local_addrs, serve_connection};
 use ec_transfer::{ReceiveEvent, Receiver, SendEvent, SendOptions, send_paths};
 
 #[derive(Parser)]
-#[command(name = "ec", version, about = "Ecosystem Connector command line tool")]
+#[command(name = "ec", version, about = "ECOnnector command line tool")]
 struct Cli {
     /// Where this device's identity and paired devices are stored.
     /// Use different folders to run two devices on one machine.
@@ -51,7 +51,7 @@ enum Command {
         /// The device id, or a unique prefix of it.
         device: String,
     },
-    /// List Ecosystem Connector devices on the local network.
+    /// List ECOnnector devices on the local network.
     Discover {
         /// How long to look, in seconds.
         #[arg(long, default_value_t = 3)]
@@ -62,7 +62,7 @@ enum Command {
         /// UDP port to listen on (0 picks a free port).
         #[arg(long, default_value_t = ec_net::DEFAULT_PORT)]
         port: u16,
-        /// Folder for received files [default: Downloads/Ecosystem Connector].
+        /// Folder for received files [default: Downloads/ECOnnector].
         #[arg(long)]
         dir: Option<PathBuf>,
     },
@@ -227,9 +227,7 @@ fn default_receive_dir() -> Result<PathBuf> {
     let home = std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
         .context("cannot find the home folder; pass --dir")?;
-    Ok(PathBuf::from(home)
-        .join("Downloads")
-        .join("Ecosystem Connector"))
+    Ok(PathBuf::from(home).join("Downloads").join("ECOnnector"))
 }
 
 fn find<'a>(trust: &'a TrustStore, prefix: &str) -> Result<&'a TrustedDevice> {

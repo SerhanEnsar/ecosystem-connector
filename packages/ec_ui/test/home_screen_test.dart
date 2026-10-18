@@ -17,7 +17,7 @@ final phone = EcDevice(
 );
 
 Widget app(FakeController c) =>
-    EcosystemConnectorApp(platform: EcPlatform.macos, controller: c);
+    ECOnnectorApp(platform: EcPlatform.macos, controller: c);
 
 void main() {
   testWidgets('empty state invites pairing', (tester) async {

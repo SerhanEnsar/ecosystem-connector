@@ -1,7 +1,7 @@
 [package]
 # Underscore, not dash: cargokit derives the library file name from the package name.
 name = "ec_ffi"
-description = "Flutter bindings for the Ecosystem Connector runtime (flutter_rust_bridge)."
+description = "Flutter bindings for the ECOnnector runtime (flutter_rust_bridge)."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

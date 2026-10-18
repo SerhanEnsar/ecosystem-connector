@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Only the receive folder is shared with the app that opens a received file. -->
 <paths>
-    <external-path name="received" path="Download/Ecosystem Connector/" />
+    <external-path name="received" path="Download/ECOnnector/" />
 </paths>

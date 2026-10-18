@@ -26,7 +26,7 @@ class VpnNotice extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     "If your other devices can't reach this one, exclude "
-                    'Ecosystem Connector from the VPN in its settings.',
+                    'ECOnnector from the VPN in its settings.',
                     style: text.bodySmall,
                   ),
                 ],

@@ -1,4 +1,4 @@
-/// Starts an Ecosystem Connector app: the Rust core, the shared UI, and the
+/// Starts an ECOnnector app: the Rust core, the shared UI, and the
 /// platform hooks each app supplies.
 library;
 
@@ -19,7 +19,7 @@ Future<void> runEcApp(EcPlatform platform, PlatformHooks hooks) async {
   try {
     await hooks.beforeStart?.call();
     final controller = await startController(hooks);
-    runApp(EcosystemConnectorApp(platform: platform, controller: controller));
+    runApp(ECOnnectorApp(platform: platform, controller: controller));
   } catch (error) {
     runApp(_StartupError(error));
   }
@@ -66,7 +66,7 @@ class _StartupError extends StatelessWidget {
               children: [
                 const Icon(Icons.error_outline, size: 40),
                 const SizedBox(height: 12),
-                const Text('Ecosystem Connector could not start'),
+                const Text('ECOnnector could not start'),
                 const SizedBox(height: 8),
                 SelectableText('$error', textAlign: TextAlign.center),
               ],

@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "SerhanEnsar" "\0"
-            VALUE "FileDescription", "Ecosystem Connector" "\0"
+            VALUE "FileDescription", "ECOnnector" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "EcosystemConnector" "\0"
+            VALUE "InternalName", "ECOnnector" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 SerhanEnsar. Licensed under the Apache License 2.0." "\0"
-            VALUE "OriginalFilename", "EcosystemConnector.exe" "\0"
-            VALUE "ProductName", "Ecosystem Connector" "\0"
+            VALUE "OriginalFilename", "ECOnnector.exe" "\0"
+            VALUE "ProductName", "ECOnnector" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
