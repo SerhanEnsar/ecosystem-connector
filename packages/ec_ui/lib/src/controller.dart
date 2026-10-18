@@ -44,6 +44,12 @@ abstract class EcController extends ChangeNotifier {
   /// Opens the system accessibility settings, to turn on screen access.
   Future<void> openScreenAccessSettings();
 
+  /// A pairing link the app was opened with, waiting to be used.
+  String? get pendingInvite;
+
+  /// Marks [pendingInvite] as handled.
+  void clearPendingInvite();
+
   /// Whether this platform can scan a QR code with a camera.
   bool get canScan;
 
@@ -65,8 +71,24 @@ abstract class EcController extends ChangeNotifier {
   /// Sends [paths] to [device].
   Stream<SendStatus> send(EcDevice device, List<String> paths);
 
-  /// Sends [content] to [device], which opens it on arrival.
+  /// Sends [content] to [device], which shows it in an arrival card.
   Stream<SendStatus> fling(EcDevice device, FlingContent content);
+
+  /// The folder received files are saved to.
+  String get receiveDir;
+
+  /// Whether [receiveDir] is the app's default folder.
+  bool get receiveDirIsDefault;
+
+  /// Whether the user can choose another folder on this platform.
+  bool get canChooseReceiveDir;
+
+  /// Lets the user pick a folder for received files. Returns false if cancelled;
+  /// throws if the folder cannot be used.
+  Future<bool> chooseReceiveDir();
+
+  /// Goes back to the default folder for received files.
+  Future<void> useDefaultReceiveDir();
 
   /// Removes a paired device.
   Future<void> forget(EcDevice device);

@@ -22,6 +22,7 @@ class MainActivity : FlutterActivity() {
     private var channel: MethodChannel? = null
     private var pendingScan: MethodChannel.Result? = null
     private var pendingPrepare: MethodChannel.Result? = null
+    private var pendingInvite: String? = null
     private val sharedFiles = SharedFiles(this)
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -34,7 +35,13 @@ class MainActivity : FlutterActivity() {
                     "prepare" -> prepare(result)
                     "scanInvite" -> scan(result)
                     "takeShared" -> result.success(sharedFiles.take())
+                    "takeInvite" -> {
+                        result.success(pendingInvite)
+                        pendingInvite = null
+                    }
                     "vpnActive" -> result.success(vpnActive())
+                    // The fling layer shows arrival cards itself when it runs.
+                    "layerActive" -> result.success(FlingHandle.get(this@MainActivity).isActive())
                     "flingStatus" -> result.success(
                         mapOf(
                             "handleOn" to FlingHandle.isEnabled(this@MainActivity),
@@ -67,12 +74,19 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         sharedFiles.handle(intent)
+        // Dart is not listening yet; it asks with "takeInvite" once it starts.
+        pendingInvite = inviteOf(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         sharedFiles.handle(intent)
+        inviteOf(intent)?.let { channel?.invokeMethod("invite", it) }
     }
+
+    /** A pairing link the app was opened with, if any. */
+    private fun inviteOf(intent: Intent?): String? =
+        intent?.takeIf { it.action == Intent.ACTION_VIEW }?.dataString?.takeIf { it.startsWith("ecpair:") }
 
     /**
      * Whether traffic goes through a VPN. Android then delivers only packets that

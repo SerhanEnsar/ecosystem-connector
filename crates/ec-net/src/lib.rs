@@ -26,7 +26,7 @@ pub use node::{DEFAULT_PORT, Node, PeerConnection, Session};
 pub use router::{Router, SESSION_KIND, Service, ServiceFuture, serve_connection};
 
 /// QUIC stream types used by services.
-pub use quinn::{RecvStream, SendStream};
+pub use quinn::{ReadExactError, RecvStream, SendStream};
 
 /// ALPN protocol id of regular connections.
 pub(crate) const ALPN_SESSION: &[u8] = b"ec/1";

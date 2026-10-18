@@ -10,7 +10,7 @@ void main() {
   runEcApp(
     EcPlatform.windows,
     PlatformHooks(
-      opensFlings: true,
+      chooseFolder: pickFolder,
       deviceName: () async => Platform.localHostname.split('.').first,
       receiveDir: () async {
         final downloads = await getDownloadsDirectory();

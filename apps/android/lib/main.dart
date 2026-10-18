@@ -5,7 +5,7 @@ import 'package:ec_ui/ec_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
-import 'fling_layer.dart';
+import 'fling_layer.dart' show FlingLayer, arrivals;
 
 /// Talks to MainActivity.kt.
 const _platform = MethodChannel(
@@ -18,9 +18,13 @@ void main() {
   // The platform channel below needs the binding before runEcApp starts it.
   WidgetsFlutterBinding.ensureInitialized();
   final shared = StreamController<List<String>>.broadcast();
+  final invites = StreamController<String>.broadcast();
   _platform.setMethodCallHandler((call) async {
-    if (call.method == 'shared') {
-      shared.add(List<String>.from(call.arguments as List));
+    switch (call.method) {
+      case 'shared':
+        shared.add(List<String>.from(call.arguments as List));
+      case 'invite':
+        invites.add(call.arguments as String);
     }
   });
 
@@ -29,6 +33,12 @@ void main() {
     _hooks(
       // Permissions, the background receive service and the mDNS multicast lock.
       beforeStart: () => _platform.invokeMethod<void>('prepare'),
+      incomingInvites: () async* {
+        // The link the app was opened with, then any later ones.
+        final first = await _platform.invokeMethod<String>('takeInvite');
+        if (first != null) yield first;
+        yield* invites.stream;
+      }(),
       sharedFiles: () async* {
         // Files shared before the UI was ready, then any later shares.
         final early = await _platform.invokeMethod<List<Object?>>('takeShared');
@@ -53,6 +63,10 @@ Future<void> flingMain() async {
       deviceName: () async =>
           await fling.invokeMethod<String>('deviceName') ?? 'Android',
       receiveDir: () async => (await fling.invokeMethod<String>('receiveDir'))!,
+      showArrival: (arrival) async {
+        arrivals.add(arrival);
+        return true;
+      },
     ),
     notify: false,
   );
@@ -62,6 +76,7 @@ Future<void> flingMain() async {
 PlatformHooks _hooks({
   Future<void> Function()? beforeStart,
   Stream<List<String>>? sharedFiles,
+  Stream<String>? incomingInvites,
 }) => PlatformHooks(
   deviceName: () async =>
       await _platform.invokeMethod<String>('deviceName') ?? 'Android',
@@ -69,6 +84,10 @@ PlatformHooks _hooks({
   beforeStart: beforeStart,
   scanInvite: () => _platform.invokeMethod<String>('scanInvite'),
   sharedFiles: sharedFiles,
+  incomingInvites: incomingInvites,
+  // When the fling layer runs, it shows the arrival card; otherwise a notification.
+  showArrival: (_) async =>
+      await _platform.invokeMethod<bool>('layerActive') ?? false,
   vpnActive: () async =>
       await _platform.invokeMethod<bool>('vpnActive') ?? false,
   fling: FlingHooks(

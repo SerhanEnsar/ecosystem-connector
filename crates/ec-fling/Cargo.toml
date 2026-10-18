@@ -1,6 +1,6 @@
 [package]
 name = "ec-fling"
-description = "Flinging a web page (and later other small items) to another device to open it there."
+description = "Flinging a web page (and later other small items) to another device, which offers to open it."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

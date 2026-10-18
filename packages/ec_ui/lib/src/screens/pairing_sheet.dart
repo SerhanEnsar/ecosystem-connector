@@ -9,20 +9,27 @@ import '../model.dart';
 import '../widgets/code_display.dart';
 
 /// Opens the pairing flow in a bottom sheet.
-Future<void> showPairingSheet(BuildContext context, EcController controller) {
+Future<void> showPairingSheet(
+  BuildContext context,
+  EcController controller, {
+  String? invite,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (_) => PairingSheet(controller: controller),
+    builder: (_) => PairingSheet(controller: controller, invite: invite),
   );
 }
 
 /// Pair by showing a code (QR + link) or by scanning / pasting another device's.
 class PairingSheet extends StatefulWidget {
-  const PairingSheet({super.key, required this.controller});
+  const PairingSheet({super.key, required this.controller, this.invite});
 
   final EcController controller;
+
+  /// A pairing link to join right away (the app was opened with it).
+  final String? invite;
 
   @override
   State<PairingSheet> createState() => _PairingSheetState();
@@ -36,6 +43,17 @@ class _PairingSheetState extends State<PairingSheet> {
   final _link = TextEditingController();
 
   EcController get _c => widget.controller;
+
+  @override
+  void initState() {
+    super.initState();
+    final invite = widget.invite;
+    if (invite != null) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _listen(_c.joinPairing(invite)),
+      );
+    }
+  }
 
   void _listen(Stream<PairingStep> steps) {
     _sub?.cancel();

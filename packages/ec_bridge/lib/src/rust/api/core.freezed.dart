@@ -56,7 +56,7 @@ extension CoreEventPatterns on CoreEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CoreEvent_DevicesChanged value)?  devicesChanged,TResult Function( CoreEvent_Paired value)?  paired,TResult Function( CoreEvent_ReceiveStarted value)?  receiveStarted,TResult Function( CoreEvent_ReceiveProgress value)?  receiveProgress,TResult Function( CoreEvent_Saved value)?  saved,TResult Function( CoreEvent_FlingUrl value)?  flingUrl,TResult Function( CoreEvent_ReceiveFinished value)?  receiveFinished,TResult Function( CoreEvent_ReceiveInterrupted value)?  receiveInterrupted,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CoreEvent_DevicesChanged value)?  devicesChanged,TResult Function( CoreEvent_Paired value)?  paired,TResult Function( CoreEvent_ReceiveStarted value)?  receiveStarted,TResult Function( CoreEvent_ReceiveProgress value)?  receiveProgress,TResult Function( CoreEvent_Saved value)?  saved,TResult Function( CoreEvent_FlingUrl value)?  flingUrl,TResult Function( CoreEvent_FlingText value)?  flingText,TResult Function( CoreEvent_ReceiveFinished value)?  receiveFinished,TResult Function( CoreEvent_ReceiveInterrupted value)?  receiveInterrupted,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case CoreEvent_DevicesChanged() when devicesChanged != null:
@@ -65,7 +65,8 @@ return paired(_that);case CoreEvent_ReceiveStarted() when receiveStarted != null
 return receiveStarted(_that);case CoreEvent_ReceiveProgress() when receiveProgress != null:
 return receiveProgress(_that);case CoreEvent_Saved() when saved != null:
 return saved(_that);case CoreEvent_FlingUrl() when flingUrl != null:
-return flingUrl(_that);case CoreEvent_ReceiveFinished() when receiveFinished != null:
+return flingUrl(_that);case CoreEvent_FlingText() when flingText != null:
+return flingText(_that);case CoreEvent_ReceiveFinished() when receiveFinished != null:
 return receiveFinished(_that);case CoreEvent_ReceiveInterrupted() when receiveInterrupted != null:
 return receiveInterrupted(_that);case _:
   return orElse();
@@ -85,7 +86,7 @@ return receiveInterrupted(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CoreEvent_DevicesChanged value)  devicesChanged,required TResult Function( CoreEvent_Paired value)  paired,required TResult Function( CoreEvent_ReceiveStarted value)  receiveStarted,required TResult Function( CoreEvent_ReceiveProgress value)  receiveProgress,required TResult Function( CoreEvent_Saved value)  saved,required TResult Function( CoreEvent_FlingUrl value)  flingUrl,required TResult Function( CoreEvent_ReceiveFinished value)  receiveFinished,required TResult Function( CoreEvent_ReceiveInterrupted value)  receiveInterrupted,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CoreEvent_DevicesChanged value)  devicesChanged,required TResult Function( CoreEvent_Paired value)  paired,required TResult Function( CoreEvent_ReceiveStarted value)  receiveStarted,required TResult Function( CoreEvent_ReceiveProgress value)  receiveProgress,required TResult Function( CoreEvent_Saved value)  saved,required TResult Function( CoreEvent_FlingUrl value)  flingUrl,required TResult Function( CoreEvent_FlingText value)  flingText,required TResult Function( CoreEvent_ReceiveFinished value)  receiveFinished,required TResult Function( CoreEvent_ReceiveInterrupted value)  receiveInterrupted,}){
 final _that = this;
 switch (_that) {
 case CoreEvent_DevicesChanged():
@@ -94,7 +95,8 @@ return paired(_that);case CoreEvent_ReceiveStarted():
 return receiveStarted(_that);case CoreEvent_ReceiveProgress():
 return receiveProgress(_that);case CoreEvent_Saved():
 return saved(_that);case CoreEvent_FlingUrl():
-return flingUrl(_that);case CoreEvent_ReceiveFinished():
+return flingUrl(_that);case CoreEvent_FlingText():
+return flingText(_that);case CoreEvent_ReceiveFinished():
 return receiveFinished(_that);case CoreEvent_ReceiveInterrupted():
 return receiveInterrupted(_that);}
 }
@@ -110,7 +112,7 @@ return receiveInterrupted(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CoreEvent_DevicesChanged value)?  devicesChanged,TResult? Function( CoreEvent_Paired value)?  paired,TResult? Function( CoreEvent_ReceiveStarted value)?  receiveStarted,TResult? Function( CoreEvent_ReceiveProgress value)?  receiveProgress,TResult? Function( CoreEvent_Saved value)?  saved,TResult? Function( CoreEvent_FlingUrl value)?  flingUrl,TResult? Function( CoreEvent_ReceiveFinished value)?  receiveFinished,TResult? Function( CoreEvent_ReceiveInterrupted value)?  receiveInterrupted,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CoreEvent_DevicesChanged value)?  devicesChanged,TResult? Function( CoreEvent_Paired value)?  paired,TResult? Function( CoreEvent_ReceiveStarted value)?  receiveStarted,TResult? Function( CoreEvent_ReceiveProgress value)?  receiveProgress,TResult? Function( CoreEvent_Saved value)?  saved,TResult? Function( CoreEvent_FlingUrl value)?  flingUrl,TResult? Function( CoreEvent_FlingText value)?  flingText,TResult? Function( CoreEvent_ReceiveFinished value)?  receiveFinished,TResult? Function( CoreEvent_ReceiveInterrupted value)?  receiveInterrupted,}){
 final _that = this;
 switch (_that) {
 case CoreEvent_DevicesChanged() when devicesChanged != null:
@@ -119,7 +121,8 @@ return paired(_that);case CoreEvent_ReceiveStarted() when receiveStarted != null
 return receiveStarted(_that);case CoreEvent_ReceiveProgress() when receiveProgress != null:
 return receiveProgress(_that);case CoreEvent_Saved() when saved != null:
 return saved(_that);case CoreEvent_FlingUrl() when flingUrl != null:
-return flingUrl(_that);case CoreEvent_ReceiveFinished() when receiveFinished != null:
+return flingUrl(_that);case CoreEvent_FlingText() when flingText != null:
+return flingText(_that);case CoreEvent_ReceiveFinished() when receiveFinished != null:
 return receiveFinished(_that);case CoreEvent_ReceiveInterrupted() when receiveInterrupted != null:
 return receiveInterrupted(_that);case _:
   return null;
@@ -138,7 +141,7 @@ return receiveInterrupted(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  devicesChanged,TResult Function( String name)?  paired,TResult Function( String from,  int files,  BigInt totalBytes,  BigInt alreadyHave)?  receiveStarted,TResult Function( BigInt received,  BigInt total)?  receiveProgress,TResult Function( String path,  bool open,  int? page)?  saved,TResult Function( String from,  String url,  String title)?  flingUrl,TResult Function()?  receiveFinished,TResult Function( String reason)?  receiveInterrupted,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  devicesChanged,TResult Function( String name)?  paired,TResult Function( String from,  int files,  BigInt totalBytes,  BigInt alreadyHave)?  receiveStarted,TResult Function( BigInt received,  BigInt total)?  receiveProgress,TResult Function( String path,  bool open,  int? page)?  saved,TResult Function( String from,  String url,  String title)?  flingUrl,TResult Function( String from,  String text)?  flingText,TResult Function()?  receiveFinished,TResult Function( String reason)?  receiveInterrupted,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case CoreEvent_DevicesChanged() when devicesChanged != null:
 return devicesChanged();case CoreEvent_Paired() when paired != null:
@@ -146,7 +149,8 @@ return paired(_that.name);case CoreEvent_ReceiveStarted() when receiveStarted !=
 return receiveStarted(_that.from,_that.files,_that.totalBytes,_that.alreadyHave);case CoreEvent_ReceiveProgress() when receiveProgress != null:
 return receiveProgress(_that.received,_that.total);case CoreEvent_Saved() when saved != null:
 return saved(_that.path,_that.open,_that.page);case CoreEvent_FlingUrl() when flingUrl != null:
-return flingUrl(_that.from,_that.url,_that.title);case CoreEvent_ReceiveFinished() when receiveFinished != null:
+return flingUrl(_that.from,_that.url,_that.title);case CoreEvent_FlingText() when flingText != null:
+return flingText(_that.from,_that.text);case CoreEvent_ReceiveFinished() when receiveFinished != null:
 return receiveFinished();case CoreEvent_ReceiveInterrupted() when receiveInterrupted != null:
 return receiveInterrupted(_that.reason);case _:
   return orElse();
@@ -166,7 +170,7 @@ return receiveInterrupted(_that.reason);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  devicesChanged,required TResult Function( String name)  paired,required TResult Function( String from,  int files,  BigInt totalBytes,  BigInt alreadyHave)  receiveStarted,required TResult Function( BigInt received,  BigInt total)  receiveProgress,required TResult Function( String path,  bool open,  int? page)  saved,required TResult Function( String from,  String url,  String title)  flingUrl,required TResult Function()  receiveFinished,required TResult Function( String reason)  receiveInterrupted,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  devicesChanged,required TResult Function( String name)  paired,required TResult Function( String from,  int files,  BigInt totalBytes,  BigInt alreadyHave)  receiveStarted,required TResult Function( BigInt received,  BigInt total)  receiveProgress,required TResult Function( String path,  bool open,  int? page)  saved,required TResult Function( String from,  String url,  String title)  flingUrl,required TResult Function( String from,  String text)  flingText,required TResult Function()  receiveFinished,required TResult Function( String reason)  receiveInterrupted,}) {final _that = this;
 switch (_that) {
 case CoreEvent_DevicesChanged():
 return devicesChanged();case CoreEvent_Paired():
@@ -174,7 +178,8 @@ return paired(_that.name);case CoreEvent_ReceiveStarted():
 return receiveStarted(_that.from,_that.files,_that.totalBytes,_that.alreadyHave);case CoreEvent_ReceiveProgress():
 return receiveProgress(_that.received,_that.total);case CoreEvent_Saved():
 return saved(_that.path,_that.open,_that.page);case CoreEvent_FlingUrl():
-return flingUrl(_that.from,_that.url,_that.title);case CoreEvent_ReceiveFinished():
+return flingUrl(_that.from,_that.url,_that.title);case CoreEvent_FlingText():
+return flingText(_that.from,_that.text);case CoreEvent_ReceiveFinished():
 return receiveFinished();case CoreEvent_ReceiveInterrupted():
 return receiveInterrupted(_that.reason);}
 }
@@ -190,7 +195,7 @@ return receiveInterrupted(_that.reason);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  devicesChanged,TResult? Function( String name)?  paired,TResult? Function( String from,  int files,  BigInt totalBytes,  BigInt alreadyHave)?  receiveStarted,TResult? Function( BigInt received,  BigInt total)?  receiveProgress,TResult? Function( String path,  bool open,  int? page)?  saved,TResult? Function( String from,  String url,  String title)?  flingUrl,TResult? Function()?  receiveFinished,TResult? Function( String reason)?  receiveInterrupted,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  devicesChanged,TResult? Function( String name)?  paired,TResult? Function( String from,  int files,  BigInt totalBytes,  BigInt alreadyHave)?  receiveStarted,TResult? Function( BigInt received,  BigInt total)?  receiveProgress,TResult? Function( String path,  bool open,  int? page)?  saved,TResult? Function( String from,  String url,  String title)?  flingUrl,TResult? Function( String from,  String text)?  flingText,TResult? Function()?  receiveFinished,TResult? Function( String reason)?  receiveInterrupted,}) {final _that = this;
 switch (_that) {
 case CoreEvent_DevicesChanged() when devicesChanged != null:
 return devicesChanged();case CoreEvent_Paired() when paired != null:
@@ -198,7 +203,8 @@ return paired(_that.name);case CoreEvent_ReceiveStarted() when receiveStarted !=
 return receiveStarted(_that.from,_that.files,_that.totalBytes,_that.alreadyHave);case CoreEvent_ReceiveProgress() when receiveProgress != null:
 return receiveProgress(_that.received,_that.total);case CoreEvent_Saved() when saved != null:
 return saved(_that.path,_that.open,_that.page);case CoreEvent_FlingUrl() when flingUrl != null:
-return flingUrl(_that.from,_that.url,_that.title);case CoreEvent_ReceiveFinished() when receiveFinished != null:
+return flingUrl(_that.from,_that.url,_that.title);case CoreEvent_FlingText() when flingText != null:
+return flingText(_that.from,_that.text);case CoreEvent_ReceiveFinished() when receiveFinished != null:
 return receiveFinished();case CoreEvent_ReceiveInterrupted() when receiveInterrupted != null:
 return receiveInterrupted(_that.reason);case _:
   return null;
@@ -602,6 +608,78 @@ class _$CoreEvent_FlingUrlCopyWithImpl<$Res>
 from: null == from ? _self.from : from // ignore: cast_nullable_to_non_nullable
 as String,url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class CoreEvent_FlingText extends CoreEvent {
+  const CoreEvent_FlingText({required this.from, required this.text}): super._();
+  
+
+/// Short id of the sender.
+ final  String from;
+/// The text (validated: no control characters but line breaks and tabs).
+ final  String text;
+
+/// Create a copy of CoreEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$CoreEvent_FlingTextCopyWith<CoreEvent_FlingText> get copyWith => _$CoreEvent_FlingTextCopyWithImpl<CoreEvent_FlingText>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is CoreEvent_FlingText&&(identical(other.from, from) || other.from == from)&&(identical(other.text, text) || other.text == text));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,from,text);
+}
+
+@override
+String toString() {
+    return 'CoreEvent.flingText(from: $from, text: $text)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $CoreEvent_FlingTextCopyWith<$Res> implements $CoreEventCopyWith<$Res> {
+  factory $CoreEvent_FlingTextCopyWith(CoreEvent_FlingText value, $Res Function(CoreEvent_FlingText) _then) = _$CoreEvent_FlingTextCopyWithImpl;
+@useResult
+$Res call({
+ String from, String text
+});
+
+
+
+
+}
+/// @nodoc
+class _$CoreEvent_FlingTextCopyWithImpl<$Res>
+    implements $CoreEvent_FlingTextCopyWith<$Res> {
+  _$CoreEvent_FlingTextCopyWithImpl(this._self, this._then);
+
+  final CoreEvent_FlingText _self;
+  final $Res Function(CoreEvent_FlingText) _then;
+
+/// Create a copy of CoreEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? from = null,Object? text = null,}) {
+  return _then(CoreEvent_FlingText(
+from: null == from ? _self.from : from // ignore: cast_nullable_to_non_nullable
+as String,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }

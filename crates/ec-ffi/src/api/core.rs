@@ -23,6 +23,9 @@ static RT: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
 /// The core started in this process, with its home folder.
 static RUNNING: Mutex<Option<(String, Arc<Runtime>)>> = Mutex::new(None);
 
+/// Held while a core starts, so concurrent starts share one core.
+static STARTING: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 fn running(home: &str) -> Option<Arc<Runtime>> {
     let guard = RUNNING.lock().unwrap_or_else(|e| e.into_inner());
     guard
@@ -104,6 +107,13 @@ pub enum CoreEvent {
         url: String,
         /// The page title.
         title: String,
+    },
+    /// A paired device flung text, to offer to copy.
+    FlingText {
+        /// Short id of the sender.
+        from: String,
+        /// The text (validated: no control characters but line breaks and tabs).
+        text: String,
     },
     /// A transfer finished.
     ReceiveFinished,
@@ -191,6 +201,10 @@ impl EcCore {
     /// can be recreated while the process keeps receiving in the background. Starting
     /// again with the same home returns the running core instead of a second one.
     pub async fn start(config: CoreConfig) -> anyhow::Result<EcCore> {
+        // Two Flutter engines (the app and the Android fling layer) may start at the
+        // same moment; the lock makes the second one wait and join the first core
+        // instead of starting another with its own, stale copy of the trust store.
+        let _starting = STARTING.lock().await;
         if let Some(runtime) = running(&config.home) {
             return Ok(Self::wrap(runtime));
         }
@@ -230,6 +244,26 @@ impl EcCore {
     #[frb(sync)]
     pub fn my_name(&self) -> String {
         self.runtime.name().to_owned()
+    }
+
+    /// The folder received files are saved to.
+    #[frb(sync)]
+    pub fn receive_dir(&self) -> String {
+        self.runtime.receive_dir().to_string_lossy().into_owned()
+    }
+
+    /// Whether received files go to the app's default folder.
+    #[frb(sync)]
+    pub fn receive_dir_is_default(&self) -> bool {
+        self.runtime.receive_dir_is_default()
+    }
+
+    /// Saves received files to `path` from the next transfer on; `None` goes back to
+    /// the default folder. Returns the folder now in use.
+    #[frb(sync)]
+    pub fn set_receive_dir(&self, path: Option<String>) -> anyhow::Result<String> {
+        let dir = self.runtime.set_receive_dir(path.map(PathBuf::from))?;
+        Ok(dir.to_string_lossy().into_owned())
     }
 
     /// Paired devices.
@@ -364,7 +398,7 @@ impl EcCore {
         });
     }
 
-    /// Flings a web page to a paired device, which opens it in its browser.
+    /// Flings a web page to a paired device, which offers to open it in its browser.
     pub async fn fling_url(
         &self,
         device_id: String,
@@ -374,6 +408,15 @@ impl EcCore {
         let id: DeviceId = device_id.parse()?;
         let runtime = self.runtime.clone();
         RT.spawn(async move { runtime.fling_url(id, url, title).await })
+            .await??;
+        Ok(())
+    }
+
+    /// Flings text to a paired device, which offers to copy it.
+    pub async fn fling_text(&self, device_id: String, text: String) -> anyhow::Result<()> {
+        let id: DeviceId = device_id.parse()?;
+        let runtime = self.runtime.clone();
+        RT.spawn(async move { runtime.fling_text(id, text).await })
             .await??;
         Ok(())
     }
@@ -425,6 +468,10 @@ fn convert(event: Event) -> Option<CoreEvent> {
                 url,
                 title,
             },
+            ec_fling::FlingItem::Text { text } => CoreEvent::FlingText {
+                from: from.short(),
+                text,
+            },
         },
         Event::Receive(event) => match event {
             ReceiveEvent::Started {
@@ -450,4 +497,28 @@ fn convert(event: Event) -> Option<CoreEvent> {
             ReceiveEvent::Interrupted { reason } => CoreEvent::ReceiveInterrupted { reason },
         },
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn concurrent_starts_share_one_core() {
+        let dir = tempfile::tempdir().unwrap_or_else(|e| panic!("{e}"));
+        let config = || CoreConfig {
+            home: dir.path().join("home").to_string_lossy().into_owned(),
+            device_name: "Tablet".into(),
+            receive_dir: dir.path().join("inbox").to_string_lossy().into_owned(),
+        };
+        let (a, b) = tokio::join!(EcCore::start(config()), EcCore::start(config()));
+        let (a, b) = (
+            a.unwrap_or_else(|e| panic!("{e}")),
+            b.unwrap_or_else(|e| panic!("{e}")),
+        );
+        assert!(
+            Arc::ptr_eq(&a.runtime, &b.runtime),
+            "both engines got the same core"
+        );
+    }
 }

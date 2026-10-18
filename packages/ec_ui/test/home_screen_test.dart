@@ -145,6 +145,11 @@ void main() {
         screenAccess: false,
       );
     await tester.pumpWidget(app(c));
+    // Home only reminds; the steps are in settings.
+    expect(find.text('Fling is not ready'), findsOneWidget);
+    expect(find.textContaining('screen access is off'), findsOneWidget);
+    await tester.tap(find.text('Set up'));
+    await tester.pumpAndSettle();
     expect(find.text('Fling from the edge of the screen'), findsOneWidget);
     await tester.tap(find.text('Allow'));
     await tester.tap(find.text('Open settings'));
@@ -165,7 +170,31 @@ void main() {
       screenAccess: true,
     );
     await tester.pump();
-    expect(find.text('Fling from the edge of the screen'), findsNothing);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Fling is not ready'), findsNothing);
+  });
+
+  testWidgets('opening the app with a pairing link starts joining', (
+    tester,
+  ) async {
+    final c = FakeController();
+    await tester.pumpWidget(app(c));
+    c.pendingInvite = 'ecpair:1?id=x&s=y&a=1.2.3.4:5';
+    await tester.pump();
+    await tester.pumpAndSettle();
+    // Joining is underway; the sheet waits for the other device's code.
+    expect(c.pendingInvite, isNull);
+    expect(find.byType(PairingSheet), findsOneWidget);
+    c.pairing.add(
+      const PairingConfirm(
+        peerName: 'Mac',
+        shortId: '1ABE-79D4',
+        code: '111 222',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('111 222'), findsOneWidget);
   });
 
   test('formats byte counts', () {

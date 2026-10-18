@@ -45,7 +45,24 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- "Share" from other apps sends files to a paired device. -->
+            <!-- Pairing links (ecpair:), for example from scanning the QR code with
+                 the system camera, open the app on the pairing screen. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ecpair" />
+            </intent-filter>
+        </activity>
+        <!-- "Share" from other apps: files, links and text open in the fling layer,
+             to drag onto a device. No screen of its own. -->
+        <activity
+            android:name=".ShareActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -61,6 +78,16 @@
             android:name=".ScanActivity"
             android:exported="false"
             android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+        <!-- Lets the app that opens a received file read it (receive folder only). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
         <!-- Optional "screen access" for flinging what is on screen. -->
         <service
             android:name=".ScreenAccessService"

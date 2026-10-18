@@ -132,7 +132,7 @@ String formatBytes(num bytes) {
       : '${value.toStringAsFixed(1)} ${units[unit]}';
 }
 
-/// What a fling sends: the thing on screen, opened on the other device on arrival.
+/// What a fling sends: the thing on screen, shown on the other device in an arrival card.
 sealed class FlingContent {
   const FlingContent();
 
@@ -153,11 +153,36 @@ class FlingFile extends FlingContent {
       page == null ? 'File · $name' : 'File · $name · page $page';
 }
 
-/// A web page, opened in the browser.
+/// Files shared from another app, sent together.
+class FlingFiles extends FlingContent {
+  const FlingFiles(this.paths);
+  final List<String> paths;
+
+  /// The single file's name, or the number of files.
+  String get name => paths.length == 1
+      ? paths.single.split(RegExp(r'[/\\]')).last
+      : '${paths.length} files';
+
+  @override
+  String get label => paths.length == 1 ? 'File · $name' : name;
+}
+
+/// Text, offered to copy on the other device.
+class FlingText extends FlingContent {
+  const FlingText(this.text);
+  final String text;
+
+  @override
+  String get label => 'Text';
+}
+
+/// A web page, opened in the browser. [preview] is a screenshot of it, shown while
+/// flinging.
 class FlingPage extends FlingContent {
-  const FlingPage(this.url, {this.title = ''});
+  const FlingPage(this.url, {this.title = '', this.preview});
   final String url;
   final String title;
+  final String? preview;
 
   @override
   String get label => 'Web page · ${title.isEmpty ? url : title}';

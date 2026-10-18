@@ -13,11 +13,11 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use ec_core::{DeviceId, DeviceIdentity, PairingInvite, TrustStore, TrustedDevice};
+use ec_core::{DeviceId, DeviceIdentity, PairingInvite, Settings, TrustStore, TrustedDevice};
 use ec_fling::{FLING_KIND, FlingItem, FlingService};
 use ec_net::pairing::{PairedDevice, PairingListener, PairingPrompt, pair_with};
 use ec_net::{
@@ -58,6 +58,14 @@ pub enum Error {
     /// No address is known for the device.
     #[error("the device is not on the network")]
     Offline,
+    /// The chosen folder for received files cannot be used.
+    #[error("cannot use {path} for received files: {source}")]
+    ReceiveDir {
+        /// The folder.
+        path: PathBuf,
+        /// Why.
+        source: std::io::Error,
+    },
 }
 
 /// Result type of the runtime.
@@ -70,7 +78,8 @@ pub struct Config {
     pub home: PathBuf,
     /// Device name used when the identity is created for the first time.
     pub default_name: String,
-    /// Folder for received files.
+    /// Default folder for received files. The user can choose another one with
+    /// [`Runtime::set_receive_dir`]; that choice is saved in `home`.
     pub receive_dir: PathBuf,
     /// Preferred UDP port. If it is taken, a free one is used. 0 always picks a free one.
     pub port: u16,
@@ -198,12 +207,29 @@ impl Shared {
     }
 }
 
+/// Creates `dir` if needed and checks that it is a folder.
+fn prepare_dir(dir: &Path) -> Result<()> {
+    let fail = |source| Error::ReceiveDir {
+        path: dir.to_path_buf(),
+        source,
+    };
+    std::fs::create_dir_all(dir).map_err(fail)?;
+    if !dir.is_dir() {
+        return Err(fail(std::io::Error::other("not a folder")));
+    }
+    Ok(())
+}
+
 /// A running device.
 pub struct Runtime {
     identity: Arc<DeviceIdentity>,
     shared: Arc<Shared>,
     node: Arc<Node>,
     presence: Option<Arc<Presence>>,
+    receiver: Arc<Receiver>,
+    home: PathBuf,
+    default_receive_dir: PathBuf,
+    settings: Mutex<Settings>,
     tasks: Vec<tokio::task::JoinHandle<()>>,
 }
 
@@ -216,6 +242,17 @@ impl Runtime {
             &config.default_name,
         )?);
         let trust = TrustStore::load(&config.home)?;
+        let settings = Settings::load(&config.home)?;
+        // A chosen folder that has gone away (an unplugged drive, say) falls back to
+        // the default rather than failing every transfer.
+        let receive_dir = match &settings.receive_dir {
+            Some(dir) if dir.is_dir() => dir.clone(),
+            Some(dir) => {
+                tracing::warn!("{} is missing, using the default folder", dir.display());
+                config.receive_dir.clone()
+            }
+            None => config.receive_dir.clone(),
+        };
         let node = Arc::new(bind_node(&identity, &trust, config.port)?);
         let (events, _) = broadcast::channel(256);
 
@@ -231,7 +268,7 @@ impl Runtime {
 
         let receive_events = events.clone();
         let receiver = Arc::new(Receiver::new(
-            config.receive_dir.clone(),
+            receive_dir,
             // Only paired devices can connect at all, so their transfers are accepted.
             Arc::new(|_| true),
             Arc::new(move |event| {
@@ -240,7 +277,7 @@ impl Runtime {
         ));
         let mut router = Router::with_session(identity.name(), |_, _| {});
         router.add(CONTROL_KIND, receiver.clone())?;
-        router.add(CHUNK_KIND, receiver)?;
+        router.add(CHUNK_KIND, receiver.clone())?;
         let fling_events = events.clone();
         router.add(
             FLING_KIND,
@@ -285,6 +322,10 @@ impl Runtime {
             shared,
             node,
             presence,
+            receiver,
+            home: config.home,
+            default_receive_dir: config.receive_dir,
+            settings: Mutex::new(settings),
             tasks: vec![accept_task, probe_task],
         }))
     }
@@ -302,6 +343,36 @@ impl Runtime {
     /// The UDP port this device listens on.
     pub fn port(&self) -> u16 {
         self.node.local_addr().map(|a| a.port()).unwrap_or(0)
+    }
+
+    /// The folder received files are saved to.
+    pub fn receive_dir(&self) -> PathBuf {
+        self.receiver.dir()
+    }
+
+    /// Whether received files go to the default folder.
+    pub fn receive_dir_is_default(&self) -> bool {
+        self.lock_settings().receive_dir.is_none()
+    }
+
+    /// Saves received files to `dir` from the next transfer on, and remembers the
+    /// choice. `None` goes back to the default folder. The folder is created if needed.
+    pub fn set_receive_dir(&self, dir: Option<PathBuf>) -> Result<PathBuf> {
+        let target = dir
+            .clone()
+            .unwrap_or_else(|| self.default_receive_dir.clone());
+        prepare_dir(&target)?;
+        let mut settings = self.lock_settings();
+        let mut updated = settings.clone();
+        updated.receive_dir = dir;
+        updated.save(&self.home)?;
+        *settings = updated;
+        self.receiver.set_dir(target.clone());
+        Ok(target)
+    }
+
+    fn lock_settings(&self) -> std::sync::MutexGuard<'_, Settings> {
+        self.settings.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     /// Subscribes to [`Event`]s.
@@ -463,8 +534,17 @@ impl Runtime {
         Ok(send_paths(self.node.clone(), id, addrs, paths, options, events).await?)
     }
 
-    /// Flings a web page to a paired device, which opens it in its browser.
+    /// Flings a web page to a paired device, which offers to open it in its browser.
     pub async fn fling_url(&self, id: DeviceId, url: String, title: String) -> Result<()> {
+        self.fling(id, FlingItem::Url { url, title }).await
+    }
+
+    /// Flings text to a paired device, which offers to copy it.
+    pub async fn fling_text(&self, id: DeviceId, text: String) -> Result<()> {
+        self.fling(id, FlingItem::Text { text }).await
+    }
+
+    async fn fling(&self, id: DeviceId, item: FlingItem) -> Result<()> {
         if !self.shared.trust().contains(&id) {
             return Err(Error::NotPaired);
         }
@@ -480,7 +560,7 @@ impl Runtime {
                 conn
             }
         };
-        ec_fling::fling(&conn, FlingItem::Url { url, title }).await?;
+        ec_fling::fling(&conn, item).await?;
         Ok(())
     }
 

@@ -1,4 +1,10 @@
 import 'package:ec_ui/ec_ui.dart';
+import 'package:file_selector/file_selector.dart';
+
+/// The system folder picker, for [PlatformHooks.chooseFolder] where nothing more is
+/// needed to keep access to the folder (Windows).
+Future<String?> pickFolder() =>
+    getDirectoryPath(confirmButtonText: 'Save received files here');
 
 /// Flinging from the screen edge (Android).
 class FlingHooks {
@@ -15,6 +21,67 @@ class FlingHooks {
   final Future<void> Function() openAccessibilitySettings;
 }
 
+/// Something that arrived from another device, for the arrival card.
+class ArrivalInfo {
+  ArrivalInfo.files(this.paths, {required this.from, this.size = 0})
+    : url = null,
+      text = null,
+      title = paths.length == 1 ? '' : '${paths.length} files';
+
+  const ArrivalInfo.page(
+    String this.url, {
+    required this.title,
+    required this.from,
+  }) : paths = const [],
+       text = null,
+       size = 0;
+
+  const ArrivalInfo.text(String this.text, {required this.from})
+    : paths = const [],
+      url = null,
+      title = '',
+      size = 0;
+
+  /// Saved files (empty for a page or text).
+  final List<String> paths;
+
+  /// The page address (null for files and text).
+  final String? url;
+
+  /// Text to offer to copy (null for files and pages).
+  final String? text;
+
+  /// What the card shows as its title.
+  final String title;
+
+  /// Name of the sending device.
+  final String from;
+
+  /// Total size of the files in bytes.
+  final int size;
+
+  /// The card's title: the file name, the number of files, the page title, or the
+  /// text's first line.
+  String get displayTitle {
+    if (url != null) return title.isEmpty ? url! : title;
+    if (text case final text?) {
+      final line = text.split('\n').firstWhere((l) => l.trim().isNotEmpty);
+      return line.length > 80 ? '${line.substring(0, 80)}…' : line.trim();
+    }
+    if (paths.length == 1) return paths.single.split(RegExp(r'[/\\]')).last;
+    return title;
+  }
+
+  Map<String, Object?> toMap() => {
+    'paths': paths,
+    'url': url,
+    'text': text,
+    'title': displayTitle,
+    'from': from,
+    'size': size,
+  };
+}
+
 /// What each platform app supplies to the shared app code.
 class PlatformHooks {
   const PlatformHooks({
@@ -25,8 +92,11 @@ class PlatformHooks {
     this.openFile,
     this.sharedFiles,
     this.vpnActive,
-    this.opensFlings = false,
+    this.showArrival,
     this.fling,
+    this.incomingInvites,
+    this.chooseFolder,
+    this.folderReset,
   });
 
   /// The name this device gets when it is set up for the first time.
@@ -51,11 +121,24 @@ class PlatformHooks {
   /// Whether a VPN is on, which can stop other devices from reaching this one.
   final Future<bool> Function()? vpnActive;
 
-  /// Whether flung files and pages are opened as soon as they arrive. True on
-  /// desktops; phones and tablets only notify, because Android does not let apps
-  /// open things from the background.
-  final bool opensFlings;
+  /// Shows the arrival card for received files or a flung page (the drop that
+  /// spreads into a card at the top of the screen) and returns whether it did; if
+  /// not, a notification is shown. Nothing is ever opened automatically; the card
+  /// offers to.
+  final Future<bool> Function(ArrivalInfo arrival)? showArrival;
 
   /// Flinging from the screen edge, where the platform supports it.
   final FlingHooks? fling;
+
+  /// Pairing links the app was opened with (scanned with the system camera).
+  final Stream<String>? incomingInvites;
+
+  /// Lets the user pick a folder for received files and returns its path, or null
+  /// if cancelled. The app must be able to write there afterwards, also after a
+  /// restart (macOS keeps a security-scoped bookmark). Null where the folder is fixed.
+  final Future<String?> Function()? chooseFolder;
+
+  /// Called when the user goes back to the default folder, so a platform can let go
+  /// of the folder chosen before.
+  final Future<void> Function()? folderReset;
 }

@@ -11,6 +11,7 @@ mod id;
 mod identity;
 mod invite;
 pub mod pairing;
+mod settings;
 mod text;
 mod trust;
 
@@ -19,5 +20,6 @@ pub use id::DeviceId;
 pub use identity::{CERT_SERVER_NAME, DeviceIdentity};
 pub use invite::{MAX_INVITE_ADDRS, PairingInvite};
 pub use pairing::PairingSecret;
+pub use settings::Settings;
 pub use text::sanitize_device_name;
 pub use trust::{TrustStore, TrustedDevice};

@@ -181,6 +181,28 @@ async fn works_without_mdns() {
             title: "Notes".into()
         }
     );
+
+    // And text.
+    tablet
+        .fling_text(mac.id(), "Room 204, 14:00".into())
+        .await
+        .unwrap();
+    let flung = async {
+        loop {
+            if let Event::Fling { item, .. } = mac_events.recv().await.unwrap() {
+                return item;
+            }
+        }
+    };
+    let item = tokio::time::timeout(Duration::from_secs(5), flung)
+        .await
+        .unwrap();
+    assert_eq!(
+        item,
+        ec_fling::FlingItem::Text {
+            text: "Room 204, 14:00".into()
+        }
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -190,4 +212,39 @@ async fn sending_to_an_unpaired_device_is_refused() {
     let b = runtime("B", root.path()).await;
     let result = a.send(b.id(), vec![], None, Arc::new(|_| {})).await;
     assert!(matches!(result, Err(ec_runtime::Error::NotPaired)));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn receive_folder_choice_is_remembered() {
+    let root = tempfile::tempdir().unwrap();
+    let chosen = root.path().join("Chosen");
+    {
+        let mac = runtime_with("Mac", root.path(), false).await;
+        assert_eq!(mac.receive_dir(), root.path().join("Mac").join("inbox"));
+        assert!(mac.receive_dir_is_default());
+        assert_eq!(mac.set_receive_dir(Some(chosen.clone())).unwrap(), chosen);
+        assert!(chosen.is_dir(), "the folder is created");
+        assert_eq!(mac.receive_dir(), chosen);
+    }
+
+    // A restart keeps the choice.
+    let mac = runtime_with("Mac", root.path(), false).await;
+    assert_eq!(mac.receive_dir(), chosen);
+    assert!(!mac.receive_dir_is_default());
+
+    // Back to the default.
+    let default = mac.set_receive_dir(None).unwrap();
+    assert_eq!(default, root.path().join("Mac").join("inbox"));
+    assert_eq!(mac.receive_dir(), default);
+    drop(mac);
+
+    // A chosen folder that disappeared falls back to the default.
+    let gone = root.path().join("Gone");
+    runtime_with("Mac", root.path(), false)
+        .await
+        .set_receive_dir(Some(gone.clone()))
+        .unwrap();
+    std::fs::remove_dir(&gone).unwrap();
+    let mac = runtime_with("Mac", root.path(), false).await;
+    assert_eq!(mac.receive_dir(), default);
 }

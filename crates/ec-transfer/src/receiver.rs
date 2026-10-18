@@ -89,7 +89,7 @@ pub type ReceiveEvents = Arc<dyn Fn(ReceiveEvent) + Send + Sync>;
 /// Register it with an [`ec_net::Router`] for both [`crate::CONTROL_KIND`] and
 /// [`crate::CHUNK_KIND`].
 pub struct Receiver {
-    dir: PathBuf,
+    dir: Mutex<PathBuf>,
     accept: AcceptPolicy,
     events: ReceiveEvents,
     active: Mutex<HashMap<TransferId, Arc<Incoming>>>,
@@ -124,12 +124,22 @@ impl Receiver {
     /// Saves accepted transfers into `dir`.
     pub fn new(dir: PathBuf, accept: AcceptPolicy, events: ReceiveEvents) -> Self {
         Self {
-            dir,
+            dir: Mutex::new(dir),
             accept,
             events,
             active: Mutex::new(HashMap::new()),
             memory: Arc::new(Semaphore::new(MEMORY_BUDGET_MIB as usize)),
         }
+    }
+
+    /// The folder new transfers are saved to.
+    pub fn dir(&self) -> PathBuf {
+        self.dir.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// Saves new transfers to `dir` from now on.
+    pub fn set_dir(&self, dir: PathBuf) {
+        *self.dir.lock().unwrap_or_else(|e| e.into_inner()) = dir;
     }
 
     fn active(&self) -> std::sync::MutexGuard<'_, HashMap<TransferId, Arc<Incoming>>> {
@@ -180,7 +190,9 @@ impl Receiver {
             return Ok(());
         }
 
-        let dir = self.dir.clone();
+        // A transfer keeps the folder it started with, even if the setting changes.
+        let dir = self.dir();
+        let target = dir.clone();
         let files = tokio::task::spawn_blocking(move || open_partials(&dir, peer, entries))
             .await
             .map_err(|_| Error::Protocol("prepare task failed"))??;
@@ -230,7 +242,7 @@ impl Receiver {
                 write_msg(&mut send, &ack).await?;
             }
 
-            let saved = finalize(&self.dir, &incoming).await?;
+            let saved = finalize(&target, &incoming).await?;
             for (index, path) in saved.into_iter().enumerate() {
                 write_msg(&mut send, &Control::FileDone { file: index as u32 }).await?;
                 (self.events)(ReceiveEvent::Saved { path, open });
@@ -606,7 +618,8 @@ async fn finalize(dir: &Path, incoming: &Incoming) -> Result<Vec<PathBuf>> {
         .collect();
     let dir = dir.to_path_buf();
     tokio::task::spawn_blocking(move || {
-        jobs.into_iter()
+        let saved = jobs
+            .into_iter()
             .map(|(handle, part, rel)| {
                 if let Some(handle) = handle {
                     handle.sync_all().map_err(|e| Error::io("sync", &part, e))?;
@@ -617,7 +630,11 @@ async fn finalize(dir: &Path, incoming: &Incoming) -> Result<Vec<PathBuf>> {
                 std::fs::rename(&part, &dest).map_err(|e| Error::io("rename", &part, e))?;
                 Ok(dest)
             })
-            .collect()
+            .collect::<Result<Vec<_>>>();
+        // Remove the partial folder once nothing is left in it, so the receive folder
+        // stays tidy. It fails harmlessly while another transfer still uses it.
+        let _ = std::fs::remove_dir(dir.join(PARTIAL_DIR));
+        saved
     })
     .await
     .map_err(|_| Error::Protocol("finalize task failed"))?

@@ -1,14 +1,14 @@
-//! Flinging small items to another device so it opens them right away.
+//! Flinging small items to another device, which offers to open them.
 //!
-//! Files are flung with `ec-transfer` (with an "open on arrival" hint); this crate
-//! carries what is not a file, starting with web pages. A fling is one short
-//! bidirectional stream of kind [`FLING_KIND`]: the sender writes one [`FlingItem`], the
-//! receiver validates it, answers with [`FlingAck`] and hands it to the app.
+//! Files are flung with `ec-transfer` (with an "open" hint); this crate carries what is
+//! not a file: web pages and text. A fling is one short bidirectional stream of
+//! kind [`FLING_KIND`]: the sender writes one [`FlingItem`], the receiver validates it,
+//! answers with [`FlingAck`] and hands it to the app.
 //!
-//! The receiving device opens what arrives without asking, because only paired devices
-//! can connect. That is why everything is validated here first: only `http` and
-//! `https` links are accepted, so a peer cannot make this device launch an app through a
-//! custom URL scheme or open a local file.
+//! The apps show what arrives in a card and open it only when the user asks. Even so,
+//! everything is validated here first: only `http` and `https` links are accepted, so a
+//! peer can never get this device to launch an app through a custom URL scheme or open
+//! a local file.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -24,6 +24,8 @@ pub const FLING_KIND: u8 = 3;
 pub const MAX_URL_LEN: usize = 4096;
 /// Longest accepted title, in characters.
 pub const MAX_TITLE_CHARS: usize = 200;
+/// Longest accepted text, in characters.
+pub const MAX_TEXT_CHARS: usize = 64 * 1024;
 
 const STEP_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -54,6 +56,11 @@ pub enum FlingItem {
         /// The page title, for display.
         title: String,
     },
+    /// Text, such as a message or a note, offered to copy.
+    Text {
+        /// The text; not empty, at most [`MAX_TEXT_CHARS`] characters.
+        text: String,
+    },
 }
 
 /// The receiver's answer.
@@ -66,12 +73,16 @@ pub enum FlingAck {
 }
 
 impl FlingItem {
-    /// Checks the item and returns a cleaned copy (title trimmed and sanitized).
+    /// Checks the item and returns a cleaned copy (title trimmed and sanitized, text
+    /// without control characters other than line breaks and tabs).
     pub fn validate(self) -> Result<Self> {
         match self {
             FlingItem::Url { url, title } => Ok(FlingItem::Url {
                 url: validate_url(&url)?,
                 title: clean_title(&title),
+            }),
+            FlingItem::Text { text } => Ok(FlingItem::Text {
+                text: clean_text(&text)?,
             }),
         }
     }
@@ -116,6 +127,22 @@ fn clean_title(title: &str) -> String {
         .collect()
 }
 
+fn clean_text(text: &str) -> Result<String> {
+    if text.chars().count() > MAX_TEXT_CHARS {
+        return Err(Error::Refused("text too long"));
+    }
+    let cleaned: String = text
+        .replace("\r\n", "\n")
+        .chars()
+        .filter(|&c| c == '\n' || c == '\t' || !c.is_control())
+        .collect();
+    let cleaned = cleaned.trim();
+    if cleaned.is_empty() {
+        return Err(Error::Refused("empty text"));
+    }
+    Ok(cleaned.to_owned())
+}
+
 /// Sends `item` to the device at the other end of `conn` and waits for its answer.
 pub async fn fling(conn: &PeerConnection, item: FlingItem) -> Result<()> {
     let item = item.validate()?;
@@ -123,7 +150,15 @@ pub async fn fling(conn: &PeerConnection, item: FlingItem) -> Result<()> {
     write_msg(&mut send, &item).await?;
     let ack: FlingAck = timeout(STEP_TIMEOUT, read_msg(&mut recv))
         .await
-        .map_err(|_| Error::Timeout)??;
+        .map_err(|_| Error::Timeout)?
+        .map_err(|e| match e {
+            // The receiver dropped the stream without answering: it could not read
+            // the item, which happens when its version does not know the kind.
+            ec_net::Error::Read(ec_net::ReadExactError::FinishedEarly(_)) => {
+                Error::Refused("the other device could not read it; it may need an update")
+            }
+            e => e.into(),
+        })?;
     let _ = send.finish();
     match ack {
         FlingAck::Accepted => Ok(()),
@@ -222,7 +257,29 @@ mod tests {
             url: "https://example.com".into(),
             title: "  Lecture\n\t3 \u{7}notes ".into(),
         };
-        let FlingItem::Url { title, .. } = item.validate().unwrap();
+        let FlingItem::Url { title, .. } = item.validate().unwrap() else {
+            panic!("not a page");
+        };
         assert_eq!(title, "Lecture 3 notes");
+    }
+
+    #[test]
+    fn text_keeps_lines_and_drops_control_characters() {
+        let item = FlingItem::Text {
+            text: "  first line\r\n\tsecond \u{1b}[31mline\u{7}\n".into(),
+        };
+        assert_eq!(
+            item.validate().unwrap(),
+            FlingItem::Text {
+                text: "first line\n\tsecond [31mline".into()
+            }
+        );
+        for bad in [
+            String::new(),
+            " \n\t ".into(),
+            "a".repeat(MAX_TEXT_CHARS + 1),
+        ] {
+            assert!(FlingItem::Text { text: bad }.validate().is_err());
+        }
     }
 }

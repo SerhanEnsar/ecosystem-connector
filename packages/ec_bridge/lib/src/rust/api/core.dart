@@ -23,7 +23,10 @@ abstract class EcCore implements RustOpaqueInterface {
   /// Streams background events until the stream is closed on the Dart side.
   Stream<CoreEvent> events();
 
-  /// Flings a web page to a paired device, which opens it in its browser.
+  /// Flings text to a paired device, which offers to copy it.
+  Future<void> flingText({required String deviceId, required String text});
+
+  /// Flings a web page to a paired device, which offers to open it in its browser.
   Future<void> flingUrl({
     required String deviceId,
     required String url,
@@ -48,6 +51,12 @@ abstract class EcCore implements RustOpaqueInterface {
   /// This device's short id.
   String myShortId();
 
+  /// The folder received files are saved to.
+  String receiveDir();
+
+  /// Whether received files go to the app's default folder.
+  bool receiveDirIsDefault();
+
   /// Sends files and folders to a paired device. With `open`, it opens them on
   /// arrival (a fling), at `page` if given.
   Stream<SendUpdate> send({
@@ -56,6 +65,10 @@ abstract class EcCore implements RustOpaqueInterface {
     required bool open,
     int? page,
   });
+
+  /// Saves received files to `path` from the next transfer on; `None` goes back to
+  /// the default folder. Returns the folder now in use.
+  String setReceiveDir({String? path});
 
   /// Starts the device: identity, network presence and receiving.
   ///
@@ -156,6 +169,15 @@ sealed class CoreEvent with _$CoreEvent {
     /// The page title.
     required String title,
   }) = CoreEvent_FlingUrl;
+
+  /// A paired device flung text, to offer to copy.
+  const factory CoreEvent.flingText({
+    /// Short id of the sender.
+    required String from,
+
+    /// The text (validated: no control characters but line breaks and tabs).
+    required String text,
+  }) = CoreEvent_FlingText;
 
   /// A transfer finished.
   const factory CoreEvent.receiveFinished() = CoreEvent_ReceiveFinished;

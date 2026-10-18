@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.OpenableColumns
+import android.util.Log
 import java.io.File
 
 /**
@@ -25,11 +26,19 @@ class SharedFiles(private val context: Context) {
         val uris = urisOf(intent ?: return)
         if (uris.isEmpty()) return
         Thread {
-            val dir = File(context.cacheDir, "shared/${System.currentTimeMillis()}").apply { mkdirs() }
-            val paths = uris.mapNotNull { copy(it, dir) }
+            val paths = copyAll(uris)
             synchronized(this) { ready.addAll(paths) }
             onReady?.invoke(take())
         }.start()
+    }
+
+    /** Copies the files [intent] shares into the cache; blocks, so call it off the main thread. */
+    fun copyShared(intent: Intent): List<String> = copyAll(urisOf(intent))
+
+    private fun copyAll(uris: List<Uri>): List<String> {
+        if (uris.isEmpty()) return emptyList()
+        val dir = File(context.cacheDir, "shared/${System.currentTimeMillis()}").apply { mkdirs() }
+        return uris.mapNotNull { copy(it, dir) }
     }
 
     private fun urisOf(intent: Intent): List<Uri> = when (intent.action) {
@@ -54,7 +63,7 @@ class SharedFiles(private val context: Context) {
             target.outputStream().use { input.copyTo(it) }
         } ?: return null
         target.absolutePath
-    }.getOrNull()
+    }.onFailure { Log.w("EcShare", "could not read a shared file", it) }.getOrNull()
 
     private fun displayName(uri: Uri): String =
         context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
