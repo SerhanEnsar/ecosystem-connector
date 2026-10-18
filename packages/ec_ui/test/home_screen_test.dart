@@ -145,6 +145,11 @@ void main() {
         screenAccess: false,
       );
     await tester.pumpWidget(app(c));
+    // Home only reminds; the steps are in settings.
+    expect(find.text('Fling is not ready'), findsOneWidget);
+    expect(find.textContaining('screen access is off'), findsOneWidget);
+    await tester.tap(find.text('Set up'));
+    await tester.pumpAndSettle();
     expect(find.text('Fling from the edge of the screen'), findsOneWidget);
     await tester.tap(find.text('Allow'));
     await tester.tap(find.text('Open settings'));
@@ -165,7 +170,9 @@ void main() {
       screenAccess: true,
     );
     await tester.pump();
-    expect(find.text('Fling from the edge of the screen'), findsNothing);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Fling is not ready'), findsNothing);
   });
 
   testWidgets('opening the app with a pairing link starts joining', (

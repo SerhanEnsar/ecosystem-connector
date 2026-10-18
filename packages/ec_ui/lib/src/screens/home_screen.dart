@@ -7,7 +7,6 @@ import '../widgets/device_spine.dart';
 import '../widgets/receive_banner.dart';
 import '../widgets/share_bar.dart';
 import '../widgets/vpn_notice.dart';
-import '../fling/fling_setup_card.dart';
 import 'pairing_sheet.dart';
 import 'send_sheet.dart';
 import 'settings_screen.dart';
@@ -81,63 +80,64 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          body: Stack(
+          // Notices sit above the list rather than over it, so they never hide a
+          // device.
+          body: Column(
             children: [
-              DeviceSpine(
-                myName: controller.myName,
-                myShortId: controller.myShortId,
-                devices: controller.devices,
-                busy: receiving != null,
-                onTap: (device) => pickAndSend(context, controller, device),
-                onForget: (device) => _forget(context, device),
-              ),
-              Align(
-                alignment: Alignment.topCenter,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+              if (controller.flingSetup case final setup?
+                  when !setup.ready && !_flingDismissed)
+                _FlingReminder(
+                  setup: setup,
+                  onSetUp: () => showSettings(context, controller),
+                  onDismiss: () => setState(() => _flingDismissed = true),
+                ),
+              if (controller.vpnActive && !_vpnDismissed)
+                VpnNotice(
+                  onDismiss: () => setState(() => _vpnDismissed = true),
+                ),
+              if (controller.pendingShare.isNotEmpty)
+                ShareBar(
+                  count: controller.pendingShare.length,
+                  devices: controller.devices,
+                  onDismiss: controller.dismissShare,
+                  onSend: (device) {
+                    final paths = controller.pendingShare;
+                    controller.dismissShare();
+                    sendWithProgress(context, controller, device, paths);
+                  },
+                ),
+              Expanded(
+                child: Stack(
                   children: [
-                    if (controller.flingSetup case final setup?
-                        when !setup.ready && !_flingDismissed)
-                      FlingSetupCard(
-                        controller: controller,
-                        setup: setup,
-                        onDismiss: () => setState(() => _flingDismissed = true),
+                    DeviceSpine(
+                      myName: controller.myName,
+                      myShortId: controller.myShortId,
+                      devices: controller.devices,
+                      busy: receiving != null,
+                      onTap: (device) =>
+                          pickAndSend(context, controller, device),
+                      onForget: (device) => _forget(context, device),
+                    ),
+                    if (controller.devices.isEmpty)
+                      Align(
+                        alignment: const Alignment(0, 0.15),
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Text(
+                            'No paired devices yet. Pair one to start sending files.',
+                            style: text.bodyLarge,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
                       ),
-                    if (controller.vpnActive && !_vpnDismissed)
-                      VpnNotice(
-                        onDismiss: () => setState(() => _vpnDismissed = true),
-                      ),
-                    if (controller.pendingShare.isNotEmpty)
-                      ShareBar(
-                        count: controller.pendingShare.length,
-                        devices: controller.devices,
-                        onDismiss: controller.dismissShare,
-                        onSend: (device) {
-                          final paths = controller.pendingShare;
-                          controller.dismissShare();
-                          sendWithProgress(context, controller, device, paths);
-                        },
+                    if (receiving != null)
+                      Align(
+                        alignment: Alignment.bottomCenter,
+                        child: ReceiveBanner(status: receiving),
                       ),
                   ],
                 ),
               ),
-              if (controller.devices.isEmpty)
-                Align(
-                  alignment: const Alignment(0, 0.15),
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Text(
-                      'No paired devices yet. Pair one to start sending files.',
-                      style: text.bodyLarge,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              if (receiving != null)
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: ReceiveBanner(status: receiving),
-                ),
             ],
           ),
           floatingActionButton: FloatingActionButton.extended(
@@ -147,6 +147,48 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+/// A one-line reminder that fling is not set up; the steps are in settings. Kept
+/// small so it does not cover the device list.
+class _FlingReminder extends StatelessWidget {
+  const _FlingReminder({
+    required this.setup,
+    required this.onSetUp,
+    required this.onDismiss,
+  });
+
+  final FlingSetup setup;
+  final VoidCallback onSetUp;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final missing = [
+      if (!setup.canDrawOverlays) 'the handle needs permission',
+      if (!setup.screenAccess) 'screen access is off',
+      if (setup.canDrawOverlays && !setup.handleOn) 'the handle is hidden',
+    ];
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: ListTile(
+        leading: const Icon(Icons.swipe_right_alt),
+        title: const Text('Fling is not ready'),
+        subtitle: Text(missing.join(', ')),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextButton(onPressed: onSetUp, child: const Text('Set up')),
+            IconButton(
+              tooltip: 'Hide',
+              onPressed: onDismiss,
+              icon: const Icon(Icons.close),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
