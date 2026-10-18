@@ -23,17 +23,19 @@ import io.flutter.embedding.android.FlutterView
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.plugin.common.MethodChannel
-import kotlin.math.hypot
+import kotlin.math.abs
 
 /**
- * The fling handle on the left edge of the screen, and the full-screen layer that
- * appears when it is held.
+ * The fling handle, a thin strip on the left edge of the screen, and the full-screen
+ * layer that a swipe in from it opens.
  *
- * Holding the handle opens the layer, drawn by Flutter (`flingMain` in lib/main.dart).
- * The press-hold-drag can go on in one motion: Android keeps delivering a touch to the
- * window where it began, so the handle forwards the finger's position to the layer.
- * A tap, or a hold released without moving, leaves the card resting in the layer,
- * which then takes touches itself: the card is dragged there, a tap outside closes.
+ * Swiping in from the strip opens the layer, drawn by Flutter (`flingMain` in
+ * lib/main.dart). The swipe goes on into the drag in one motion: Android keeps
+ * delivering a touch to the window where it began, so the handle forwards the finger's
+ * position to the layer. A swipe that lets go early leaves the card resting in the
+ * layer, which then takes touches itself: the card is dragged there, a tap outside
+ * closes. Taps and vertical swipes on the strip do nothing, so brushing the edge does
+ * not open the layer by accident.
  */
 class FlingHandle private constructor(private val context: Context) {
     private val windows = context.getSystemService(WindowManager::class.java)
@@ -53,7 +55,7 @@ class FlingHandle private constructor(private val context: Context) {
         warmEngine()
         val view = HandleView(context)
         val params = WindowManager.LayoutParams(
-            dp(28), dp(160),
+            dp(HANDLE_WIDTH_DP), dp(160),
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
@@ -209,18 +211,29 @@ class FlingHandle private constructor(private val context: Context) {
     private inner class HandleView(context: Context) : View(context) {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(150, 255, 255, 255) }
         private val shadow = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(60, 0, 0, 0) }
-        private val holdDelayMs = 280L
-        private val slop = 24 * density
+        // How far in the finger must swipe, mostly sideways, to open the layer.
+        private val triggerDistance = 40 * density
+        private val slop = 12 * density
 
         private var downX = 0f
         private var downY = 0f
         private var lastX = 0f
         private var lastY = 0f
-        private var holding = false
         private var resolving = false
         private var released = false
         private var started = false
-        private val beginHold = Runnable { begin() }
+        // Set once the touch is a swipe in (it opened the layer) or clearly not one.
+        private var decided = false
+
+        // How far the swipe in has got, 0 to 1; the pill grows with it as feedback.
+        private var progress = 0f
+            set(value) {
+                val clamped = value.coerceIn(0f, 1f)
+                if (clamped != field) {
+                    field = clamped
+                    invalidate()
+                }
+            }
 
         override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
             super.onLayout(changed, l, t, r, b)
@@ -229,11 +242,13 @@ class FlingHandle private constructor(private val context: Context) {
         }
 
         override fun onDraw(canvas: Canvas) {
-            val w = 5 * density
-            val h = 72 * density
+            val w = (4 + 3 * progress) * density
+            val h = (64 + 24 * progress) * density
+            val left = (2 + 4 * progress) * density
             val top = (height - h) / 2
-            canvas.drawRoundRect(RectF(2 * density, top + density, 2 * density + w, top + h + density), w, w, shadow)
-            canvas.drawRoundRect(RectF(2 * density, top, 2 * density + w, top + h), w, w, paint)
+            paint.alpha = (140 + 100 * progress).toInt()
+            canvas.drawRoundRect(RectF(left, top + density, left + w, top + h + density), w, w, shadow)
+            canvas.drawRoundRect(RectF(left, top, left + w, top + h), w, w, paint)
         }
 
         @SuppressLint("ClickableViewAccessibility")
@@ -244,23 +259,31 @@ class FlingHandle private constructor(private val context: Context) {
                 MotionEvent.ACTION_DOWN -> {
                     downX = lastX
                     downY = lastY
-                    holding = false
                     resolving = false
                     released = false
                     started = false
-                    postDelayed(beginHold, holdDelayMs)
+                    decided = false
                 }
                 MotionEvent.ACTION_MOVE -> when {
                     started -> channel?.invokeMethod("move", position())
-                    !holding && hypot(lastX - downX, lastY - downY) > slop -> removeCallbacks(beginHold)
+                    !decided -> {
+                        val dx = lastX - downX
+                        val dy = abs(lastY - downY)
+                        progress = dx / triggerDistance
+                        if (dx >= triggerDistance && dx > 1.5f * dy) {
+                            decided = true
+                            progress = 0f
+                            begin()
+                        } else if (dy > slop && dy > dx) {
+                            // A vertical swipe along the edge: not for us.
+                            decided = true
+                            progress = 0f
+                        }
+                    }
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    removeCallbacks(beginHold)
-                    val tapped = event.actionMasked == MotionEvent.ACTION_UP && !holding &&
-                        hypot(lastX - downX, lastY - downY) <= slop
                     released = true
-                    // A tap opens the layer too; the card then waits to be dragged.
-                    if (tapped) begin()
+                    progress = 0f
                     if (event.actionMasked == MotionEvent.ACTION_CANCEL) lastX = -1000f
                     if (started) channel?.invokeMethod("release", position())
                 }
@@ -271,8 +294,7 @@ class FlingHandle private constructor(private val context: Context) {
         private fun begin() {
             // Already flinging: the layer is in front and handles the touch.
             if (layerMode == "fling" || resolving) return
-            Log.d(TAG, "hold")
-            holding = true
+            Log.d(TAG, "swipe in")
             resolving = true
             performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
             resolveContent { content ->
@@ -293,6 +315,7 @@ class FlingHandle private constructor(private val context: Context) {
         private const val TAG = "EcFling"
         private const val CHANNEL = "io.github.serhanensar.ecosystemconnector/fling"
         private const val ARRIVAL_HEIGHT_DP = 420
+        private const val HANDLE_WIDTH_DP = 20
         private const val PREFS = "fling"
         private const val KEY_HANDLE = "handle"
 

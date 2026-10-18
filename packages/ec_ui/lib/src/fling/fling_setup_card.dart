@@ -48,8 +48,9 @@ class FlingSetupCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(left: 36, right: 8),
               child: Text(
-                'Tap or hold the handle on the left edge: what is on screen '
-                'becomes a card. Drag it onto one of your devices at the bottom.',
+                'Swipe in from the strip on the left edge: what is on screen '
+                'becomes a card. Keep dragging it onto one of your devices at '
+                'the bottom.',
                 style: text.bodySmall,
               ),
             ),
