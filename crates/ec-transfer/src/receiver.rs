@@ -606,7 +606,8 @@ async fn finalize(dir: &Path, incoming: &Incoming) -> Result<Vec<PathBuf>> {
         .collect();
     let dir = dir.to_path_buf();
     tokio::task::spawn_blocking(move || {
-        jobs.into_iter()
+        let saved = jobs
+            .into_iter()
             .map(|(handle, part, rel)| {
                 if let Some(handle) = handle {
                     handle.sync_all().map_err(|e| Error::io("sync", &part, e))?;
@@ -617,7 +618,11 @@ async fn finalize(dir: &Path, incoming: &Incoming) -> Result<Vec<PathBuf>> {
                 std::fs::rename(&part, &dest).map_err(|e| Error::io("rename", &part, e))?;
                 Ok(dest)
             })
-            .collect()
+            .collect::<Result<Vec<_>>>();
+        // Remove the partial folder once nothing is left in it, so the receive folder
+        // stays tidy. It fails harmlessly while another transfer still uses it.
+        let _ = std::fs::remove_dir(dir.join(PARTIAL_DIR));
+        saved
     })
     .await
     .map_err(|_| Error::Protocol("finalize task failed"))?

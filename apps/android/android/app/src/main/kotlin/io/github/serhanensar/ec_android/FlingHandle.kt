@@ -81,10 +81,14 @@ class FlingHandle private constructor(private val context: Context) {
         channel = MethodChannel(flutter.dartExecutor.binaryMessenger, CHANNEL).apply {
             setMethodCallHandler { call, result ->
                 when (call.method) {
-                    "finished" -> {
-                        removeLayer()
+                    // The layer tells which window it needs: "fling", "arrival" or "none".
+                    "layer" -> {
+                        setLayer(call.arguments as String)
                         result.success(null)
                     }
+                    "openFile" -> result.success(Files.open(context, call.arguments as String))
+                    "showInFolder" -> result.success(Files.showFolder(context))
+                    "openUrl" -> result.success(Files.openUrl(context, call.arguments as String))
                     "deviceName" -> result.success(DeviceInfo.name(context))
                     "receiveDir" -> result.success(DeviceInfo.receiveDir())
                     else -> result.notImplemented()
@@ -94,12 +98,27 @@ class FlingHandle private constructor(private val context: Context) {
         engine = flutter
     }
 
-    private fun showLayer() {
+    private var layerMode = "none"
+
+    /** Whether the fling layer's engine runs (it then shows arrivals itself). */
+    fun isActive(): Boolean = engine != null
+
+    private fun showLayer() = setLayer("fling")
+
+    /**
+     * Sizes the layer window for its job. "fling": the whole screen, letting touches
+     * through (the handle forwards them). "arrival": a strip at the top that can be
+     * touched, sized to the arrival cards, so the rest of the screen keeps working.
+     * "none": no window.
+     */
+    private fun setLayer(mode: String) {
         val flutter = engine ?: return
-        if (layer == null) {
-            val view = FlutterView(context, FlutterTextureView(context).apply { isOpaque = false })
-            view.attachToFlutterEngine(flutter)
-            val params = WindowManager.LayoutParams(
+        if (mode == "none") {
+            removeLayer()
+            return
+        }
+        val params = if (mode == "fling") {
+            WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
@@ -109,9 +128,26 @@ class FlingHandle private constructor(private val context: Context) {
                     WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT,
             )
-            windows.addView(view, params)
-            layer = view
+        } else {
+            WindowManager.LayoutParams(
+                dp(440), dp(ARRIVAL_HEIGHT_DP),
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.TRANSLUCENT,
+            ).apply { gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL }
         }
+        val view = layer
+        if (view == null) {
+            val created = FlutterView(context, FlutterTextureView(context).apply { isOpaque = false })
+            created.attachToFlutterEngine(flutter)
+            windows.addView(created, params)
+            layer = created
+        } else if (mode != layerMode) {
+            windows.updateViewLayout(view, params)
+        }
+        layerMode = mode
         flutter.lifecycleChannel.appIsResumed()
     }
 
@@ -121,6 +157,7 @@ class FlingHandle private constructor(private val context: Context) {
             windows.removeView(it)
         }
         layer = null
+        layerMode = "none"
         engine?.lifecycleChannel?.appIsInactive()
     }
 
@@ -244,6 +281,7 @@ class FlingHandle private constructor(private val context: Context) {
     companion object {
         private const val TAG = "EcFling"
         private const val CHANNEL = "io.github.serhanensar.ecosystemconnector/fling"
+        private const val ARRIVAL_HEIGHT_DP = 420
         private const val PREFS = "fling"
         private const val KEY_HANDLE = "handle"
 

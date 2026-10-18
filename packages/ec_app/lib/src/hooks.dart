@@ -15,6 +15,50 @@ class FlingHooks {
   final Future<void> Function() openAccessibilitySettings;
 }
 
+/// Something that arrived from another device, for the arrival card.
+class ArrivalInfo {
+  ArrivalInfo.files(this.paths, {required this.from, this.size = 0})
+    : url = null,
+      title = paths.length == 1 ? '' : '${paths.length} files';
+
+  const ArrivalInfo.page(
+    String this.url, {
+    required this.title,
+    required this.from,
+  }) : paths = const [],
+       size = 0;
+
+  /// Saved files (empty for a page).
+  final List<String> paths;
+
+  /// The page address (null for files).
+  final String? url;
+
+  /// What the card shows as its title.
+  final String title;
+
+  /// Name of the sending device.
+  final String from;
+
+  /// Total size of the files in bytes.
+  final int size;
+
+  /// The card's title: the file name, the number of files, or the page title.
+  String get displayTitle {
+    if (url != null) return title.isEmpty ? url! : title;
+    if (paths.length == 1) return paths.single.split(RegExp(r'[/\\]')).last;
+    return title;
+  }
+
+  Map<String, Object?> toMap() => {
+    'paths': paths,
+    'url': url,
+    'title': displayTitle,
+    'from': from,
+    'size': size,
+  };
+}
+
 /// What each platform app supplies to the shared app code.
 class PlatformHooks {
   const PlatformHooks({
@@ -25,7 +69,7 @@ class PlatformHooks {
     this.openFile,
     this.sharedFiles,
     this.vpnActive,
-    this.opensFlings = false,
+    this.showArrival,
     this.fling,
     this.incomingInvites,
   });
@@ -52,10 +96,11 @@ class PlatformHooks {
   /// Whether a VPN is on, which can stop other devices from reaching this one.
   final Future<bool> Function()? vpnActive;
 
-  /// Whether flung files and pages are opened as soon as they arrive. True on
-  /// desktops; phones and tablets only notify, because Android does not let apps
-  /// open things from the background.
-  final bool opensFlings;
+  /// Shows the arrival card for received files or a flung page (the drop that
+  /// spreads into a card at the top of the screen) and returns whether it did; if
+  /// not, a notification is shown. Nothing is ever opened automatically; the card
+  /// offers to.
+  final Future<bool> Function(ArrivalInfo arrival)? showArrival;
 
   /// Flinging from the screen edge, where the platform supports it.
   final FlingHooks? fling;

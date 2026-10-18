@@ -9,57 +9,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'hooks.dart';
 import 'notifier.dart';
 
-/// File types that can run code when opened. A flung file of one of these types is
-/// shown in its folder instead of being opened.
-const runnableExtensions = {
-  'app',
-  'pkg',
-  'mpkg',
-  'dmg',
-  'iso',
-  'command',
-  'tool',
-  'terminal',
-  'workflow',
-  'action',
-  'scpt',
-  'applescript',
-  'sh',
-  'bash',
-  'zsh',
-  'csh',
-  'fish',
-  'py',
-  'rb',
-  'pl',
-  'php',
-  'jar',
-  'exe',
-  'msi',
-  'msix',
-  'appx',
-  'bat',
-  'cmd',
-  'com',
-  'scr',
-  'ps1',
-  'psm1',
-  'vbs',
-  'vbe',
-  'js',
-  'jse',
-  'wsf',
-  'wsh',
-  'hta',
-  'lnk',
-  'reg',
-  'url',
-  'webloc',
-  'inetloc',
-  'desktop',
-  'apk',
-};
-
 /// [EcController] backed by the Rust core.
 class BridgeController extends EcController with WidgetsBindingObserver {
   BridgeController(this._core, this._hooks, this._notifier) {
@@ -132,7 +81,7 @@ class BridgeController extends EcController with WidgetsBindingObserver {
   List<EcDevice> _devices = const [];
   ReceiveStatus? _receiving;
   final _recent = <String>[];
-  var _savedInTransfer = 0;
+  final _savedInTransfer = <String>[];
 
   @override
   String get myName => _core.myName();
@@ -224,7 +173,7 @@ class BridgeController extends EcController with WidgetsBindingObserver {
         :final totalBytes,
         :final alreadyHave,
       ):
-        _savedInTransfer = 0;
+        _savedInTransfer.clear();
         _receiving = ReceiveStatus(
           from: _nameOf(from),
           files: files,
@@ -241,26 +190,27 @@ class BridgeController extends EcController with WidgetsBindingObserver {
             total: total.toInt(),
           );
         }
-      case CoreEvent_Saved(:final path, :final open):
-        _savedInTransfer++;
+      case CoreEvent_Saved(:final path):
+        _savedInTransfer.add(path);
         _recent.insert(0, path);
         if (_recent.length > 20) _recent.removeLast();
-        if (open && _hooks.opensFlings) unawaited(openSafely(path));
       case CoreEvent_FlingUrl(:final from, :final url, :final title):
-        unawaited(_openPage(url, title, _nameOf(from)));
-      case CoreEvent_ReceiveFinished():
-        final from = _receiving?.from ?? 'a paired device';
-        final name = _recent.isEmpty
-            ? ''
-            : _recent.first.split(RegExp(r'[/\\]')).last;
         unawaited(
-          _notifier.received(
-            _savedInTransfer == 1
-                ? 'Received $name'
-                : 'Received $_savedInTransfer files',
-            'From $from',
-          ),
+          _arrived(ArrivalInfo.page(url, title: title, from: _nameOf(from))),
         );
+      case CoreEvent_ReceiveFinished():
+        final paths = List<String>.of(_savedInTransfer);
+        if (paths.isNotEmpty) {
+          unawaited(
+            _arrived(
+              ArrivalInfo.files(
+                paths,
+                from: _receiving?.from ?? 'a paired device',
+                size: _receiving?.total ?? 0,
+              ),
+            ),
+          );
+        }
         _receiving = null;
       case CoreEvent_ReceiveInterrupted():
         _receiving = null;
@@ -295,31 +245,11 @@ class BridgeController extends EcController with WidgetsBindingObserver {
     return files.map((f) => f.path).toList();
   }
 
-  Future<void> _openPage(String url, String title, String from) async {
-    final uri = Uri.tryParse(url);
-    // The core already accepts only http and https; check again before launching.
-    if (uri == null || !(uri.isScheme('http') || uri.isScheme('https'))) return;
-    if (_hooks.opensFlings) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-    await _notifier.received(
-      title.isEmpty ? url : title,
-      'Web page from $from',
-    );
-  }
-
-  /// Opens a flung file with its default app, unless it could run code: those are
-  /// only shown in their folder.
-  Future<void> openSafely(String path) async {
-    final name = path.split(RegExp(r'[/\\]')).last;
-    final dot = name.lastIndexOf('.');
-    final ext = dot < 0 ? '' : name.substring(dot + 1).toLowerCase();
-    if (runnableExtensions.contains(ext)) {
-      final folder = path.substring(0, path.length - name.length);
-      await launchUrl(Uri.directory(folder));
-      return;
-    }
-    await open(path);
+  /// Shows the arrival card where the platform has one, a notification otherwise.
+  Future<void> _arrived(ArrivalInfo arrival) async {
+    final show = _hooks.showArrival;
+    if (show != null && await show(arrival)) return;
+    await _notifier.received(arrival.displayTitle, 'From ${arrival.from}');
   }
 
   @override

@@ -40,6 +40,8 @@ class MainActivity : FlutterActivity() {
                         pendingInvite = null
                     }
                     "vpnActive" -> result.success(vpnActive())
+                    // The fling layer shows arrival cards itself when it runs.
+                    "layerActive" -> result.success(FlingHandle.get(this@MainActivity).isActive())
                     "flingStatus" -> result.success(
                         mapOf(
                             "handleOn" to FlingHandle.isEnabled(this@MainActivity),

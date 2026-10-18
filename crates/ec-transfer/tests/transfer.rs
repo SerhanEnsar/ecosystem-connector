@@ -134,11 +134,9 @@ async fn sends_a_folder_with_large_small_and_empty_files() {
     assert_eq!(read(out, "Project/video.bin"), big);
     assert_eq!(read(out, "Project/notes/todo.txt"), b"ship it");
     assert!(read(out, "Project/empty").is_empty());
-    let partial = out.join(ec_transfer::PARTIAL_DIR);
-    assert_eq!(
-        std::fs::read_dir(partial).unwrap().count(),
-        0,
-        "partials cleaned up"
+    assert!(
+        !out.join(ec_transfer::PARTIAL_DIR).exists(),
+        "the partial folder is removed once empty"
     );
 }
 

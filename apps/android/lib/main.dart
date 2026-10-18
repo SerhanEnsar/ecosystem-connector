@@ -5,7 +5,7 @@ import 'package:ec_ui/ec_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
-import 'fling_layer.dart';
+import 'fling_layer.dart' show FlingLayer, arrivals;
 
 /// Talks to MainActivity.kt.
 const _platform = MethodChannel(
@@ -63,6 +63,10 @@ Future<void> flingMain() async {
       deviceName: () async =>
           await fling.invokeMethod<String>('deviceName') ?? 'Android',
       receiveDir: () async => (await fling.invokeMethod<String>('receiveDir'))!,
+      showArrival: (arrival) async {
+        arrivals.add(arrival);
+        return true;
+      },
     ),
     notify: false,
   );
@@ -81,6 +85,9 @@ PlatformHooks _hooks({
   scanInvite: () => _platform.invokeMethod<String>('scanInvite'),
   sharedFiles: sharedFiles,
   incomingInvites: incomingInvites,
+  // When the fling layer runs, it shows the arrival card; otherwise a notification.
+  showArrival: (_) async =>
+      await _platform.invokeMethod<bool>('layerActive') ?? false,
   vpnActive: () async =>
       await _platform.invokeMethod<bool>('vpnActive') ?? false,
   fling: FlingHooks(

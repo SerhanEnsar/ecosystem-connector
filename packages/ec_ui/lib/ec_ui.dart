@@ -5,6 +5,7 @@
 library;
 
 export 'src/app.dart';
+export 'src/arrival/arrival_card.dart';
 export 'src/controller.dart';
 export 'src/fling/fling_overlay.dart';
 export 'src/fling/fling_setup_card.dart';
