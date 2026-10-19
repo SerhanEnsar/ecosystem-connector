@@ -590,8 +590,10 @@ dependencies = [
  "ec-fling",
  "ec-net",
  "ec-runtime",
+ "ec-sync",
  "ec-transfer",
  "flutter_rust_bridge",
+ "hex",
  "tempfile",
  "tokio",
 ]

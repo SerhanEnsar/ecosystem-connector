@@ -469,6 +469,11 @@ impl Runtime {
         self.node.local_addr().map(|a| a.port()).unwrap_or(0)
     }
 
+    /// The folder of the identity, the trust store and the linked files journal.
+    pub fn home(&self) -> &Path {
+        &self.home
+    }
+
     /// The folder received files are saved to.
     pub fn receive_dir(&self) -> PathBuf {
         self.receiver.dir()

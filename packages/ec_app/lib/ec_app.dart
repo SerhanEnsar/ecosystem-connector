@@ -2,6 +2,8 @@
 /// platform hooks each app supplies.
 library;
 
+import 'dart:io';
+
 import 'package:ec_bridge/ec_bridge.dart';
 import 'package:ec_ui/ec_ui.dart';
 import 'package:flutter/material.dart';
@@ -40,6 +42,8 @@ Future<EcController> startController(
       home: '${support.path}/core',
       deviceName: await hooks.deviceName(),
       receiveDir: await hooks.receiveDir(),
+      // The Mac app moves unkept versions to the Trash; Android deletes them.
+      useSystemTrash: Platform.isMacOS,
     ),
   );
   final notifier = Notifier(enabled: notify);

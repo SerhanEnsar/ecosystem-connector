@@ -66,10 +66,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  ConflictView dco_decode_box_autoadd_conflict_view(dynamic raw);
+
+  @protected
   CoreConfig dco_decode_box_autoadd_core_config(dynamic raw);
 
   @protected
+  LinkedEventKind dco_decode_box_autoadd_linked_event_kind(dynamic raw);
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  ConflictView dco_decode_conflict_view(dynamic raw);
 
   @protected
   CoreConfig dco_decode_core_config(dynamic raw);
@@ -81,16 +90,40 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DeviceView dco_decode_device_view(dynamic raw);
 
   @protected
+  int dco_decode_i_32(dynamic raw);
+
+  @protected
+  LinkedEventKind dco_decode_linked_event_kind(dynamic raw);
+
+  @protected
+  LinkedLogView dco_decode_linked_log_view(dynamic raw);
+
+  @protected
+  LinkedState dco_decode_linked_state(dynamic raw);
+
+  @protected
+  LinkedView dco_decode_linked_view(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
   List<DeviceView> dco_decode_list_device_view(dynamic raw);
 
   @protected
+  List<LinkedLogView> dco_decode_list_linked_log_view(dynamic raw);
+
+  @protected
+  List<LinkedView> dco_decode_list_linked_view(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  ConflictView? dco_decode_opt_box_autoadd_conflict_view(dynamic raw);
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
@@ -159,10 +192,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  ConflictView sse_decode_box_autoadd_conflict_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   CoreConfig sse_decode_box_autoadd_core_config(SseDeserializer deserializer);
 
   @protected
+  LinkedEventKind sse_decode_box_autoadd_linked_event_kind(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  ConflictView sse_decode_conflict_view(SseDeserializer deserializer);
 
   @protected
   CoreConfig sse_decode_core_config(SseDeserializer deserializer);
@@ -174,16 +220,44 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DeviceView sse_decode_device_view(SseDeserializer deserializer);
 
   @protected
+  int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
+  LinkedEventKind sse_decode_linked_event_kind(SseDeserializer deserializer);
+
+  @protected
+  LinkedLogView sse_decode_linked_log_view(SseDeserializer deserializer);
+
+  @protected
+  LinkedState sse_decode_linked_state(SseDeserializer deserializer);
+
+  @protected
+  LinkedView sse_decode_linked_view(SseDeserializer deserializer);
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
   List<DeviceView> sse_decode_list_device_view(SseDeserializer deserializer);
 
   @protected
+  List<LinkedLogView> sse_decode_list_linked_log_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<LinkedView> sse_decode_list_linked_view(SseDeserializer deserializer);
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  ConflictView? sse_decode_opt_box_autoadd_conflict_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
@@ -208,9 +282,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
-
-  @protected
-  int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
   void sse_encode_AnyhowException(
@@ -264,13 +335,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_conflict_view(
+    ConflictView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_core_config(
     CoreConfig self,
     SseSerializer serializer,
   );
 
   @protected
+  void sse_encode_box_autoadd_linked_event_kind(
+    LinkedEventKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_conflict_view(ConflictView self, SseSerializer serializer);
 
   @protected
   void sse_encode_core_config(CoreConfig self, SseSerializer serializer);
@@ -282,11 +368,41 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_device_view(DeviceView self, SseSerializer serializer);
 
   @protected
+  void sse_encode_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_linked_event_kind(
+    LinkedEventKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_linked_log_view(LinkedLogView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_linked_state(LinkedState self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_linked_view(LinkedView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_device_view(
     List<DeviceView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_linked_log_view(
+    List<LinkedLogView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_linked_view(
+    List<LinkedView> self,
     SseSerializer serializer,
   );
 
@@ -298,6 +414,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_conflict_view(
+    ConflictView? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
@@ -322,9 +444,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer);
 }
 
 // Section: wire_class

@@ -227,6 +227,9 @@ class BridgeController extends EcController with WidgetsBindingObserver {
         _receiving = null;
       case CoreEvent_ReceiveInterrupted():
         _receiving = null;
+      case CoreEvent_Linked():
+        // Listeners read the linked files again.
+        break;
     }
     notifyListeners();
   }

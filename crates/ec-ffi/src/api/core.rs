@@ -48,7 +48,13 @@ pub struct CoreConfig {
     pub device_name: String,
     /// Folder for received files.
     pub receive_dir: String,
+    /// Whether the platform has a Trash for files the user chose not to keep (macOS).
+    /// They are then set aside for [`EcCore::take_pending_trash`]; otherwise deleted.
+    pub use_system_trash: bool,
 }
+
+/// The folder in `home` where files wait to be moved to the system Trash.
+const PENDING_TRASH: &str = "trash-pending";
 
 /// A paired device.
 pub struct DeviceView {
@@ -60,6 +66,103 @@ pub struct DeviceView {
     pub name: String,
     /// Whether it is on the network now.
     pub online: bool,
+    /// Whether files can be linked with it.
+    pub linked_files: bool,
+}
+
+/// Where a linked file stands on this device.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum LinkedState {
+    /// Up to date.
+    Current,
+    /// A newer version is arriving.
+    Updating,
+    /// Changed on two devices; the user chooses.
+    Conflict,
+    /// Cannot be found; the link is kept.
+    Missing,
+}
+
+/// The two versions of a file in conflict.
+pub struct ConflictView {
+    /// This device's name.
+    pub mine_device: String,
+    /// When this device's version was last changed (ms since the Unix epoch).
+    pub mine_at_ms: u64,
+    /// Its size.
+    pub mine_size: u64,
+    /// The other device's name.
+    pub theirs_device: String,
+    /// When the other version arrived (ms since the Unix epoch).
+    pub theirs_at_ms: u64,
+    /// Its size.
+    pub theirs_size: u64,
+    /// Where the other version waits, to open it.
+    pub theirs_path: String,
+}
+
+/// A linked file.
+pub struct LinkedView {
+    /// The link id (32 hex characters).
+    pub id: String,
+    /// The file name on this device.
+    pub name: String,
+    /// Where it is on this device.
+    pub path: String,
+    /// Names of the devices it is linked with.
+    pub devices: Vec<String>,
+    /// Where it stands.
+    pub state: LinkedState,
+    /// Its size.
+    pub size: u64,
+    /// Set when in conflict.
+    pub conflict: Option<ConflictView>,
+}
+
+/// One entry of a linked file's log.
+pub struct LinkedLogView {
+    /// When (ms since the Unix epoch).
+    pub at_ms: u64,
+    /// The device it happened on.
+    pub device: String,
+    /// What happened, for display.
+    pub text: String,
+}
+
+/// What happened to a linked file.
+#[derive(Clone)]
+pub enum LinkedEventKind {
+    /// It was linked from another device and arrived at `path`.
+    Arrived {
+        /// Where it was saved.
+        path: String,
+        /// The sending device's name.
+        from: String,
+    },
+    /// A newer version replaced it.
+    Updated,
+    /// Changed on two devices; the user chooses.
+    Conflict,
+    /// The conflict was resolved.
+    Resolved,
+    /// Another device left the link.
+    PeerLeft {
+        /// Its name.
+        device: String,
+    },
+    /// This device left the link.
+    Left,
+    /// It cannot be found.
+    Missing,
+    /// It was found again.
+    Found,
+    /// It was moved or renamed here.
+    Moved,
+    /// Something went wrong.
+    Error {
+        /// What.
+        message: String,
+    },
 }
 
 /// Background events for the UI.
@@ -121,6 +224,13 @@ pub enum CoreEvent {
     ReceiveInterrupted {
         /// Why.
         reason: String,
+    },
+    /// Something happened to a linked file; read `linked_files()` again.
+    Linked {
+        /// The link id.
+        id: String,
+        /// What happened.
+        kind: LinkedEventKind,
     },
 }
 
@@ -209,13 +319,33 @@ impl EcCore {
             return Ok(Self::wrap(runtime));
         }
         let home = config.home.clone();
+        let pending_trash = PathBuf::from(&config.home).join(PENDING_TRASH);
+        let trash: ec_runtime::TrashFn = if config.use_system_trash {
+            // Set aside; the app moves it to the Trash (see `take_pending_trash`).
+            Arc::new(move |path: &std::path::Path| {
+                std::fs::create_dir_all(&pending_trash)?;
+                let name = path.file_name().unwrap_or_default().to_string_lossy();
+                let mut to = pending_trash.join(&*name);
+                let mut n = 1;
+                while to.exists() {
+                    to = pending_trash.join(format!("{n} {name}"));
+                    n += 1;
+                }
+                std::fs::rename(path, to)
+            })
+        } else {
+            Arc::new(|path: &std::path::Path| std::fs::remove_file(path))
+        };
         let config = Config {
             home: PathBuf::from(config.home),
             default_name: config.device_name,
             receive_dir: PathBuf::from(config.receive_dir),
             port: ec_runtime::DEFAULT_PORT,
             mdns: true,
-            linked: Default::default(),
+            linked: ec_runtime::LinkedConfig {
+                trash: Some(trash),
+                ..Default::default()
+            },
         };
         let runtime = RT.spawn(Runtime::start(config)).await??;
         *RUNNING.lock().unwrap_or_else(|e| e.into_inner()) = Some((home, runtime.clone()));
@@ -278,8 +408,151 @@ impl EcCore {
                 short_id: d.id.short(),
                 name: d.name,
                 online: d.online,
+                linked_files: d.linked_files,
             })
             .collect()
+    }
+
+    fn device_name(&self, id: &DeviceId) -> String {
+        if *id == self.runtime.id() {
+            return self.runtime.name().to_owned();
+        }
+        self.runtime
+            .devices()
+            .into_iter()
+            .find(|d| d.id == *id)
+            .map_or_else(|| id.short(), |d| d.name)
+    }
+
+    /// Links a file with a paired device and sends it. On Android pass
+    /// `copy_into_linked`: the shared file is copied into the Linked folder first.
+    /// Returns the link id.
+    pub async fn send_linked(
+        &self,
+        device_id: String,
+        path: String,
+        copy_into_linked: bool,
+    ) -> anyhow::Result<String> {
+        let id: DeviceId = device_id.parse()?;
+        let runtime = self.runtime.clone();
+        let link = RT
+            .spawn(async move {
+                runtime
+                    .send_linked(id, PathBuf::from(path), copy_into_linked)
+                    .await
+            })
+            .await??;
+        Ok(hex::encode(link))
+    }
+
+    /// Every linked file.
+    #[frb(sync)]
+    pub fn linked_files(&self) -> Vec<LinkedView> {
+        self.runtime
+            .linked_files()
+            .into_iter()
+            .map(|f| {
+                let (state, conflict) = match &f.state {
+                    ec_sync::State::Current => (LinkedState::Current, None),
+                    ec_sync::State::Updating => (LinkedState::Updating, None),
+                    ec_sync::State::Missing => (LinkedState::Missing, None),
+                    ec_sync::State::Conflict {
+                        theirs,
+                        from,
+                        at_ms,
+                        ..
+                    } => {
+                        let view = ConflictView {
+                            mine_device: self.runtime.name().to_owned(),
+                            mine_at_ms: (f.seen.mtime_ns / 1_000_000).max(0) as u64,
+                            mine_size: f.content.size,
+                            theirs_device: self.device_name(from),
+                            theirs_at_ms: *at_ms,
+                            theirs_size: theirs.size,
+                            theirs_path: self
+                                .runtime
+                                .linked_conflict_path(f.id)
+                                .map(|p| p.to_string_lossy().into_owned())
+                                .unwrap_or_default(),
+                        };
+                        (LinkedState::Conflict, Some(view))
+                    }
+                };
+                LinkedView {
+                    id: hex::encode(f.id),
+                    name: f.name.clone(),
+                    path: f.path.to_string_lossy().into_owned(),
+                    devices: f.peers.iter().map(|p| self.device_name(p)).collect(),
+                    state,
+                    size: f.content.size,
+                    conflict,
+                }
+            })
+            .collect()
+    }
+
+    /// The log of a linked file, newest first.
+    #[frb(sync)]
+    pub fn linked_log(&self, id: String) -> anyhow::Result<Vec<LinkedLogView>> {
+        let log = self.runtime.linked_log(link_id(&id)?)?;
+        Ok(log
+            .into_iter()
+            .rev()
+            .map(|entry| LinkedLogView {
+                at_ms: entry.at_ms,
+                device: self.device_name(&entry.by),
+                text: log_text(&entry.kind, |d| self.device_name(d)),
+            })
+            .collect())
+    }
+
+    /// Resolves a conflict, keeping the other device's version or this one's.
+    #[frb(sync)]
+    pub fn resolve_conflict(&self, id: String, keep_theirs: bool) -> anyhow::Result<()> {
+        Ok(self.runtime.resolve_conflict(link_id(&id)?, keep_theirs)?)
+    }
+
+    /// Deletes the waiting version of a conflict, keeping this device's.
+    #[frb(sync)]
+    pub fn delete_conflict(&self, id: String) -> anyhow::Result<()> {
+        Ok(self.runtime.delete_conflict(link_id(&id)?)?)
+    }
+
+    /// Stops syncing a file on this device. The file stays.
+    #[frb(sync)]
+    pub fn leave_link(&self, id: String) -> anyhow::Result<()> {
+        Ok(self.runtime.leave_link(link_id(&id)?)?)
+    }
+
+    /// Records where a linked file is now (found by the app, for example through a
+    /// bookmark). A path in the Trash means it was deleted.
+    #[frb(sync)]
+    pub fn relocate_linked(&self, id: String, path: String) -> anyhow::Result<()> {
+        Ok(self
+            .runtime
+            .relocate_linked(link_id(&id)?, PathBuf::from(path))?)
+    }
+
+    /// How often linked files are checked without a file system event, in seconds.
+    #[frb(sync)]
+    pub fn set_linked_check_interval(&self, seconds: u32) {
+        self.runtime
+            .set_linked_check_interval(std::time::Duration::from_secs(u64::from(seconds.max(1))));
+    }
+
+    /// Files set aside for the system Trash (with `use_system_trash`). The app moves
+    /// each to the Trash; they stay listed until it does.
+    #[frb(sync)]
+    pub fn take_pending_trash(&self) -> Vec<String> {
+        let dir = self.runtime.home().join(PENDING_TRASH);
+        std::fs::read_dir(dir)
+            .map(|entries| {
+                entries
+                    .flatten()
+                    .map(|e| e.path().to_string_lossy().into_owned())
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     /// Streams background events until the stream is closed on the Dart side.
@@ -459,6 +732,63 @@ fn finish_pairing(sink: &StreamSink<PairingEvent>, result: ec_runtime::Result<St
     let _ = sink.add(event);
 }
 
+fn link_id(id: &str) -> anyhow::Result<ec_sync::LinkId> {
+    let bytes = hex::decode(id)?;
+    bytes
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("not a link id: {id}"))
+}
+
+/// A log entry, for display.
+fn log_text(kind: &ec_sync::LogKind, name: impl Fn(&DeviceId) -> String) -> String {
+    use ec_sync::LogKind;
+    match kind {
+        LogKind::Linked => "linked".into(),
+        LogKind::Changed => "changed".into(),
+        LogKind::Received => "received a new version".into(),
+        LogKind::Moved { from, to } => format!("moved from {} to {}", from.display(), to.display()),
+        LogKind::Conflict => "changed on two devices".into(),
+        LogKind::Resolved => "conflict resolved".into(),
+        LogKind::Unlinked => "left the link".into(),
+        LogKind::PeerLeft(device) => format!("{} left the link", name(device)),
+        LogKind::Missing => "cannot be found".into(),
+        LogKind::Found => "found again".into(),
+    }
+}
+
+fn convert_sync(event: ec_sync::SyncEvent) -> Option<CoreEvent> {
+    use ec_sync::SyncEvent;
+    let (id, kind) = match event {
+        SyncEvent::Linked { id, from, path } => (
+            id,
+            LinkedEventKind::Arrived {
+                path: path.to_string_lossy().into_owned(),
+                from: from.short(),
+            },
+        ),
+        SyncEvent::Updated { id } => (id, LinkedEventKind::Updated),
+        SyncEvent::Conflict { id } => (id, LinkedEventKind::Conflict),
+        SyncEvent::Resolved { id } => (id, LinkedEventKind::Resolved),
+        SyncEvent::PeerUnlinked { id, peer } => (
+            id,
+            LinkedEventKind::PeerLeft {
+                device: peer.short(),
+            },
+        ),
+        SyncEvent::LeftLink { id } => (id, LinkedEventKind::Left),
+        SyncEvent::Missing { id } => (id, LinkedEventKind::Missing),
+        SyncEvent::Found { id } => (id, LinkedEventKind::Found),
+        SyncEvent::Moved { id } => (id, LinkedEventKind::Moved),
+        SyncEvent::Error { id, message } => (id, LinkedEventKind::Error { message }),
+        // Shown through DevicesChanged.
+        SyncEvent::Support { .. } => return None,
+    };
+    Some(CoreEvent::Linked {
+        id: hex::encode(id),
+        kind,
+    })
+}
+
 fn convert(event: Event) -> Option<CoreEvent> {
     Some(match event {
         Event::DevicesChanged => CoreEvent::DevicesChanged,
@@ -499,8 +829,7 @@ fn convert(event: Event) -> Option<CoreEvent> {
             ReceiveEvent::Finished => CoreEvent::ReceiveFinished,
             ReceiveEvent::Interrupted { reason } => CoreEvent::ReceiveInterrupted { reason },
         },
-        // Mapped for the apps with the linked files API.
-        Event::Sync(_) => return None,
+        Event::Sync(event) => return convert_sync(event),
     })
 }
 
@@ -515,6 +844,7 @@ mod tests {
             home: dir.path().join("home").to_string_lossy().into_owned(),
             device_name: "Tablet".into(),
             receive_dir: dir.path().join("inbox").to_string_lossy().into_owned(),
+            use_system_trash: false,
         };
         let (a, b) = tokio::join!(EcCore::start(config()), EcCore::start(config()));
         let (a, b) = (
