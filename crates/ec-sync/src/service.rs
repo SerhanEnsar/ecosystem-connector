@@ -34,7 +34,10 @@ use crate::{
 const STEP_TIMEOUT: Duration = Duration::from_secs(10);
 /// The id used in the `Reply` that acknowledges a summary.
 const SUMMARY_ACK: LinkId = [0; 16];
-const CONFLICTS_DIR: &str = "conflicts";
+/// Folder in the Linked folder for conflicting versions waiting for the user.
+pub const WAITING_DIR: &str = ".waiting";
+/// Most versions waiting for their transfer at once.
+const MAX_PENDING: usize = 256;
 
 /// A future returned by an [`Outbox`].
 pub type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
@@ -173,6 +176,8 @@ pub fn decide(local: &LinkedFile, incoming: &VersionVector, hashes: &[[u8; 32]])
 #[derive(Clone, Debug)]
 struct Pending {
     kind: Incoming,
+    /// This device's version when it agreed to receive this one.
+    base: VersionVector,
     version: VersionVector,
     content: Content,
 }
@@ -311,8 +316,10 @@ impl SyncService {
     /// Where the waiting version of a file in conflict is kept.
     pub fn conflict_path(&self, id: &LinkId) -> Option<PathBuf> {
         let journal = lock(&self.core.journal);
-        let file = journal.get(id)?;
-        matches!(file.state, State::Conflict { .. }).then(|| self.core.conflict_path(file))
+        match &journal.get(id)?.state {
+            State::Conflict { waiting, .. } => Some(waiting.clone()),
+            _ => None,
+        }
     }
 
     /// Resolves a conflict: keeps the other device's version (`keep_theirs`) or this
@@ -401,8 +408,19 @@ impl Core {
     /// Saves `file` and logs `kind`.
     fn save(&self, file: &LinkedFile, by: DeviceId, kind: LogKind) -> Result<()> {
         let mut journal = lock(&self.journal);
+        self.put(&mut journal, file, by, kind)
+    }
+
+    /// Saves `file` and logs `kind` while the journal is already locked.
+    fn put(
+        &self,
+        journal: &mut Journal,
+        file: &LinkedFile,
+        by: DeviceId,
+        kind: LogKind,
+    ) -> Result<()> {
         journal.put(file.clone())?;
-        self.log(&mut journal, file, by, kind);
+        self.log(journal, file, by, kind);
         Ok(())
     }
 
@@ -415,50 +433,64 @@ impl Core {
         self.watcher.set(files);
     }
 
-    fn conflict_path(&self, file: &LinkedFile) -> PathBuf {
-        self.cfg
-            .dir
-            .join(CONFLICTS_DIR)
-            .join(format!("{}-{}", hex::encode(file.id), file.name))
+    /// Where a conflicting version of `file` waits: in the Linked folder, so it is on
+    /// the same volume as received files and can be moved into place.
+    fn waiting_path(&self, file: &LinkedFile) -> PathBuf {
+        lock(&self.linked_root).join(WAITING_DIR).join(format!(
+            "{}-{}",
+            hex::encode(file.id),
+            file.name
+        ))
     }
 
     async fn link(self: &Arc<Self>, peer: DeviceId, path: PathBuf, copy: bool) -> Result<LinkId> {
+        // A shared file arrives under a new temporary path each time, so on Android
+        // the same file is recognised by its contents.
+        let described = {
+            let path = path.clone();
+            tokio::task::spawn_blocking(move || describe([0; 16], &path))
+                .await
+                .map_err(|_| Error::Refused("hashing task failed"))??
+        };
         let existing = lock(&self.journal)
             .files()
-            .find(|f| f.path == path)
+            .find(|f| {
+                f.path == path || (copy && f.content == described.content && f.content.size > 0)
+            })
             .cloned();
         let file = match existing {
-            Some(mut file) => {
+            Some(file) => {
+                let mut journal = lock(&self.journal);
+                let mut file = journal.get(&file.id).cloned().unwrap_or(file);
                 if !file.peers.contains(&peer) {
                     file.peers.push(peer);
-                    lock(&self.journal).put(file.clone())?;
+                    journal.put(file.clone())?;
                 }
                 file
             }
             None => {
                 let path = if copy {
-                    self.copy_into_linked(&path)?
+                    let from = path.clone();
+                    let core = self.clone();
+                    tokio::task::spawn_blocking(move || core.copy_into_linked(&from))
+                        .await
+                        .map_err(|_| Error::Refused("copy task failed"))??
                 } else {
                     path
                 };
                 let id = new_link_id();
-                let described = {
-                    let path = path.clone();
-                    tokio::task::spawn_blocking(move || describe(id, &path))
-                        .await
-                        .map_err(|_| Error::Refused("hashing task failed"))??
-                };
+                let identity = stat(&path).and_then(|(_, identity)| identity);
                 let mut version = VersionVector::default();
                 version.bump(self.cfg.me);
                 let file = LinkedFile {
                     id,
                     name: file_name(&path),
+                    seen: stat(&path).map_or(described.seen, |(seen, _)| seen),
                     path,
-                    identity: described.identity,
+                    identity,
                     peers: vec![peer],
                     version,
                     content: described.content,
-                    seen: described.seen,
                     state: State::Current,
                 };
                 self.save(&file, self.cfg.me, LogKind::Linked)?;
@@ -581,19 +613,19 @@ impl Core {
                 version,
                 content,
             } => {
-                if let Some(mut file) = self.get(&id) {
-                    if !file.peers.contains(&peer) {
-                        file.peers.push(peer);
-                        lock(&self.journal).put(file)?;
-                    }
+                if self.get(&id).is_some() {
+                    // Only a device already linked with the file can announce it again;
+                    // any other paired device is refused, as for Changed.
+                    self.linked_with(&id, &peer)?;
                     return self.on_version(peer, id, version, content_of(content));
                 }
                 let pending = Pending {
                     kind: Incoming::New { name },
+                    base: VersionVector::default(),
                     version,
                     content: content_of(content),
                 };
-                lock(&self.pending).insert((peer, id), pending);
+                self.expect(peer, id, pending)?;
                 Ok(Some(SyncMessage::Reply { id, want: true }))
             }
             SyncMessage::Changed {
@@ -610,9 +642,15 @@ impl Core {
                 self.on_version(peer, id, version, content_of(content))
             }
             SyncMessage::Unlinked { id } => {
-                let mut file = self.linked_with(&id, &peer)?;
-                file.peers.retain(|p| *p != peer);
-                self.save(&file, peer, LogKind::PeerLeft(peer))?;
+                self.linked_with(&id, &peer)?;
+                {
+                    let mut journal = lock(&self.journal);
+                    let Some(mut file) = journal.get(&id).cloned() else {
+                        return Ok(None);
+                    };
+                    file.peers.retain(|p| *p != peer);
+                    self.put(&mut journal, &file, peer, LogKind::PeerLeft(peer))?;
+                }
                 self.emit(SyncEvent::PeerUnlinked { id, peer });
                 Ok(None)
             }
@@ -620,6 +658,17 @@ impl Core {
             | SyncMessage::Summary { .. }
             | SyncMessage::Reply { .. } => Err(Error::Refused("unexpected message")),
         }
+    }
+
+    /// Remembers a version this device agreed to receive, until it is placed. A
+    /// retried transfer finds it again.
+    fn expect(&self, peer: DeviceId, id: LinkId, pending: Pending) -> Result<()> {
+        let mut waiting = lock(&self.pending);
+        if waiting.len() >= MAX_PENDING && !waiting.contains_key(&(peer, id)) {
+            return Err(Error::Refused("too many versions waiting"));
+        }
+        waiting.insert((peer, id), pending);
+        Ok(())
     }
 
     /// The record of `id`, if it is linked with `peer`. Anything else is refused.
@@ -636,8 +685,42 @@ impl Core {
         version: VersionVector,
         content: Content,
     ) -> Result<Option<SyncMessage>> {
-        let mut file = self.get(&id).ok_or(Error::Refused("unknown link"))?;
-        let decision = decide(&file, &version, &content.hashes);
+        let (decision, file) = {
+            let mut journal = lock(&self.journal);
+            let mut file = journal
+                .get(&id)
+                .cloned()
+                .ok_or(Error::Refused("unknown link"))?;
+            let decision = decide(&file, &version, &content.hashes);
+            match decision {
+                Decision::Ignore => {}
+                Decision::AdoptVersion => {
+                    file.version = file.version.merged(&version);
+                    self.end_conflict_if_included(&mut file, &version);
+                    self.put(&mut journal, &file, peer, LogKind::Received)?;
+                }
+                Decision::Update | Decision::Conflict => {
+                    if decision == Decision::Update && !matches!(file.state, State::Conflict { .. })
+                    {
+                        file.state = State::Updating;
+                        journal.put(file.clone())?;
+                    }
+                    let kind = if decision == Decision::Update {
+                        Incoming::Update
+                    } else {
+                        Incoming::Conflict
+                    };
+                    let pending = Pending {
+                        kind,
+                        base: file.version.clone(),
+                        version: version.clone(),
+                        content,
+                    };
+                    self.expect(peer, id, pending)?;
+                }
+            }
+            (decision, file)
+        };
         let want = match decision {
             Decision::Ignore => {
                 if file.version.compare(&version) == Order::After {
@@ -647,60 +730,98 @@ impl Core {
                 false
             }
             Decision::AdoptVersion => {
-                file.version = file.version.merged(&version);
-                if let State::Conflict { .. } = file.state {
-                    // Both devices ended up with the same contents.
-                    let waiting = self.conflict_path(&file);
-                    let _ = std::fs::remove_file(waiting);
-                    file.state = State::Current;
-                }
-                self.save(&file, peer, LogKind::Received)?;
                 self.forward(id, peer);
                 false
             }
-            Decision::Update | Decision::Conflict => {
-                let kind = if decision == Decision::Update {
-                    Incoming::Update
-                } else {
-                    Incoming::Conflict
-                };
-                if decision == Decision::Update && !matches!(file.state, State::Conflict { .. }) {
-                    file.state = State::Updating;
-                    lock(&self.journal).put(file)?;
-                }
-                let pending = Pending {
-                    kind,
-                    version,
-                    content,
-                };
-                lock(&self.pending).insert((peer, id), pending);
-                true
-            }
+            Decision::Update | Decision::Conflict => true,
         };
         Ok(Some(SyncMessage::Reply { id, want }))
     }
 
+    /// Ends a conflict when `version` includes the waiting version: nothing of it is
+    /// lost then. A version made independently of the waiting one leaves it waiting.
+    fn end_conflict_if_included(&self, file: &mut LinkedFile, version: &VersionVector) {
+        if let State::Conflict {
+            version: waiting_version,
+            waiting,
+            ..
+        } = &file.state
+            && matches!(
+                version.compare(waiting_version),
+                Order::After | Order::Equal
+            )
+        {
+            let _ = std::fs::remove_file(waiting);
+            file.state = State::Current;
+        }
+    }
+
     /// Places a received, verified version. Called from the transfer's finishing step.
     fn commit(&self, peer: DeviceId, id: LinkId, pending: Pending, part: &Path) -> Result<PathBuf> {
-        match pending.kind {
-            Incoming::New { ref name } => self.commit_new(peer, id, name, &pending, part),
-            Incoming::Update => {
-                let file = self.get(&id).ok_or(Error::Refused("unknown link"))?;
-                if let Some(hook) = &self.cfg.before_commit {
-                    hook(&file.path);
-                }
-                // Changed here since this device last looked: keep the local edit and
-                // treat the received version as a conflict.
-                let unchanged = stat(&file.path).map(|(seen, _)| seen) == Some(file.seen);
-                if unchanged {
-                    self.commit_update(peer, file, &pending, part)
-                } else {
-                    self.commit_conflict(peer, file, &pending, part)
-                }
+        let placed = self.place_version(peer, id, &pending, part);
+        // Done with it, unless a newer announcement replaced it meanwhile.
+        let mut waiting = lock(&self.pending);
+        if waiting
+            .get(&(peer, id))
+            .is_some_and(|p| p.version == pending.version)
+        {
+            waiting.remove(&(peer, id));
+        }
+        placed
+    }
+
+    fn place_version(
+        &self,
+        peer: DeviceId,
+        id: LinkId,
+        pending: &Pending,
+        part: &Path,
+    ) -> Result<PathBuf> {
+        if let Incoming::New { name } = &pending.kind
+            && self.get(&id).is_none()
+        {
+            return self.commit_new(peer, id, name, pending, part);
+        }
+        if matches!(pending.kind, Incoming::Update)
+            && let Some(hook) = &self.cfg.before_commit
+            && let Some(file) = self.get(&id)
+        {
+            hook(&file.path);
+        }
+        let mut journal = lock(&self.journal);
+        let file = journal
+            .get(&id)
+            .cloned()
+            .ok_or(Error::Refused("unknown link"))?;
+        // Decide again if this device's version changed since it agreed (an edit the
+        // watcher noticed, or another version that arrived first): the received
+        // version must never replace something it does not include.
+        let mut decision = if file.version == pending.base {
+            match pending.kind {
+                Incoming::Conflict => Decision::Conflict,
+                Incoming::Update | Incoming::New { .. } => Decision::Update,
             }
-            Incoming::Conflict => {
-                let file = self.get(&id).ok_or(Error::Refused("unknown link"))?;
-                self.commit_conflict(peer, file, &pending, part)
+        } else {
+            decide(&file, &pending.version, &pending.content.hashes)
+        };
+        // Changed on disk and not noticed yet: keep the edit.
+        if decision == Decision::Update && stat(&file.path).map(|(seen, _)| seen) != Some(file.seen)
+        {
+            decision = Decision::Conflict;
+        }
+        match decision {
+            Decision::Update => self.commit_update(&mut journal, peer, file, pending, part),
+            Decision::Conflict => self.commit_conflict(&mut journal, peer, file, pending, part),
+            Decision::Ignore | Decision::AdoptVersion => {
+                let _ = std::fs::remove_file(part);
+                let path = file.path.clone();
+                if decision == Decision::AdoptVersion {
+                    let mut file = file;
+                    file.version = file.version.merged(&pending.version);
+                    self.end_conflict_if_included(&mut file, &pending.version);
+                    self.put(&mut journal, &file, peer, LogKind::Received)?;
+                }
+                Ok(path)
             }
         }
     }
@@ -717,7 +838,7 @@ impl Core {
         std::fs::create_dir_all(&dir).map_err(|e| io_err("create directory", &dir, e))?;
         let rel = RelPath::new(vec![name.to_owned()])?;
         let dest = ec_transfer::path::unique_destination(&dir, &rel)?;
-        std::fs::rename(part, &dest).map_err(|e| io_err("move into place", part, e))?;
+        move_file(part, &dest).map_err(|e| io_err("move into place", part, e))?;
         let (seen, identity) = stat(&dest).ok_or(Error::Refused("saved file disappeared"))?;
         let file = LinkedFile {
             id,
@@ -742,85 +863,111 @@ impl Core {
 
     fn commit_update(
         &self,
+        journal: &mut Journal,
         peer: DeviceId,
         mut file: LinkedFile,
         pending: &Pending,
         part: &Path,
     ) -> Result<PathBuf> {
-        std::fs::rename(part, &file.path).map_err(|e| io_err("replace", &file.path, e))?;
+        move_file(part, &file.path).map_err(|e| io_err("replace", &file.path, e))?;
         let (seen, identity) = stat(&file.path).ok_or(Error::Refused("saved file disappeared"))?;
         self.watcher
             .expect_write(file.id, seen, pending.content.clone());
-        if let State::Conflict { version, .. } = &file.state
-            && pending.version.compare(version) != Order::Concurrent
-        {
-            // The new version includes the waiting one: the conflict is over.
-            let _ = std::fs::remove_file(self.conflict_path(&file));
-            file.state = State::Current;
-        }
-        if !matches!(file.state, State::Conflict { .. }) {
+        self.end_conflict_if_included(&mut file, &pending.version);
+        if file.state == State::Updating {
             file.state = State::Current;
         }
         file.version = file.version.merged(&pending.version);
         file.content = pending.content.clone();
         file.seen = seen;
         file.identity = identity;
-        self.save(&file, peer, LogKind::Received)?;
+        self.put(journal, &file, peer, LogKind::Received)?;
         self.emit(SyncEvent::Updated { id: file.id });
         Ok(file.path)
     }
 
     fn commit_conflict(
         &self,
+        journal: &mut Journal,
         peer: DeviceId,
         mut file: LinkedFile,
         pending: &Pending,
         part: &Path,
     ) -> Result<PathBuf> {
-        let waiting = self.conflict_path(&file);
+        if let State::Conflict { version, .. } = &file.state
+            && !matches!(
+                pending.version.compare(version),
+                Order::After | Order::Equal
+            )
+        {
+            // One waiting version at a time: a different one would replace it and lose
+            // it. This one comes again with the next summary, after the user chooses.
+            let _ = std::fs::remove_file(part);
+            return Err(Error::Refused("another conflicting version is waiting"));
+        }
+        let waiting = self.waiting_path(&file);
         if let Some(dir) = waiting.parent() {
             std::fs::create_dir_all(dir).map_err(|e| io_err("create directory", dir, e))?;
         }
-        // A newer conflicting version replaces an older waiting one.
-        std::fs::rename(part, &waiting).map_err(|e| io_err("keep", &waiting, e))?;
+        move_file(part, &waiting).map_err(|e| io_err("keep", &waiting, e))?;
+        if file.state == State::Updating {
+            file.state = State::Current;
+        }
         file.state = State::Conflict {
             theirs: pending.content.clone(),
             version: pending.version.clone(),
             from: peer,
             at_ms: self.now(),
+            waiting: waiting.clone(),
         };
-        self.save(&file, peer, LogKind::Conflict)?;
+        self.put(journal, &file, peer, LogKind::Conflict)?;
         self.emit(SyncEvent::Conflict { id: file.id });
         Ok(waiting)
     }
 
     fn resolve(self: &Arc<Self>, id: LinkId, keep_theirs: bool) -> Result<()> {
-        let mut file = self.get(&id).ok_or(Error::Refused("unknown link"))?;
-        let State::Conflict {
-            theirs,
-            version: their_version,
-            ..
-        } = file.state.clone()
-        else {
-            return Err(Error::Refused("no conflict to resolve"));
-        };
-        let waiting = self.conflict_path(&file);
-        let mut version = file.version.merged(&their_version);
-        version.bump(self.cfg.me);
-        if keep_theirs {
-            (self.cfg.trash)(&file.path).map_err(|e| io_err("move to the Trash", &file.path, e))?;
-            std::fs::rename(&waiting, &file.path).map_err(|e| io_err("replace", &file.path, e))?;
-            file.content = theirs;
-        } else {
-            (self.cfg.trash)(&waiting).map_err(|e| io_err("move to the Trash", &waiting, e))?;
+        {
+            let mut journal = lock(&self.journal);
+            let mut file = journal
+                .get(&id)
+                .cloned()
+                .ok_or(Error::Refused("unknown link"))?;
+            let State::Conflict {
+                theirs,
+                version: their_version,
+                waiting,
+                ..
+            } = file.state.clone()
+            else {
+                return Err(Error::Refused("no conflict to resolve"));
+            };
+            let mut version = file.version.merged(&their_version);
+            version.bump(self.cfg.me);
+            if keep_theirs {
+                // Put theirs next to the file first, so neither version is ever gone:
+                // only then is mine moved to the Trash.
+                let ready = file
+                    .path
+                    .with_file_name(format!(".{}.ecsync", hex::encode(id)));
+                move_file(&waiting, &ready).map_err(|e| io_err("prepare", &ready, e))?;
+                if let Err(e) = (self.cfg.trash)(&file.path) {
+                    let _ = move_file(&ready, &waiting);
+                    return Err(io_err("move to the Trash", &file.path, e));
+                }
+                std::fs::rename(&ready, &file.path)
+                    .map_err(|e| io_err("replace", &file.path, e))?;
+                file.content = theirs;
+            } else {
+                (self.cfg.trash)(&waiting).map_err(|e| io_err("move to the Trash", &waiting, e))?;
+            }
+            let (seen, identity) = stat(&file.path).ok_or(Error::Refused("file disappeared"))?;
+            self.watcher.expect_write(id, seen, file.content.clone());
+            file.version = version;
+            file.seen = seen;
+            file.identity = identity;
+            file.state = State::Current;
+            self.put(&mut journal, &file, self.cfg.me, LogKind::Resolved)?;
         }
-        let (seen, identity) = stat(&file.path).ok_or(Error::Refused("file disappeared"))?;
-        self.watcher.expect_write(id, seen, file.content.clone());
-        file.version = version;
-        file.seen = seen;
-        file.identity = identity;
-        file.state = State::Current;
-        self.save(&file, self.cfg.me, LogKind::Resolved)?;
         self.emit(SyncEvent::Resolved { id });
         self.announce_to_peers(id, true);
         Ok(())
@@ -830,7 +977,9 @@ impl Core {
         let Some(file) = lock(&self.journal).remove(&id)? else {
             return Ok(());
         };
-        let _ = std::fs::remove_file(self.conflict_path(&file));
+        if let State::Conflict { waiting, .. } = &file.state {
+            let _ = std::fs::remove_file(waiting);
+        }
         self.refresh_watch();
         for peer in file.peers {
             let core = self.clone();
@@ -848,19 +997,26 @@ impl Core {
     }
 
     fn moved(&self, id: LinkId, to: PathBuf, identity: Option<crate::FileIdentity>) {
-        let Some(mut file) = self.get(&id) else {
-            return;
-        };
-        let from = std::mem::replace(&mut file.path, to.clone());
-        file.name = file_name(&to);
-        file.identity = identity;
-        if file.state == State::Missing {
-            file.state = State::Current;
-        }
-        if self
-            .save(&file, self.cfg.me, LogKind::Moved { from, to })
+        let saved = {
+            let mut journal = lock(&self.journal);
+            let Some(mut file) = journal.get(&id).cloned() else {
+                return;
+            };
+            let from = std::mem::replace(&mut file.path, to.clone());
+            file.name = file_name(&to);
+            file.identity = identity;
+            if file.state == State::Missing {
+                file.state = State::Current;
+            }
+            self.put(
+                &mut journal,
+                &file,
+                self.cfg.me,
+                LogKind::Moved { from, to },
+            )
             .is_ok()
-        {
+        };
+        if saved {
             self.refresh_watch();
             self.emit(SyncEvent::Moved { id });
         }
@@ -869,16 +1025,21 @@ impl Core {
     async fn on_watch(self: &Arc<Self>, event: WatchEvent) {
         match event {
             WatchEvent::Changed { id, content, seen } => {
-                let Some(mut file) = self.get(&id) else {
-                    return;
+                let saved = {
+                    let mut journal = lock(&self.journal);
+                    let Some(mut file) = journal.get(&id).cloned() else {
+                        return;
+                    };
+                    file.version.bump(self.cfg.me);
+                    file.content = content;
+                    file.seen = seen;
+                    if matches!(file.state, State::Missing | State::Updating) {
+                        file.state = State::Current;
+                    }
+                    self.put(&mut journal, &file, self.cfg.me, LogKind::Changed)
+                        .is_ok()
                 };
-                file.version.bump(self.cfg.me);
-                file.content = content;
-                file.seen = seen;
-                if matches!(file.state, State::Missing | State::Updating) {
-                    file.state = State::Current;
-                }
-                if self.save(&file, self.cfg.me, LogKind::Changed).is_ok() {
+                if saved {
                     self.announce_to_peers(id, false);
                 }
             }
@@ -893,17 +1054,35 @@ impl Core {
                 let _ = self.leave(id);
             }
             WatchEvent::Missing { id } => {
-                if let Some(mut file) = self.get(&id) {
-                    file.state = State::Missing;
-                    let _ = self.save(&file, self.cfg.me, LogKind::Missing);
+                let saved = {
+                    let mut journal = lock(&self.journal);
+                    match journal.get(&id).cloned() {
+                        Some(mut file) => {
+                            file.state = State::Missing;
+                            self.put(&mut journal, &file, self.cfg.me, LogKind::Missing)
+                                .is_ok()
+                        }
+                        None => false,
+                    }
+                };
+                if saved {
                     self.emit(SyncEvent::Missing { id });
                 }
             }
             WatchEvent::Found { id, at } => {
-                if let Some(mut file) = self.get(&id) {
-                    file.path = at;
-                    file.state = State::Current;
-                    let _ = self.save(&file, self.cfg.me, LogKind::Found);
+                let saved = {
+                    let mut journal = lock(&self.journal);
+                    match journal.get(&id).cloned() {
+                        Some(mut file) => {
+                            file.path = at;
+                            file.state = State::Current;
+                            self.put(&mut journal, &file, self.cfg.me, LogKind::Found)
+                                .is_ok()
+                        }
+                        None => false,
+                    }
+                };
+                if saved {
                     self.refresh_watch();
                     self.emit(SyncEvent::Found { id });
                 }
@@ -1040,6 +1219,24 @@ impl Core {
     }
 }
 
+/// Moves a file, copying it when `to` is on another volume (where a rename fails).
+fn move_file(from: &Path, to: &Path) -> std::io::Result<()> {
+    match std::fs::rename(from, to) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::CrossesDevices => {
+            let tmp = to.with_file_name(format!(
+                ".{}.ecsync-copy",
+                to.file_name().unwrap_or_default().to_string_lossy()
+            ));
+            std::fs::copy(from, &tmp)?;
+            std::fs::File::open(&tmp)?.sync_all()?;
+            std::fs::rename(&tmp, to)?;
+            std::fs::remove_file(from)
+        }
+        Err(e) => Err(e),
+    }
+}
+
 fn file_name(path: &Path) -> String {
     path.file_name()
         .map(|n| n.to_string_lossy().into_owned())
@@ -1086,7 +1283,8 @@ impl Placer for SyncService {
         key: [u8; 16],
         entry: &FileEntry,
     ) -> Option<Arc<dyn Placement>> {
-        let pending = lock(&self.core.pending).remove(&(peer, key))?;
+        // Kept until placed, so a retried transfer finds it again.
+        let pending = lock(&self.core.pending).get(&(peer, key)).cloned()?;
         let matches = entry.size == pending.content.size
             && entry.chunk_size == pending.content.chunk_size
             && entry.hashes == pending.content.hashes;
@@ -1153,6 +1351,7 @@ mod tests {
         dir: tempfile::TempDir,
         service: Arc<SyncService>,
         trashed: Arc<Mutex<Vec<Vec<u8>>>>,
+        trash_fails: Arc<std::sync::atomic::AtomicBool>,
     }
 
     fn v(entries: &[(DeviceId, u64)]) -> VersionVector {
@@ -1163,11 +1362,16 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let trashed = Arc::new(Mutex::new(Vec::new()));
         let sink = trashed.clone();
+        let trash_fails = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let fails = trash_fails.clone();
         let cfg = SyncConfig {
             me: ME,
             dir: dir.path().join("home/linked"),
             linked_root: dir.path().join("Received/Linked"),
             trash: Arc::new(move |path| {
+                if fails.load(std::sync::atomic::Ordering::SeqCst) {
+                    return Err(std::io::Error::other("no Trash"));
+                }
                 sink.lock().unwrap().push(std::fs::read(path)?);
                 std::fs::remove_file(path)
             }),
@@ -1185,6 +1389,7 @@ mod tests {
             dir,
             service,
             trashed,
+            trash_fails,
         }
     }
 
@@ -1347,14 +1552,15 @@ mod tests {
             p
         })
         .unwrap();
+        let core = s.service.core().clone();
+        let waiting = core.waiting_path(&file);
         file.state = State::Conflict {
             theirs: theirs.content.clone(),
             version: v(&[(ME, 1), (B, 1)]),
             from: B,
             at_ms: DAY,
+            waiting: waiting.clone(),
         };
-        let core = s.service.core().clone();
-        let waiting = core.conflict_path(&file);
         std::fs::create_dir_all(waiting.parent().unwrap()).unwrap();
         std::fs::write(&waiting, b"theirs").unwrap();
         lock(&core.journal).put(file.clone()).unwrap();
@@ -1368,6 +1574,191 @@ mod tests {
         assert_eq!(after.version, v(&[(ME, 3), (B, 1)]));
         assert_eq!(after.content, theirs.content);
         assert!(!waiting.exists());
+    }
+
+    /// A version of a file with `bytes`, written to `dir/name`: its path and contents.
+    fn version_file(dir: &Path, name: &str, bytes: &[u8]) -> (PathBuf, Content) {
+        let path = dir.join(name);
+        std::fs::write(&path, bytes).unwrap();
+        (path.clone(), describe([0; 16], &path).unwrap().content)
+    }
+
+    fn entry_for(content: &Content) -> FileEntry {
+        FileEntry {
+            path: RelPath::new(vec!["x".into()]).unwrap(),
+            size: content.size,
+            chunk_size: content.chunk_size,
+            hashes: content.hashes.clone(),
+        }
+    }
+
+    fn changed(id: LinkId, version: VersionVector, content: &Content) -> SyncMessage {
+        SyncMessage::Changed {
+            id,
+            version,
+            content: header(content),
+        }
+    }
+
+    /// Delivers `bytes` from `peer` as the transfer that follows an accepted announce.
+    fn deliver(
+        s: &Setup,
+        peer: DeviceId,
+        id: LinkId,
+        path: &Path,
+        content: &Content,
+    ) -> Result<PathBuf> {
+        let placement = s.service.place(peer, id, &entry_for(content)).unwrap();
+        let part = s.dir.path().join(format!("part-{}", peer.short()));
+        std::fs::copy(path, &part).unwrap();
+        placement
+            .commit(&part)
+            .map_err(|e| Error::Send(e.to_string()))
+    }
+
+    #[tokio::test]
+    async fn edit_noticed_during_update_becomes_conflict() {
+        let s = start();
+        let core = s.service.core().clone();
+        let path = s.dir.path().join("Rapor.txt");
+        std::fs::write(&path, b"v1").unwrap();
+        let file = record(&path, vec![B], v(&[(ME, 1)]));
+        lock(&core.journal).put(file.clone()).unwrap();
+
+        let (theirs, content) = version_file(s.dir.path(), "theirs", b"v2 from B");
+        let reply = core
+            .handle_message(
+                B,
+                changed(file.id, v(&[(ME, 1), (B, 1)]), &content),
+                content.hashes.clone(),
+            )
+            .unwrap();
+        assert_eq!(
+            reply,
+            Some(SyncMessage::Reply {
+                id: file.id,
+                want: true
+            })
+        );
+
+        // The user edits; the watcher notices before the transfer finishes.
+        std::fs::write(&path, b"typed here").unwrap();
+        let mine = describe(file.id, &path).unwrap();
+        core.on_watch(WatchEvent::Changed {
+            id: file.id,
+            content: mine.content,
+            seen: mine.seen,
+        })
+        .await;
+
+        deliver(&s, B, file.id, &theirs, &content).unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"typed here");
+        let after = s.service.files().pop().unwrap();
+        let State::Conflict { waiting, .. } = after.state else {
+            panic!("expected a conflict, got {:?}", after.state);
+        };
+        assert_eq!(std::fs::read(waiting).unwrap(), b"v2 from B");
+    }
+
+    #[tokio::test]
+    async fn two_versions_at_once_second_waits_as_conflict() {
+        let s = start();
+        let core = s.service.core().clone();
+        let path = s.dir.path().join("Liste.txt");
+        std::fs::write(&path, b"v1").unwrap();
+        let file = record(&path, vec![B, C], v(&[(ME, 1)]));
+        lock(&core.journal).put(file.clone()).unwrap();
+
+        let (from_b, b) = version_file(s.dir.path(), "b", b"from B");
+        let (from_c, c) = version_file(s.dir.path(), "c", b"from C");
+        core.handle_message(
+            B,
+            changed(file.id, v(&[(ME, 1), (B, 1)]), &b),
+            b.hashes.clone(),
+        )
+        .unwrap();
+        core.handle_message(
+            C,
+            changed(file.id, v(&[(ME, 1), (C, 1)]), &c),
+            c.hashes.clone(),
+        )
+        .unwrap();
+        deliver(&s, B, file.id, &from_b, &b).unwrap();
+        deliver(&s, C, file.id, &from_c, &c).unwrap();
+
+        // B's version is in place; C's waits; nothing was lost.
+        assert_eq!(std::fs::read(&path).unwrap(), b"from B");
+        let after = s.service.files().pop().unwrap();
+        let State::Conflict { waiting, from, .. } = after.state else {
+            panic!("expected a conflict, got {:?}", after.state);
+        };
+        assert_eq!(from, C);
+        assert_eq!(std::fs::read(waiting).unwrap(), b"from C");
+    }
+
+    #[tokio::test]
+    async fn a_retried_transfer_is_still_placed() {
+        let s = start();
+        let core = s.service.core().clone();
+        let path = s.dir.path().join("Video.bin");
+        std::fs::write(&path, b"v1").unwrap();
+        let file = record(&path, vec![B], v(&[(ME, 1)]));
+        lock(&core.journal).put(file.clone()).unwrap();
+        let (_, content) = version_file(s.dir.path(), "theirs", b"v2");
+        core.handle_message(
+            B,
+            changed(file.id, v(&[(ME, 1), (B, 1)]), &content),
+            content.hashes.clone(),
+        )
+        .unwrap();
+        // The first attempt broke off; the sender offers again.
+        assert!(s.service.place(B, file.id, &entry_for(&content)).is_some());
+        assert!(s.service.place(B, file.id, &entry_for(&content)).is_some());
+    }
+
+    #[tokio::test]
+    async fn link_for_a_known_file_from_another_device_is_refused() {
+        let s = start();
+        let core = s.service.core().clone();
+        let path = s.dir.path().join("Gizli.txt");
+        std::fs::write(&path, b"mine").unwrap();
+        let file = record(&path, vec![B], v(&[(ME, 1)]));
+        lock(&core.journal).put(file.clone()).unwrap();
+        let msg = SyncMessage::Link {
+            id: file.id,
+            name: "Gizli.txt".into(),
+            version: v(&[(ME, 1), (C, 5)]),
+            content: header(&content(7)),
+        };
+        assert!(core.handle_message(C, msg, content(7).hashes).is_err());
+        assert_eq!(s.service.files(), vec![file]);
+    }
+
+    #[tokio::test]
+    async fn resolving_keeps_both_when_the_trash_fails() {
+        let s = start();
+        let core = s.service.core().clone();
+        let path = s.dir.path().join("Notlar.txt");
+        std::fs::write(&path, b"mine").unwrap();
+        let mut file = record(&path, vec![B], v(&[(ME, 2)]));
+        let waiting = core.waiting_path(&file);
+        std::fs::create_dir_all(waiting.parent().unwrap()).unwrap();
+        std::fs::write(&waiting, b"theirs").unwrap();
+        file.state = State::Conflict {
+            theirs: describe(file.id, &waiting).unwrap().content,
+            version: v(&[(ME, 1), (B, 1)]),
+            from: B,
+            at_ms: DAY,
+            waiting: waiting.clone(),
+        };
+        lock(&core.journal).put(file.clone()).unwrap();
+
+        s.trash_fails
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        assert!(s.service.resolve(file.id, true).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), b"mine");
+        assert_eq!(std::fs::read(&waiting).unwrap(), b"theirs");
+        assert!(matches!(s.service.files()[0].state, State::Conflict { .. }));
     }
 
     #[test]

@@ -106,6 +106,8 @@ pub enum CheckResult {
     Changed(Content, Seen),
     /// The file changed while it was being hashed; check again later.
     Busy,
+    /// The file is there but cannot be read (access was lost).
+    Unreadable,
     /// There is no file at the path.
     Gone,
 }
@@ -146,6 +148,9 @@ pub fn check(file: &Watched, hashes: &AtomicU64) -> CheckResult {
         return CheckResult::Unchanged;
     }
     hashes.fetch_add(1, Ordering::Relaxed);
+    if !readable(&file.path) {
+        return CheckResult::Unreadable;
+    }
     let Ok(content) = hash_file(&file.path, seen.size) else {
         return CheckResult::Busy;
     };
@@ -158,6 +163,11 @@ pub fn check(file: &Watched, hashes: &AtomicU64) -> CheckResult {
     } else {
         CheckResult::Changed(content, seen)
     }
+}
+
+/// Whether the file can be opened for reading.
+fn readable(path: &Path) -> bool {
+    std::fs::File::open(path).is_ok()
 }
 
 struct Entry {
@@ -384,6 +394,8 @@ async fn poll(
                 } else {
                     None
                 };
+                // A file that is there but cannot be read is still missing.
+                let now = now.filter(|_| !missing || readable(&file.path));
                 (file.id, now, found)
             })
             .collect::<Vec<_>>()
@@ -456,7 +468,28 @@ async fn process_due(
         let result = tokio::task::spawn_blocking(move || check(&checked, &hashes))
             .await
             .unwrap_or(CheckResult::Busy);
+        if !matches!(result, CheckResult::Gone) {
+            // It is there: remove events seen before do not concern it any more.
+            let mut inner = lock(inner);
+            let paths = inner
+                .entries
+                .get(&id)
+                .map(|e| (e.event_path.clone(), e.file.path.clone()));
+            if let Some((event_path, path)) = paths {
+                inner.removed.remove(&event_path);
+                inner.removed.remove(&path);
+            }
+        }
         match result {
+            CheckResult::Unreadable => {
+                let mut inner = lock(inner);
+                if let Some(entry) = inner.entries.get_mut(&id)
+                    && !entry.missing
+                {
+                    entry.missing = true;
+                    let _ = events.send(WatchEvent::Missing { id });
+                }
+            }
             CheckResult::Unchanged => {
                 if let Some(entry) = lock(inner).entries.get_mut(&id) {
                     entry.gone_since = None;
@@ -531,9 +564,14 @@ async fn gone(
     let deleted = {
         let mut inner = lock(inner);
         let removed = {
+            let recent = |p: &PathBuf| {
+                inner
+                    .removed
+                    .get(p)
+                    .is_some_and(|at| at.elapsed() < REMOVE_MEMORY)
+            };
             let event_path = inner.entries.get(&id).map(|e| e.event_path.clone());
-            event_path.is_some_and(|p| inner.removed.contains_key(&p))
-                || inner.removed.contains_key(&file.path)
+            event_path.is_some_and(|p| recent(&p)) || recent(&file.path)
         };
         let Some(entry) = inner.entries.get_mut(&id) else {
             return;
@@ -597,6 +635,11 @@ fn collect_files(dir: &Path, depth: usize, out: &mut Vec<(PathBuf, std::fs::Meta
         return;
     };
     for entry in entries.flatten() {
+        // Hidden folders and files (waiting conflict versions, partial transfers,
+        // editors' temporary files) are never the moved file.
+        if entry.file_name().to_string_lossy().starts_with('.') {
+            continue;
+        }
         let path = entry.path();
         let Ok(meta) = std::fs::symlink_metadata(&path) else {
             continue;

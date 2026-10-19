@@ -175,3 +175,50 @@ fn describe_missing(path: &Path) -> Watched {
         identity: None,
     }
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unreadable_file_is_missing_once() {
+    use std::os::unix::fs::PermissionsExt;
+    let mut s = start(None);
+    std::fs::write(&s.path, b"changed, then access lost").unwrap();
+    std::fs::set_permissions(&s.path, std::fs::Permissions::from_mode(0o000)).unwrap();
+    if std::fs::File::open(&s.path).is_ok() {
+        eprintln!("skipped: running with permission to read any file");
+        return;
+    }
+    match next(&mut s.events, Duration::from_secs(5)).await {
+        Some(WatchEvent::Missing { id }) => assert_eq!(id, ID),
+        other => panic!("expected missing, got {other:?}"),
+    }
+    nothing_for(&mut s.events, Duration::from_secs(1)).await;
+    // Readable again: found.
+    std::fs::set_permissions(&s.path, std::fs::Permissions::from_mode(0o644)).unwrap();
+    match next(&mut s.events, Duration::from_secs(5)).await {
+        Some(WatchEvent::Found { id, .. }) => assert_eq!(id, ID),
+        other => panic!("expected found, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn an_old_remove_event_does_not_make_a_later_loss_a_delete() {
+    let mut s = start(None);
+    // An editor saves by writing a new file over the old one: the old one is
+    // reported removed, but the file is there.
+    let tmp = s.path.with_file_name("Rapor.pdf.tmp");
+    std::fs::write(&tmp, b"saved").unwrap();
+    std::fs::remove_file(&s.path).unwrap();
+    std::fs::rename(&tmp, &s.path).unwrap();
+    assert!(matches!(
+        next(&mut s.events, Duration::from_secs(5)).await,
+        Some(WatchEvent::Changed { .. })
+    ));
+    // Later the file vanishes without a delete (its volume went away, say).
+    let away = s._dir.path().join("elsewhere");
+    std::fs::create_dir_all(&away).unwrap();
+    std::fs::rename(&s.path, away.join("Rapor.pdf")).unwrap();
+    match next(&mut s.events, Duration::from_secs(5)).await {
+        Some(WatchEvent::Missing { .. }) => {}
+        other => panic!("expected missing, got {other:?}"),
+    }
+}

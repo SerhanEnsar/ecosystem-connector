@@ -148,6 +148,10 @@ fn check_version(version: &VersionVector) -> Result<()> {
     if version.len() > MAX_VECTOR_DEVICES {
         return Err(Error::Refused("version vector too wide"));
     }
+    // Far more changes than a file will ever see; keeps counters from overflowing.
+    if version.max_counter() > u64::from(u32::MAX) {
+        return Err(Error::Refused("version counter too large"));
+    }
     Ok(())
 }
 
@@ -297,6 +301,13 @@ mod tests {
             content: HEADER,
         };
         assert!(wide.validate().is_err());
+
+        let huge = SyncMessage::Changed {
+            id: ID,
+            version: [(A, u64::MAX)].into_iter().collect(),
+            content: HEADER,
+        };
+        assert!(huge.validate().is_err());
     }
 
     #[test]

@@ -79,6 +79,8 @@ pub enum State {
         from: DeviceId,
         /// When it arrived, in milliseconds since the Unix epoch.
         at_ms: u64,
+        /// Where it waits.
+        waiting: PathBuf,
     },
     /// The file cannot be found; the link is kept.
     Missing,
@@ -320,6 +322,7 @@ mod tests {
                 version: [(B, 2)].into_iter().collect(),
                 from: B,
                 at_ms: 5,
+                waiting: "/tmp/Linked/.waiting/x".into(),
             },
         }
     }

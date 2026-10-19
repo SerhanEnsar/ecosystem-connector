@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../arrival/arrival_card.dart';
 import '../controller.dart';
 import '../model.dart';
+import 'linked_files_screen.dart';
 
 /// A linked file changed on two devices: both versions side by side, and the choice.
 ///
@@ -98,15 +99,23 @@ class ConflictCard extends StatelessWidget {
                   children: [
                     FrostedPill(
                       "Keep ${conflict.mineDevice}'s",
-                      onTap: () => controller.resolveConflict(
-                        file.id,
-                        keepTheirs: false,
+                      onTap: () => runLinkedAction(
+                        context,
+                        () => controller.resolveConflict(
+                          file.id,
+                          keepTheirs: false,
+                        ),
                       ),
                     ),
                     FrostedPill(
                       "Keep ${conflict.theirsDevice}'s",
-                      onTap: () =>
-                          controller.resolveConflict(file.id, keepTheirs: true),
+                      onTap: () => runLinkedAction(
+                        context,
+                        () => controller.resolveConflict(
+                          file.id,
+                          keepTheirs: true,
+                        ),
+                      ),
                     ),
                     FrostedPill(
                       'Open both',

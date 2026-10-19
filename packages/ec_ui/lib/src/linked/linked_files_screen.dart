@@ -13,6 +13,22 @@ Future<void> showLinkedFiles(BuildContext context, EcController controller) =>
       ),
     );
 
+/// Runs a linked files action and shows its error, if any, in a snack bar.
+Future<void> runLinkedAction(
+  BuildContext context,
+  Future<void> Function() action,
+) async {
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  try {
+    await action();
+  } on Object catch (e) {
+    final text = '$e'.replaceFirst('AnyhowException(', '').split('\n').first;
+    messenger?.showSnackBar(
+      SnackBar(content: Text('That did not work: $text')),
+    );
+  }
+}
+
 /// What a linked file's state reads as.
 String linkedStateText(EcLinkedFile file) => switch (file.state) {
   EcLinkedState.current => 'Up to date',
@@ -58,7 +74,9 @@ class LinkedFilesScreen extends StatelessWidget {
               ],
             ),
           );
-    if (device != null) await controller.linkFile(device);
+    if (device != null && context.mounted) {
+      await runLinkedAction(context, () => controller.linkFile(device));
+    }
   }
 
   @override
@@ -130,7 +148,9 @@ class _LinkedTile extends StatelessWidget {
         ],
       ),
     );
-    if (confirmed ?? false) await controller.leaveLink(file.id);
+    if ((confirmed ?? false) && context.mounted) {
+      await runLinkedAction(context, () => controller.leaveLink(file.id));
+    }
   }
 
   Future<void> _resolve(BuildContext context) => showDialog<void>(
@@ -190,13 +210,19 @@ class _LinkedTile extends StatelessWidget {
                 child: const Text('Resolve'),
               ),
               TextButton(
-                onPressed: () => controller.deleteConflict(file.id),
+                onPressed: () => runLinkedAction(
+                  context,
+                  () => controller.deleteConflict(file.id),
+                ),
                 child: const Text('Delete waiting version'),
               ),
             ],
             if (file.state == EcLinkedState.missing)
               FilledButton.tonal(
-                onPressed: () => controller.locateLinked(file.id),
+                onPressed: () => runLinkedAction(
+                  context,
+                  () => controller.locateLinked(file.id),
+                ),
                 child: const Text('Show where it is'),
               ),
             TextButton(

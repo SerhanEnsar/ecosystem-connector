@@ -33,7 +33,7 @@ Not in 0.4.0:
 | Location on the linking device | macOS: the file stays where it is. Android: the shared file is copied into `Linked/<date>/` and that copy is the linked file, because Android gives no lasting access to a shared file's original. |
 | Deletion | The deleting device leaves the link. Its copy is gone; the other devices keep theirs and keep syncing. A notice is shown on the deleting device and on the others. |
 | Conflict | A conflict card (in the style of the arrival cards): both versions with device, time and size, and *Keep Mac's / Keep Tablet's / Open both*. Sync of that file waits until the user chooses. |
-| History | No old versions on normal updates. A conflicting version is kept until the user chooses, then moved to the system Trash (deleted on Android, which has no general Trash). Pending conflict versions are listed with their size on the control screen and can be deleted there. |
+| History | No old versions on normal updates. A conflicting version is kept in `Linked/.waiting/` (on the same volume as received files) until the user chooses, then moved to the system Trash (deleted on Android, which has no general Trash). Pending conflict versions are listed with their size on the control screen and can be deleted there. |
 | How to link | A *Send / Send linked* choice in Fling, Share → ECOnnector and the device list (default *Send*, last choice remembered), and *Link a file* on the control screen. |
 | Rename and move | Local to each device. Only content is synced. The control screen shows a different name on another device ("on Mac: Report-final.pdf"). |
 | When in doubt | Never break a link because a file cannot be found. It becomes *Missing* instead (see [Moves](#moves-renames-and-missing-files)). |
@@ -157,6 +157,17 @@ and every move is logged.
 | Moved or renamed | The bookmark or identity finds a new path. | The new path is recorded and syncing continues. |
 | Deleted | The file went to the Trash, or the identity is nowhere and the file system reported a delete. | The device leaves the link and notices are shown. |
 | Missing | Neither is certain: another volume, lost permission, an ejected disk. | The link stays. The file is marked *Missing* with a notice: "Report.pdf cannot be found · Show where it is · Leave link". The other devices keep syncing. When the file is back, or the user points to it, tracking resumes. |
+
+### Known limits
+
+- A file moved to another volume in Finder is copied and then deleted, which the
+  watcher cannot tell from a delete: this device leaves the link, with a notice. Nothing
+  is lost; the other devices keep the file.
+- A file moved to the Trash while the app runs shows as *missing* (Show where it is /
+  Leave link). On the next start its bookmark resolves into the Trash and the device
+  leaves the link.
+- Only one conflicting version waits at a time. Another version made independently of
+  it is refused until the user chooses, and arrives with the next summary.
 
 ## Watching on each platform
 

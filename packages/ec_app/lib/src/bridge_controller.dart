@@ -483,7 +483,8 @@ class BridgeController extends EcController with WidgetsBindingObserver {
 
   @override
   Stream<SendStatus> sendLinkedFile(EcDevice device, String path) async* {
-    yield const SendProgress(sent: 0, total: 0, paths: 0);
+    // Nothing is yielded before the core call: a listener that takes the first
+    // status and cancels (the fling layer) would otherwise stop it here.
     final watch = Stopwatch()..start();
     try {
       final id = await _core.sendLinked(
@@ -567,7 +568,8 @@ class BridgeController extends EcController with WidgetsBindingObserver {
   Future<void> linkFile(EcDevice device) async {
     final file = await openFile();
     if (file == null) return;
-    await sendLinkedFile(device, file.path).last;
+    final status = await sendLinkedFile(device, file.path).last;
+    if (status is SendFailed) throw Exception(status.reason);
   }
 
   Future<void> _afterLinkedChange() async {

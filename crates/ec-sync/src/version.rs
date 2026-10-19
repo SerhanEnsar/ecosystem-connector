@@ -31,7 +31,8 @@ impl VersionVector {
 
     /// Records one more change made by `me`.
     pub fn bump(&mut self, me: DeviceId) {
-        *self.0.entry(me).or_insert(0) += 1;
+        let n = self.0.entry(me).or_insert(0);
+        *n = n.saturating_add(1);
     }
 
     /// The version that includes every change of both.
@@ -58,6 +59,11 @@ impl VersionVector {
             (false, true) => Order::Before,
             (true, true) => Order::Concurrent,
         }
+    }
+
+    /// The largest counter.
+    pub fn max_counter(&self) -> u64 {
+        self.0.values().copied().max().unwrap_or(0)
     }
 
     /// Number of devices with changes.

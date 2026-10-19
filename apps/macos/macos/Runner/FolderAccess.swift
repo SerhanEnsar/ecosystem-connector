@@ -94,10 +94,17 @@ final class LinkedAccess {
     guard let bookmark = try? url.bookmarkData(
       options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil
     ) else { return }
+    // Access is granted through the URL resolved from the bookmark, not a plain path;
+    // the access held so far is let go only once the new one is in place.
+    var stale = false
+    guard let scoped = try? URL(
+      resolvingBookmarkData: bookmark, options: .withSecurityScope,
+      relativeTo: nil, bookmarkDataIsStale: &stale
+    ) else { return }
     var all = stored()
     all[id] = bookmark
     UserDefaults.standard.set(all, forKey: key)
-    use(id, url)
+    use(id, scoped)
   }
 
   /// Opens every kept file again and returns where each is now, by link id.
@@ -127,8 +134,11 @@ final class LinkedAccess {
   }
 
   private func use(_ id: String, _ url: URL) {
-    open[id]?.stopAccessingSecurityScopedResource()
-    open[id] = url.startAccessingSecurityScopedResource() ? url : nil
+    let previous = open[id]
+    if url.startAccessingSecurityScopedResource() {
+      open[id] = url
+      previous?.stopAccessingSecurityScopedResource()
+    }
   }
 }
 

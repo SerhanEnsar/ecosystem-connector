@@ -13,26 +13,29 @@ final tablet = EcDevice(
   linkedFiles: true,
 );
 
-EcLinkedFile file(String id, EcLinkedState state, {String name = 'Rapor.pdf'}) =>
-    EcLinkedFile(
-      id: id,
-      name: name,
-      path: '/Users/test/Documents/$name',
-      devices: const ['Tablet'],
-      state: state,
-      size: 1200000,
-      conflict: state == EcLinkedState.conflict
-          ? EcLinkedConflict(
-              mineDevice: 'Mac',
-              mineAt: DateTime(2026, 10, 19, 14, 2),
-              mineSize: 1200000,
-              theirsDevice: 'Tablet',
-              theirsAt: DateTime(2026, 10, 19, 14, 5),
-              theirsSize: 1300000,
-              theirsPath: '/home/linked/conflicts/$id-$name',
-            )
-          : null,
-    );
+EcLinkedFile file(
+  String id,
+  EcLinkedState state, {
+  String name = 'Rapor.pdf',
+}) => EcLinkedFile(
+  id: id,
+  name: name,
+  path: '/Users/test/Documents/$name',
+  devices: const ['Tablet'],
+  state: state,
+  size: 1200000,
+  conflict: state == EcLinkedState.conflict
+      ? EcLinkedConflict(
+          mineDevice: 'Mac',
+          mineAt: DateTime(2026, 10, 19, 14, 2),
+          mineSize: 1200000,
+          theirsDevice: 'Tablet',
+          theirsAt: DateTime(2026, 10, 19, 14, 5),
+          theirsSize: 1300000,
+          theirsPath: '/home/linked/conflicts/$id-$name',
+        )
+      : null,
+);
 
 Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
   MaterialApp(

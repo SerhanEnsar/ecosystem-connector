@@ -331,7 +331,14 @@ impl EcCore {
                     to = pending_trash.join(format!("{n} {name}"));
                     n += 1;
                 }
-                std::fs::rename(path, to)
+                match std::fs::rename(path, &to) {
+                    // On another volume (a receive folder on an external disk).
+                    Err(e) if e.kind() == std::io::ErrorKind::CrossesDevices => {
+                        std::fs::copy(path, &to)?;
+                        std::fs::remove_file(path)
+                    }
+                    other => other,
+                }
             })
         } else {
             Arc::new(|path: &std::path::Path| std::fs::remove_file(path))
