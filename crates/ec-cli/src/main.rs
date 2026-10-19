@@ -321,7 +321,7 @@ async fn serve(
             println!("  resuming: {} already here", human_bytes(already_have));
         }
         ReceiveEvent::Progress { received, total } => progress.show(received, total, None),
-        ReceiveEvent::Saved { path, open } => {
+        ReceiveEvent::Saved { path, open, .. } => {
             let open = if open.is_some() {
                 " (sender asked to open it)"
             } else {

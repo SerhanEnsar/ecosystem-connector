@@ -12,7 +12,7 @@ use ec_net::{PeerConnection, RecvStream, SendStream, Service, ServiceFuture, rea
 use tokio::sync::{Notify, Semaphore, mpsc};
 use tokio::time::timeout;
 
-use crate::fileio::write_all_at;
+use crate::fileio::{read_exact_at, write_all_at};
 use crate::manifest::{FileEntry, MAX_FILES, hash_chunks};
 use crate::path::{ensure_real_dir, unique_destination};
 use crate::proto::{
@@ -69,6 +69,8 @@ pub enum ReceiveEvent {
         path: PathBuf,
         /// The sender asked to open it (a fling), at this page if given.
         open: Option<OpenHint>,
+        /// A new version of a linked file, placed by the [`Placer`].
+        linked: bool,
     },
     /// The transfer finished.
     Finished,
@@ -84,6 +86,23 @@ pub type AcceptPolicy = Arc<dyn Fn(&Offer) -> bool + Send + Sync>;
 /// Receives [`ReceiveEvent`]s.
 pub type ReceiveEvents = Arc<dyn Fn(ReceiveEvent) + Send + Sync>;
 
+/// Decides where a new version of a linked file goes (see `Control::Target`).
+pub trait Placer: Send + Sync {
+    /// Returns how to place the file `entry` that `peer` sends as a new version of the
+    /// linked file `key`, or `None` to decline the transfer.
+    fn place(&self, peer: DeviceId, key: [u8; 16], entry: &FileEntry)
+    -> Option<Arc<dyn Placement>>;
+}
+
+/// How one received linked file is placed.
+pub trait Placement: Send + Sync {
+    /// A local file whose chunks may be reused: any chunk of it with a hash the new
+    /// version needs is copied instead of received.
+    fn seed(&self) -> Option<PathBuf>;
+    /// Moves the complete, verified file at `part` into place and returns where it went.
+    fn commit(&self, part: &Path) -> std::io::Result<PathBuf>;
+}
+
 /// Answers transfer streams and saves files into a folder.
 ///
 /// Register it with an [`ec_net::Router`] for both [`crate::CONTROL_KIND`] and
@@ -94,6 +113,7 @@ pub struct Receiver {
     events: ReceiveEvents,
     active: Mutex<HashMap<TransferId, Arc<Incoming>>>,
     memory: Arc<Semaphore>,
+    placer: Mutex<Option<Arc<dyn Placer>>>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -118,6 +138,8 @@ struct Incoming {
     total: u64,
     acks: mpsc::UnboundedSender<Control>,
     all_done: Notify,
+    /// Set for a new version of a linked file.
+    placement: Option<Arc<dyn Placement>>,
 }
 
 impl Receiver {
@@ -129,7 +151,21 @@ impl Receiver {
             events,
             active: Mutex::new(HashMap::new()),
             memory: Arc::new(Semaphore::new(MEMORY_BUDGET_MIB as usize)),
+            placer: Mutex::new(None),
         }
+    }
+
+    /// Places new versions of linked files from now on. Without a placer, offers for a
+    /// linked file are declined.
+    pub fn set_placer(&self, placer: Arc<dyn Placer>) {
+        *self.placer.lock().unwrap_or_else(|e| e.into_inner()) = Some(placer);
+    }
+
+    fn placer(&self) -> Option<Arc<dyn Placer>> {
+        self.placer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// The folder new transfers are saved to.
@@ -154,7 +190,7 @@ impl Receiver {
         mut recv: RecvStream,
     ) -> Result<()> {
         let peer = conn.peer();
-        let (id, entries, open) = read_offer(&mut recv).await?;
+        let (id, entries, open, target) = read_offer(&mut recv).await?;
         let total: u64 = entries.iter().map(|e| e.size).sum();
         let offer = Offer {
             peer,
@@ -170,8 +206,19 @@ impl Receiver {
             let active = self.active();
             active.len() >= MAX_ACTIVE && !active.contains_key(&id)
         };
+        let placement = match (target, entries.as_slice()) {
+            (None, _) => Ok(None),
+            (Some(key), [entry]) => self
+                .placer()
+                .and_then(|placer| placer.place(peer, key, entry))
+                .map(Some)
+                .ok_or("not linked"),
+            (Some(_), _) => Err("a linked transfer has one file"),
+        };
         let decline = if busy {
             Some("too many transfers at once")
+        } else if let Err(reason) = placement {
+            Some(reason)
         } else if !(self.accept)(&offer) {
             Some("declined")
         } else {
@@ -191,11 +238,15 @@ impl Receiver {
         }
 
         // A transfer keeps the folder it started with, even if the setting changes.
+        let placement = placement.ok().flatten();
         let dir = self.dir();
-        let target = dir.clone();
-        let files = tokio::task::spawn_blocking(move || open_partials(&dir, peer, entries))
-            .await
-            .map_err(|_| Error::Protocol("prepare task failed"))??;
+        let save_dir = dir.clone();
+        let seed = placement.as_ref().and_then(|p| p.seed());
+        let files = tokio::task::spawn_blocking(move || {
+            open_partials(&dir, peer, entries, target, seed.as_deref())
+        })
+        .await
+        .map_err(|_| Error::Protocol("prepare task failed"))??;
 
         let (acks, mut ack_rx) = mpsc::unbounded_channel();
         let remaining: u64 = files.iter().map(|f| f.needed_count()).sum();
@@ -208,6 +259,7 @@ impl Receiver {
             total,
             acks,
             all_done: Notify::new(),
+            placement,
         });
         // A retry of the same transfer replaces the previous attempt.
         self.active().insert(id, incoming.clone());
@@ -242,10 +294,21 @@ impl Receiver {
                 write_msg(&mut send, &ack).await?;
             }
 
-            let saved = finalize(&target, &incoming).await?;
+            let saved = match finalize(&save_dir, &incoming).await {
+                Ok(saved) => saved,
+                Err(e) => {
+                    // Tell the sender, so it stops instead of retrying as if the
+                    // connection had broken.
+                    let reason = e.to_string();
+                    let _ = write_msg(&mut send, &Control::Rejected { reason }).await;
+                    let _ = send.finish();
+                    return Err(e);
+                }
+            };
+            let linked = incoming.placement.is_some();
             for (index, path) in saved.into_iter().enumerate() {
                 write_msg(&mut send, &Control::FileDone { file: index as u32 }).await?;
-                (self.events)(ReceiveEvent::Saved { path, open });
+                (self.events)(ReceiveEvent::Saved { path, open, linked });
             }
             write_msg(&mut send, &Control::Done).await?;
             let _ = send.finish();
@@ -433,8 +496,14 @@ impl IncomingFile {
 /// Reads and validates a complete offer from the control stream.
 async fn read_offer(
     recv: &mut RecvStream,
-) -> Result<(TransferId, Vec<FileEntry>, Option<OpenHint>)> {
+) -> Result<(
+    TransferId,
+    Vec<FileEntry>,
+    Option<OpenHint>,
+    Option<[u8; 16]>,
+)> {
     let mut hint = None;
+    let mut target = None;
     let Control::Offer {
         id,
         files,
@@ -503,6 +572,11 @@ async fn read_offer(
                 }
                 hint = Some(open.then_some(OpenHint { page }));
             }
+            Control::Target { key } => {
+                if target.replace(key).is_some() {
+                    return Err(Error::Protocol("duplicate target"));
+                }
+            }
             Control::OfferEnd => break,
             _ => return Err(Error::Protocol("unexpected message in offer")),
         }
@@ -521,7 +595,7 @@ async fn read_offer(
     if !entries.iter().all(|e| seen.insert(&e.path)) {
         return Err(Error::Protocol("duplicate path"));
     }
-    Ok((id, entries, hint.flatten()))
+    Ok((id, entries, hint.flatten(), target))
 }
 
 fn expected_chunks(entry: &FileEntry) -> u64 {
@@ -542,7 +616,16 @@ fn check_file_header(entry: &FileEntry) -> Result<()> {
 
 /// Opens (or creates) the partial file of every entry and checks which chunks it
 /// already holds, by hashing them. This is what makes interrupted transfers resume.
-fn open_partials(dir: &Path, peer: DeviceId, entries: Vec<FileEntry>) -> Result<Vec<IncomingFile>> {
+///
+/// With a `seed` (the local copy of a linked file), needed chunks whose hash the seed
+/// has at any index are copied from it.
+fn open_partials(
+    dir: &Path,
+    peer: DeviceId,
+    entries: Vec<FileEntry>,
+    target: Option<[u8; 16]>,
+    seed: Option<&Path>,
+) -> Result<Vec<IncomingFile>> {
     std::fs::create_dir_all(dir).map_err(|e| Error::io("create directory", dir, e))?;
     let partial_dir = dir.join(PARTIAL_DIR);
     ensure_real_dir(&partial_dir)?;
@@ -550,7 +633,7 @@ fn open_partials(dir: &Path, peer: DeviceId, entries: Vec<FileEntry>) -> Result<
     entries
         .into_iter()
         .map(|entry| {
-            let part = partial_dir.join(format!("{}.part", partial_key(peer, &entry)));
+            let part = partial_dir.join(format!("{}.part", partial_key(peer, &entry, target)));
             let existing = match std::fs::symlink_metadata(&part) {
                 Ok(meta) if meta.is_file() => meta.len() == entry.size,
                 Ok(_) => return Err(Error::UnsafePath("partial file is not a regular file")),
@@ -564,7 +647,7 @@ fn open_partials(dir: &Path, peer: DeviceId, entries: Vec<FileEntry>) -> Result<
                 .open(&part)
                 .map_err(|e| Error::io("open", &part, e))?;
 
-            let state = if existing && entry.size > 0 {
+            let mut state = if existing && entry.size > 0 {
                 let present = hash_chunks(&part, entry.size, entry.chunk_size)?;
                 present
                     .iter()
@@ -582,6 +665,9 @@ fn open_partials(dir: &Path, peer: DeviceId, entries: Vec<FileEntry>) -> Result<
                     .map_err(|e| Error::io("resize", &part, e))?;
                 vec![ChunkState::Needed; entry.hashes.len()]
             };
+            if let Some(seed) = seed {
+                copy_from_seed(seed, &entry, &file, &part, &mut state)?;
+            }
             Ok(IncomingFile {
                 part,
                 file: Mutex::new(Some(Arc::new(file))),
@@ -592,11 +678,62 @@ fn open_partials(dir: &Path, peer: DeviceId, entries: Vec<FileEntry>) -> Result<
         .collect()
 }
 
+/// Copies every needed chunk the seed file holds (matched by hash, at any index) into
+/// the partial file. A seed that cannot be read is simply not used.
+fn copy_from_seed(
+    seed: &Path,
+    entry: &FileEntry,
+    part_file: &File,
+    part: &Path,
+    state: &mut [ChunkState],
+) -> Result<()> {
+    let Ok(meta) = std::fs::metadata(seed) else {
+        return Ok(());
+    };
+    let Ok(seed_file) = File::open(seed) else {
+        return Ok(());
+    };
+    let Ok(hashes) = hash_chunks(seed, meta.len(), entry.chunk_size) else {
+        return Ok(());
+    };
+    let mut at: HashMap<[u8; 32], u32> = HashMap::new();
+    for (index, hash) in hashes.into_iter().enumerate() {
+        at.entry(hash).or_insert(index as u32);
+    }
+    let mut buf = Vec::new();
+    for index in 0..entry.chunk_count() {
+        let want = entry.hashes[index as usize];
+        let Some(&from) = at.get(&want) else {
+            continue;
+        };
+        if state[index as usize] == ChunkState::Done {
+            continue;
+        }
+        buf.resize(entry.chunk_len(index) as usize, 0);
+        let offset = u64::from(from) * u64::from(entry.chunk_size);
+        if read_exact_at(&seed_file, &mut buf, offset).is_err()
+            // The seed may have changed since it was hashed.
+            || *blake3::hash(&buf).as_bytes() != want
+        {
+            continue;
+        }
+        write_all_at(part_file, &buf, entry.chunk_offset(index))
+            .map_err(|e| Error::io("write", part, e))?;
+        state[index as usize] = ChunkState::Done;
+    }
+    Ok(())
+}
+
 /// Names the partial file so that re-sending the same file from the same device finds it.
-fn partial_key(peer: DeviceId, entry: &FileEntry) -> String {
+/// Linked versions are kept apart from plain sends of the same file.
+fn partial_key(peer: DeviceId, entry: &FileEntry, target: Option<[u8; 16]>) -> String {
     let mut hasher = blake3::Hasher::new();
     hasher.update(b"ecosystem-connector partial v1");
     hasher.update(peer.as_bytes());
+    if let Some(key) = target {
+        hasher.update(b"linked");
+        hasher.update(&key);
+    }
     hasher.update(entry.path.to_string().as_bytes());
     hasher.update(&entry.size.to_le_bytes());
     hasher.update(&entry.chunk_size.to_le_bytes());
@@ -617,6 +754,7 @@ async fn finalize(dir: &Path, incoming: &Incoming) -> Result<Vec<PathBuf>> {
         })
         .collect();
     let dir = dir.to_path_buf();
+    let placement = incoming.placement.clone();
     tokio::task::spawn_blocking(move || {
         let saved = jobs
             .into_iter()
@@ -625,6 +763,11 @@ async fn finalize(dir: &Path, incoming: &Incoming) -> Result<Vec<PathBuf>> {
                     handle.sync_all().map_err(|e| Error::io("sync", &part, e))?;
                     // Close before renaming; Windows cannot rename open files.
                     drop(handle);
+                }
+                if let Some(placement) = &placement {
+                    return placement
+                        .commit(&part)
+                        .map_err(|e| Error::io("place", &part, e));
                 }
                 let dest = unique_destination(&dir, &rel)?;
                 std::fs::rename(&part, &dest).map_err(|e| Error::io("rename", &part, e))?;

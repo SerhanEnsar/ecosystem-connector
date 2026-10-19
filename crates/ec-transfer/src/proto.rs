@@ -60,6 +60,10 @@ pub enum Control {
     /// Sender → receiver, optional, before `OfferEnd`: open the files once saved (a
     /// fling), at `page` if given.
     Hint { open: bool, page: Option<u32> },
+    /// Sender → receiver, optional, before `OfferEnd`: the single file of this offer is
+    /// a new version of the linked file `key`, to be placed by the receiver's
+    /// [`crate::Placer`] rather than saved as a new file.
+    Target { key: [u8; 16] },
 }
 
 /// Asks the receiver to open the files once they are saved.

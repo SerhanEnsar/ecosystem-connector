@@ -488,7 +488,7 @@ fn convert(event: Event) -> Option<CoreEvent> {
             ReceiveEvent::Progress { received, total } => {
                 CoreEvent::ReceiveProgress { received, total }
             }
-            ReceiveEvent::Saved { path, open } => CoreEvent::Saved {
+            ReceiveEvent::Saved { path, open, .. } => CoreEvent::Saved {
                 path: path.to_string_lossy().into_owned(),
                 open: open.is_some(),
                 page: open.and_then(|o| o.page),

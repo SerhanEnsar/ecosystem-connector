@@ -18,6 +18,7 @@ struct Pair {
     sender_identity: Arc<DeviceIdentity>,
     receiver_identity: Arc<DeviceIdentity>,
     sender: Arc<Node>,
+    service: Arc<Receiver>,
     port: u16,
     dir: tempfile::TempDir,
 }
@@ -85,7 +86,7 @@ async fn pair(bind: IpAddr) -> Pair {
     ));
     let mut router = Router::with_session("Receiver", |_, _| {});
     router.add(CONTROL_KIND, service.clone()).unwrap();
-    router.add(CHUNK_KIND, service).unwrap();
+    router.add(CHUNK_KIND, service.clone()).unwrap();
     let router = Arc::new(router);
     let port = receiver.local_addr().unwrap().port();
     tokio::spawn(async move {
@@ -99,6 +100,7 @@ async fn pair(bind: IpAddr) -> Pair {
         sender_identity: a,
         receiver_identity: b,
         sender,
+        service,
         port,
         dir,
     }
@@ -468,4 +470,217 @@ async fn path_traversal_in_an_offer_is_refused() {
     assert!(read_msg::<Control>(&mut recv).await.is_err());
     let escaped = pair.dir.path().parent().unwrap().join("escaped.txt");
     assert!(!escaped.exists());
+}
+
+// Linked files: a transfer that names a link target is placed by the receiver's
+// `Placer` instead of being saved as a new file.
+
+const KEY: [u8; 16] = [7; 16];
+const SMALL_CHUNK: u32 = 64 * 1024;
+
+struct TestPlacer {
+    accept: bool,
+    seed: Option<PathBuf>,
+    dest: PathBuf,
+    fail: bool,
+}
+
+struct TestPlacement {
+    seed: Option<PathBuf>,
+    dest: PathBuf,
+    fail: bool,
+}
+
+impl ec_transfer::Placer for TestPlacer {
+    fn place(
+        &self,
+        _peer: ec_core::DeviceId,
+        key: [u8; 16],
+        _entry: &ec_transfer::FileEntry,
+    ) -> Option<Arc<dyn ec_transfer::Placement>> {
+        (self.accept && key == KEY).then(|| {
+            Arc::new(TestPlacement {
+                seed: self.seed.clone(),
+                dest: self.dest.clone(),
+                fail: self.fail,
+            }) as Arc<dyn ec_transfer::Placement>
+        })
+    }
+}
+
+impl ec_transfer::Placement for TestPlacement {
+    fn seed(&self) -> Option<PathBuf> {
+        self.seed.clone()
+    }
+
+    fn commit(&self, part: &Path) -> std::io::Result<PathBuf> {
+        if self.fail {
+            return Err(std::io::Error::other("disk full"));
+        }
+        std::fs::rename(part, &self.dest)?;
+        Ok(self.dest.clone())
+    }
+}
+
+/// Describes `path` with 64 KiB chunks, so tests can work with a few small chunks.
+fn small_chunks(path: &Path) -> Arc<Vec<ec_transfer::SourceFile>> {
+    let size = std::fs::metadata(path).unwrap().len();
+    let hashes = ec_transfer::manifest::hash_chunks(path, size, SMALL_CHUNK).unwrap();
+    let name = path.file_name().unwrap().to_str().unwrap().to_owned();
+    Arc::new(vec![ec_transfer::SourceFile {
+        local: path.to_path_buf(),
+        entry: ec_transfer::FileEntry {
+            path: ec_transfer::RelPath::new(vec![name]).unwrap(),
+            size,
+            chunk_size: SMALL_CHUNK,
+            hashes,
+        },
+    }])
+}
+
+fn linked(target: Option<[u8; 16]>) -> SendOptions {
+    SendOptions {
+        target,
+        max_attempts: 1,
+        ..SendOptions::default()
+    }
+}
+
+#[tokio::test]
+async fn linked_update_reuses_chunks_by_hash() {
+    let pair = pair(LOCALHOST).await;
+    let chunk = SMALL_CHUNK as usize;
+    let (a, b, c, x) = (
+        pattern(chunk, 1),
+        pattern(chunk, 2),
+        pattern(chunk, 3),
+        pattern(chunk, 4),
+    );
+    // The receiver's copy is A B C; the new version inserts X at the front, so no
+    // chunk is at the same index any more.
+    let mine = pair.dir.path().join("linked.bin");
+    std::fs::write(&mine, [a.clone(), b.clone(), c.clone()].concat()).unwrap();
+    let new = [x, a, b, c].concat();
+    let src = tempfile::tempdir().unwrap();
+    let file = src.path().join("linked.bin");
+    std::fs::write(&file, &new).unwrap();
+
+    pair.service.set_placer(Arc::new(TestPlacer {
+        accept: true,
+        seed: Some(mine.clone()),
+        dest: mine.clone(),
+        fail: false,
+    }));
+    let report = ec_transfer::send_prepared(
+        pair.sender.clone(),
+        pair.receiver_identity.id(),
+        vec![pair.addr()],
+        small_chunks(&file),
+        linked(Some(KEY)),
+        Arc::new(|_| {}),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        report.bytes_sent, SMALL_CHUNK as u64,
+        "only the new chunk is sent"
+    );
+    assert_eq!(std::fs::read(&mine).unwrap(), new);
+    assert!(!pair.dir.path().join("linked (1).bin").exists());
+}
+
+#[tokio::test]
+async fn placer_declines_unknown_target() {
+    let pair = pair(LOCALHOST).await;
+    pair.service.set_placer(Arc::new(TestPlacer {
+        accept: false,
+        seed: None,
+        dest: pair.dir.path().join("x"),
+        fail: false,
+    }));
+    let src = tempfile::tempdir().unwrap();
+    let file = src.path().join("x");
+    std::fs::write(&file, b"v1").unwrap();
+    let err = pair
+        .send_with(
+            pair.sender.clone(),
+            vec![file],
+            linked(Some(KEY)),
+            Arc::new(|_| {}),
+        )
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("not linked"), "{err}");
+    assert!(!pair.dir.path().join("x").exists());
+}
+
+#[tokio::test]
+async fn target_without_placer_is_rejected() {
+    let pair = pair(LOCALHOST).await;
+    let src = tempfile::tempdir().unwrap();
+    let file = src.path().join("x");
+    std::fs::write(&file, b"v1").unwrap();
+    let err = pair
+        .send_with(
+            pair.sender.clone(),
+            vec![file],
+            linked(Some(KEY)),
+            Arc::new(|_| {}),
+        )
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("not linked"), "{err}");
+}
+
+#[tokio::test]
+async fn commit_error_stops_the_sender() {
+    let pair = pair(LOCALHOST).await;
+    let dest = pair.dir.path().join("x");
+    pair.service.set_placer(Arc::new(TestPlacer {
+        accept: true,
+        seed: None,
+        dest: dest.clone(),
+        fail: true,
+    }));
+    let src = tempfile::tempdir().unwrap();
+    let file = src.path().join("x");
+    std::fs::write(&file, b"v1").unwrap();
+    let options = SendOptions {
+        target: Some(KEY),
+        ..SendOptions::default()
+    };
+    let started = std::time::Instant::now();
+    let err = pair
+        .send_with(pair.sender.clone(), vec![file], options, Arc::new(|_| {}))
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("disk full"), "{err}");
+    // Refused outright, not retried as a broken connection.
+    assert!(started.elapsed() < std::time::Duration::from_secs(2));
+    assert!(!dest.exists());
+}
+
+#[tokio::test]
+async fn two_files_with_target_are_rejected() {
+    let pair = pair(LOCALHOST).await;
+    pair.service.set_placer(Arc::new(TestPlacer {
+        accept: true,
+        seed: None,
+        dest: pair.dir.path().join("x"),
+        fail: false,
+    }));
+    let src = tempfile::tempdir().unwrap();
+    std::fs::write(src.path().join("a"), b"a").unwrap();
+    std::fs::write(src.path().join("b"), b"b").unwrap();
+    let err = pair
+        .send_with(
+            pair.sender.clone(),
+            vec![src.path().join("a"), src.path().join("b")],
+            linked(Some(KEY)),
+            Arc::new(|_| {}),
+        )
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("one file"), "{err}");
 }

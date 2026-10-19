@@ -182,6 +182,21 @@ resumes it.
 When every chunk is written, the receiver flushes each file to disk and renames it into
 place. It never overwrites: an existing name gets ` (1)`, ` (2)`, … before the extension.
 
+### New versions of linked files
+
+An offer of exactly one file may carry `Target { key }` before `OfferEnd`: the file is a
+new version of the linked file `key`. The receiver asks its linked files service where
+it goes; if the file is not linked with the sending device, the offer is answered with
+`Rejected { reason: "not linked" }`. An offer with a target and more than one file is
+rejected too.
+
+Before listing what it needs, the receiver looks for the chunks in its own copy of the
+file: it hashes that copy on the offer's chunk grid and copies every chunk whose hash
+the new version has, at any index, into the partial file. Only the rest is requested.
+When everything is verified, the linked files service moves the file into place
+instead of the usual non-colliding rename. If that fails, the receiver answers
+`Rejected` instead of `Done`, so the sender stops instead of retrying.
+
 ### Limits enforced by the receiver
 
 | What | Limit |
