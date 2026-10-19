@@ -407,6 +407,9 @@ async fn leaving_while_the_other_is_away_does_not_send_the_file_again() {
     );
 }
 
+// Windows reports a file moved out of its folder as removed, so there it is a delete
+// (a known limit in the spec), not missing.
+#[cfg(not(windows))]
 #[tokio::test(flavor = "multi_thread")]
 async fn a_missing_file_is_reported_to_the_other_device() {
     let root = tempfile::tempdir().unwrap();
