@@ -229,4 +229,44 @@ void main() {
     );
     expect(find.text('3 files'), findsNWidgets(2));
   });
+
+  testWidgets('one file can be sent linked to a device that supports it', (
+    tester,
+  ) async {
+    final linkedMac = EcDevice(
+      id: mac.id,
+      shortId: mac.shortId,
+      name: mac.name,
+      online: true,
+      linkedFiles: true,
+    );
+    final (controller, gesture, results) = await pumpOverlay(
+      tester,
+      devices: [linkedMac],
+      content: const FlingFiles(['/Users/test/Rapor.pdf']),
+    );
+    expect(find.text('Send linked'), findsOneWidget);
+    await tester.tap(find.text('Send linked'));
+    await tester.pump();
+    expect(controller.sendLinked, isTrue);
+    expect(results, isEmpty, reason: 'choosing does not close the layer');
+
+    gesture.move(section(0, 1));
+    await tester.pump(const Duration(milliseconds: 100));
+    gesture.release(section(0, 1));
+    await tester.pump();
+    expect(controller.linkedSends.single.$2, '/Users/test/Rapor.pdf');
+    expect(controller.flings, isEmpty);
+    controller.sending.add(const SendProgress(sent: 1, total: 1, paths: 1));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('screenshots and older devices get no linked choice', (
+    tester,
+  ) async {
+    await pumpOverlay(tester);
+    expect(find.text('Send linked'), findsNothing);
+  });
 }

@@ -40,6 +40,31 @@ class Notifier {
     }
   }
 
+  static const _linkedChannel = AndroidNotificationDetails(
+    'linked',
+    'Linked files',
+    channelDescription:
+        'Conflicts and links that need you, for files kept up to date on '
+        'several devices',
+    importance: Importance.defaultImportance,
+  );
+
+  /// A notice about the linked file [linkId]. A later notice about the same file
+  /// replaces it rather than adding another.
+  Future<void> linked(String linkId, String title, String body) async {
+    if (!_ready) return;
+    await _plugin.show(
+      // Stable per file, and apart from the received-file ids.
+      id: 0x40000000 | (linkId.hashCode & 0x3fffffff),
+      title: title,
+      body: body,
+      notificationDetails: const NotificationDetails(
+        android: _linkedChannel,
+        macOS: DarwinNotificationDetails(),
+      ),
+    );
+  }
+
   Future<void> received(String title, String body) async {
     if (!_ready) return;
     await _plugin.show(
