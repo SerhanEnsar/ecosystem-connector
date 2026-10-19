@@ -9,11 +9,13 @@
 use std::path::PathBuf;
 
 pub mod journal;
+pub mod proto;
 mod version;
 
 pub use journal::{
     Content, FileIdentity, Journal, LinkId, LinkedFile, LogEntry, LogKind, Seen, State, new_link_id,
 };
+pub use proto::{ContentHeader, SYNC_KIND, SyncMessage};
 pub use version::{Order, VersionVector};
 
 /// Errors of this crate.
@@ -35,6 +37,12 @@ pub enum Error {
     /// A record could not be encoded.
     #[error("cannot encode {0}")]
     Encode(&'static str),
+    /// Network error.
+    #[error(transparent)]
+    Net(#[from] ec_net::Error),
+    /// A message from a peer was refused.
+    #[error("refused: {0}")]
+    Refused(&'static str),
 }
 
 /// Result type of this crate.

@@ -548,6 +548,8 @@ name = "ec-sync"
 version = "0.0.1"
 dependencies = [
  "ec-core",
+ "ec-net",
+ "ec-transfer",
  "hex",
  "postcard",
  "rand",
