@@ -35,7 +35,7 @@ Windows ↔ Android.
 |---|---|
 | **Hızlı gönderim** | Her türlü dosya, klasör, link ya da metni yakındaki cihaza gönderir. Bağlantı koparsa aktarım kaldığı yerden devam eder. |
 | **Kablo hızlandırma** | USB-C kablo takıldığında (USB tethering ya da Thunderbolt köprüsü) süren aktarım yeniden başlamadan daha hızlı yola geçer. |
-| **Bağlı dosyalar** | Her cihazda tek dosya, tek sürüm. Herhangi birinde düzenle, diğerleri saniyeler içinde güncellensin. Kopya birikmez. |
+| **Bağlı dosyalar** | Her cihazda tek dosya, tek sürüm. Herhangi birinde düzenle, diğerleri saniyeler içinde güncellensin; yalnızca değişen kısım gider. Kopya birikmez; ayrıyken yapılan düzenlemeler çakışma kartına düşer, taşınan dosya eşitlenmeye devam eder. (Android ve macOS, ön sürüm) |
 | **Ortak pano** | Bir cihazda kopyala, diğerinde yapıştır. Açık tarayıcı sekmesini gönder. |
 | **Handoff** | Diğer cihazda açık olan dosya ya da web sayfası için "Bu cihazda devam et?" sorusu. |
 
