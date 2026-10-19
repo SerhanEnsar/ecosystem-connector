@@ -14,6 +14,7 @@ class ArrivalCardData {
     this.isPage = false,
     this.isText = false,
     this.canSaveElsewhere = false,
+    this.linked = false,
   });
 
   /// File name, "3 files", the page title, or the text's first line.
@@ -36,6 +37,9 @@ class ArrivalCardData {
 
   /// Offer "Save to…".
   final bool canSaveElsewhere;
+
+  /// A linked file: later edits on either device reach the other.
+  final bool linked;
 }
 
 /// A drop that falls from the top edge and spreads into a frosted card, stays a few
@@ -166,7 +170,7 @@ class _ArrivalCardState extends State<ArrivalCard>
                   onPointerDown: (_) => _hold(true),
                   onPointerUp: (_) => _hold(false),
                   onPointerCancel: (_) => _hold(false),
-                  child: _Glass(
+                  child: FrostedGlass(
                     width: w,
                     height: h,
                     radius: radius,
@@ -228,14 +232,30 @@ class _ArrivalCardState extends State<ArrivalCard>
                     fontSize: 12,
                   ),
                 ),
-                Text(
-                  data.detail,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: ink.withValues(alpha: 0.55),
-                    fontSize: 11,
-                  ),
+                Row(
+                  children: [
+                    if (data.linked) ...[
+                      Icon(
+                        Icons.link,
+                        size: 13,
+                        color: ink.withValues(alpha: 0.75),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                    Flexible(
+                      child: Text(
+                        data.linked
+                            ? 'Linked, kept up to date · ${data.detail}'
+                            : data.detail,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: ink.withValues(alpha: 0.55),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const Spacer(),
                 // One row that scrolls rather than wraps, so it never overflows.
@@ -246,10 +266,10 @@ class _ArrivalCardState extends State<ArrivalCard>
                       if (!data.isPage &&
                           !data.isText &&
                           widget.onOpen != null) ...[
-                        _Pill('Open', onTap: () => _act(widget.onOpen)),
+                        FrostedPill('Open', onTap: () => _act(widget.onOpen)),
                         const SizedBox(width: 6),
                       ],
-                      _Pill(
+                      FrostedPill(
                         data.isPage
                             ? 'Open in browser'
                             : data.isText
@@ -260,7 +280,7 @@ class _ArrivalCardState extends State<ArrivalCard>
                       if (data.canSaveElsewhere &&
                           widget.onSaveElsewhere != null) ...[
                         const SizedBox(width: 6),
-                        _Pill(
+                        FrostedPill(
                           'Save to…',
                           quiet: true,
                           onTap: () => _act(widget.onSaveElsewhere),
@@ -322,8 +342,10 @@ class _ArrivalCardState extends State<ArrivalCard>
 }
 
 /// Frosted glass: blurred backdrop, a dark tint for legibility, a fine light border.
-class _Glass extends StatelessWidget {
-  const _Glass({
+/// The surface of the arrival and conflict cards.
+class FrostedGlass extends StatelessWidget {
+  const FrostedGlass({
+    super.key,
     required this.width,
     required this.height,
     required this.radius,
@@ -371,8 +393,14 @@ class _Glass extends StatelessWidget {
   }
 }
 
-class _Pill extends StatelessWidget {
-  const _Pill(this.label, {required this.onTap, this.quiet = false});
+/// A button on a [FrostedGlass] card.
+class FrostedPill extends StatelessWidget {
+  const FrostedPill(
+    this.label, {
+    super.key,
+    required this.onTap,
+    this.quiet = false,
+  });
 
   final String label;
   final VoidCallback onTap;

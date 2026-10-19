@@ -69,7 +69,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -2088401442;
+  int get rustContentHash => 532327019;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -84,6 +84,11 @@ abstract class RustLibApi extends BaseApi {
   void crateApiCoreEcCoreAnswerPairing({
     required EcCore that,
     required bool accept,
+  });
+
+  void crateApiCoreEcCoreDeleteConflict({
+    required EcCore that,
+    required String id,
   });
 
   List<DeviceView> crateApiCoreEcCoreDevices({required EcCore that});
@@ -115,6 +120,15 @@ abstract class RustLibApi extends BaseApi {
     required String invite,
   });
 
+  void crateApiCoreEcCoreLeaveLink({required EcCore that, required String id});
+
+  List<LinkedView> crateApiCoreEcCoreLinkedFiles({required EcCore that});
+
+  List<LinkedLogView> crateApiCoreEcCoreLinkedLog({
+    required EcCore that,
+    required String id,
+  });
+
   String crateApiCoreEcCoreMyId({required EcCore that});
 
   String crateApiCoreEcCoreMyName({required EcCore that});
@@ -125,6 +139,18 @@ abstract class RustLibApi extends BaseApi {
 
   bool crateApiCoreEcCoreReceiveDirIsDefault({required EcCore that});
 
+  void crateApiCoreEcCoreRelocateLinked({
+    required EcCore that,
+    required String id,
+    required String path,
+  });
+
+  void crateApiCoreEcCoreResolveConflict({
+    required EcCore that,
+    required String id,
+    required bool keepTheirs,
+  });
+
   Stream<SendUpdate> crateApiCoreEcCoreSend({
     required EcCore that,
     required String deviceId,
@@ -133,9 +159,23 @@ abstract class RustLibApi extends BaseApi {
     int? page,
   });
 
+  Future<String> crateApiCoreEcCoreSendLinked({
+    required EcCore that,
+    required String deviceId,
+    required String path,
+    required bool copyIntoLinked,
+  });
+
+  void crateApiCoreEcCoreSetLinkedCheckInterval({
+    required EcCore that,
+    required int seconds,
+  });
+
   String crateApiCoreEcCoreSetReceiveDir({required EcCore that, String? path});
 
   Future<EcCore> crateApiCoreEcCoreStart({required CoreConfig config});
+
+  List<String> crateApiCoreEcCoreTakePendingTrash({required EcCore that});
 
   Future<void> crateApiCoreInitApp();
 
@@ -188,6 +228,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  void crateApiCoreEcCoreDeleteConflict({
+    required EcCore that,
+    required String id,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEcCore(
+            that,
+            serializer,
+          );
+          sse_encode_String(id, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiCoreEcCoreDeleteConflictConstMeta,
+        argValues: [that, id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreEcCoreDeleteConflictConstMeta =>
+      const TaskConstMeta(
+        debugName: "EcCore_delete_conflict",
+        argNames: ["that", "id"],
+      );
+
+  @override
   List<DeviceView> crateApiCoreEcCoreDevices({required EcCore that}) {
     return handler.executeSync(
       SyncTask(
@@ -197,7 +270,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_device_view,
@@ -229,7 +302,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 3,
+              funcId: 4,
               port: port_,
             );
           },
@@ -270,7 +343,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 5,
             port: port_,
           );
         },
@@ -312,7 +385,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 6,
             port: port_,
           );
         },
@@ -346,7 +419,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_String(deviceId, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -380,7 +453,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 7,
+              funcId: 8,
               port: port_,
             );
           },
@@ -423,7 +496,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 8,
+              funcId: 9,
               port: port_,
             );
           },
@@ -447,6 +520,95 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  void crateApiCoreEcCoreLeaveLink({required EcCore that, required String id}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEcCore(
+            that,
+            serializer,
+          );
+          sse_encode_String(id, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiCoreEcCoreLeaveLinkConstMeta,
+        argValues: [that, id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreEcCoreLeaveLinkConstMeta =>
+      const TaskConstMeta(
+        debugName: "EcCore_leave_link",
+        argNames: ["that", "id"],
+      );
+
+  @override
+  List<LinkedView> crateApiCoreEcCoreLinkedFiles({required EcCore that}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEcCore(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_linked_view,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCoreEcCoreLinkedFilesConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreEcCoreLinkedFilesConstMeta =>
+      const TaskConstMeta(debugName: "EcCore_linked_files", argNames: ["that"]);
+
+  @override
+  List<LinkedLogView> crateApiCoreEcCoreLinkedLog({
+    required EcCore that,
+    required String id,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEcCore(
+            that,
+            serializer,
+          );
+          sse_encode_String(id, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_linked_log_view,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiCoreEcCoreLinkedLogConstMeta,
+        argValues: [that, id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreEcCoreLinkedLogConstMeta =>
+      const TaskConstMeta(
+        debugName: "EcCore_linked_log",
+        argNames: ["that", "id"],
+      );
+
+  @override
   String crateApiCoreEcCoreMyId({required EcCore that}) {
     return handler.executeSync(
       SyncTask(
@@ -456,7 +618,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -482,7 +644,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -508,7 +670,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -534,7 +696,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -560,7 +722,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 17)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -577,6 +739,76 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "EcCore_receive_dir_is_default",
         argNames: ["that"],
+      );
+
+  @override
+  void crateApiCoreEcCoreRelocateLinked({
+    required EcCore that,
+    required String id,
+    required String path,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEcCore(
+            that,
+            serializer,
+          );
+          sse_encode_String(id, serializer);
+          sse_encode_String(path, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiCoreEcCoreRelocateLinkedConstMeta,
+        argValues: [that, id, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreEcCoreRelocateLinkedConstMeta =>
+      const TaskConstMeta(
+        debugName: "EcCore_relocate_linked",
+        argNames: ["that", "id", "path"],
+      );
+
+  @override
+  void crateApiCoreEcCoreResolveConflict({
+    required EcCore that,
+    required String id,
+    required bool keepTheirs,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEcCore(
+            that,
+            serializer,
+          );
+          sse_encode_String(id, serializer);
+          sse_encode_bool(keepTheirs, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiCoreEcCoreResolveConflictConstMeta,
+        argValues: [that, id, keepTheirs],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreEcCoreResolveConflictConstMeta =>
+      const TaskConstMeta(
+        debugName: "EcCore_resolve_conflict",
+        argNames: ["that", "id", "keepTheirs"],
       );
 
   @override
@@ -605,7 +837,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 14,
+              funcId: 20,
               port: port_,
             );
           },
@@ -628,6 +860,81 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<String> crateApiCoreEcCoreSendLinked({
+    required EcCore that,
+    required String deviceId,
+    required String path,
+    required bool copyIntoLinked,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEcCore(
+            that,
+            serializer,
+          );
+          sse_encode_String(deviceId, serializer);
+          sse_encode_String(path, serializer);
+          sse_encode_bool(copyIntoLinked, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 21,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiCoreEcCoreSendLinkedConstMeta,
+        argValues: [that, deviceId, path, copyIntoLinked],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreEcCoreSendLinkedConstMeta =>
+      const TaskConstMeta(
+        debugName: "EcCore_send_linked",
+        argNames: ["that", "deviceId", "path", "copyIntoLinked"],
+      );
+
+  @override
+  void crateApiCoreEcCoreSetLinkedCheckInterval({
+    required EcCore that,
+    required int seconds,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEcCore(
+            that,
+            serializer,
+          );
+          sse_encode_u_32(seconds, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCoreEcCoreSetLinkedCheckIntervalConstMeta,
+        argValues: [that, seconds],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreEcCoreSetLinkedCheckIntervalConstMeta =>
+      const TaskConstMeta(
+        debugName: "EcCore_set_linked_check_interval",
+        argNames: ["that", "seconds"],
+      );
+
+  @override
   String crateApiCoreEcCoreSetReceiveDir({required EcCore that, String? path}) {
     return handler.executeSync(
       SyncTask(
@@ -638,7 +945,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_opt_String(path, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -667,7 +974,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 24,
             port: port_,
           );
         },
@@ -687,6 +994,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "EcCore_start", argNames: ["config"]);
 
   @override
+  List<String> crateApiCoreEcCoreTakePendingTrash({required EcCore that}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEcCore(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 25)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCoreEcCoreTakePendingTrashConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreEcCoreTakePendingTrashConstMeta =>
+      const TaskConstMeta(
+        debugName: "EcCore_take_pending_trash",
+        argNames: ["that"],
+      );
+
+  @override
   Future<void> crateApiCoreInitApp() {
     return handler.executeNormal(
       NormalTask(
@@ -695,7 +1031,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 26,
             port: port_,
           );
         },
@@ -789,9 +1125,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ConflictView dco_decode_box_autoadd_conflict_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_conflict_view(raw);
+  }
+
+  @protected
   CoreConfig dco_decode_box_autoadd_core_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_core_config(raw);
+  }
+
+  @protected
+  LinkedEventKind dco_decode_box_autoadd_linked_event_kind(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_linked_event_kind(raw);
   }
 
   @protected
@@ -801,15 +1149,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ConflictView dco_decode_conflict_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return ConflictView(
+      mineDevice: dco_decode_String(arr[0]),
+      mineAtMs: dco_decode_u_64(arr[1]),
+      mineSize: dco_decode_u_64(arr[2]),
+      theirsDevice: dco_decode_String(arr[3]),
+      theirsAtMs: dco_decode_u_64(arr[4]),
+      theirsSize: dco_decode_u_64(arr[5]),
+      theirsPath: dco_decode_String(arr[6]),
+    );
+  }
+
+  @protected
   CoreConfig dco_decode_core_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return CoreConfig(
       home: dco_decode_String(arr[0]),
       deviceName: dco_decode_String(arr[1]),
       receiveDir: dco_decode_String(arr[2]),
+      useSystemTrash: dco_decode_bool(arr[3]),
     );
   }
 
@@ -854,6 +1220,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return CoreEvent_ReceiveFinished();
       case 8:
         return CoreEvent_ReceiveInterrupted(reason: dco_decode_String(raw[1]));
+      case 9:
+        return CoreEvent_Linked(
+          id: dco_decode_String(raw[1]),
+          kind: dco_decode_box_autoadd_linked_event_kind(raw[2]),
+        );
       default:
         throw Exception("unreachable");
     }
@@ -863,13 +1234,88 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DeviceView dco_decode_device_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return DeviceView(
       id: dco_decode_String(arr[0]),
       shortId: dco_decode_String(arr[1]),
       name: dco_decode_String(arr[2]),
       online: dco_decode_bool(arr[3]),
+      linkedFiles: dco_decode_bool(arr[4]),
+    );
+  }
+
+  @protected
+  int dco_decode_i_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  LinkedEventKind dco_decode_linked_event_kind(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return LinkedEventKind_Arrived(
+          path: dco_decode_String(raw[1]),
+          from: dco_decode_String(raw[2]),
+        );
+      case 1:
+        return LinkedEventKind_Updated();
+      case 2:
+        return LinkedEventKind_Conflict();
+      case 3:
+        return LinkedEventKind_Resolved();
+      case 4:
+        return LinkedEventKind_PeerLeft(device: dco_decode_String(raw[1]));
+      case 5:
+        return LinkedEventKind_Left();
+      case 6:
+        return LinkedEventKind_Missing();
+      case 7:
+        return LinkedEventKind_Found();
+      case 8:
+        return LinkedEventKind_Moved();
+      case 9:
+        return LinkedEventKind_Error(message: dco_decode_String(raw[1]));
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  LinkedLogView dco_decode_linked_log_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return LinkedLogView(
+      atMs: dco_decode_u_64(arr[0]),
+      device: dco_decode_String(arr[1]),
+      text: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  LinkedState dco_decode_linked_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LinkedState.values[raw as int];
+  }
+
+  @protected
+  LinkedView dco_decode_linked_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return LinkedView(
+      id: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      path: dco_decode_String(arr[2]),
+      devices: dco_decode_list_String(arr[3]),
+      state: dco_decode_linked_state(arr[4]),
+      size: dco_decode_u_64(arr[5]),
+      conflict: dco_decode_opt_box_autoadd_conflict_view(arr[6]),
     );
   }
 
@@ -886,6 +1332,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<LinkedLogView> dco_decode_list_linked_log_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_linked_log_view).toList();
+  }
+
+  @protected
+  List<LinkedView> dco_decode_list_linked_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_linked_view).toList();
+  }
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
@@ -895,6 +1353,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  ConflictView? dco_decode_opt_box_autoadd_conflict_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_conflict_view(raw);
   }
 
   @protected
@@ -1061,9 +1525,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ConflictView sse_decode_box_autoadd_conflict_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_conflict_view(deserializer));
+  }
+
+  @protected
   CoreConfig sse_decode_box_autoadd_core_config(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_core_config(deserializer));
+  }
+
+  @protected
+  LinkedEventKind sse_decode_box_autoadd_linked_event_kind(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_linked_event_kind(deserializer));
   }
 
   @protected
@@ -1073,15 +1553,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ConflictView sse_decode_conflict_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_mineDevice = sse_decode_String(deserializer);
+    var var_mineAtMs = sse_decode_u_64(deserializer);
+    var var_mineSize = sse_decode_u_64(deserializer);
+    var var_theirsDevice = sse_decode_String(deserializer);
+    var var_theirsAtMs = sse_decode_u_64(deserializer);
+    var var_theirsSize = sse_decode_u_64(deserializer);
+    var var_theirsPath = sse_decode_String(deserializer);
+    return ConflictView(
+      mineDevice: var_mineDevice,
+      mineAtMs: var_mineAtMs,
+      mineSize: var_mineSize,
+      theirsDevice: var_theirsDevice,
+      theirsAtMs: var_theirsAtMs,
+      theirsSize: var_theirsSize,
+      theirsPath: var_theirsPath,
+    );
+  }
+
+  @protected
   CoreConfig sse_decode_core_config(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_home = sse_decode_String(deserializer);
     var var_deviceName = sse_decode_String(deserializer);
     var var_receiveDir = sse_decode_String(deserializer);
+    var var_useSystemTrash = sse_decode_bool(deserializer);
     return CoreConfig(
       home: var_home,
       deviceName: var_deviceName,
       receiveDir: var_receiveDir,
+      useSystemTrash: var_useSystemTrash,
     );
   }
 
@@ -1137,6 +1640,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 8:
         var var_reason = sse_decode_String(deserializer);
         return CoreEvent_ReceiveInterrupted(reason: var_reason);
+      case 9:
+        var var_id = sse_decode_String(deserializer);
+        var var_kind = sse_decode_box_autoadd_linked_event_kind(deserializer);
+        return CoreEvent_Linked(id: var_id, kind: var_kind);
       default:
         throw UnimplementedError('');
     }
@@ -1149,11 +1656,91 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_shortId = sse_decode_String(deserializer);
     var var_name = sse_decode_String(deserializer);
     var var_online = sse_decode_bool(deserializer);
+    var var_linkedFiles = sse_decode_bool(deserializer);
     return DeviceView(
       id: var_id,
       shortId: var_shortId,
       name: var_name,
       online: var_online,
+      linkedFiles: var_linkedFiles,
+    );
+  }
+
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getInt32();
+  }
+
+  @protected
+  LinkedEventKind sse_decode_linked_event_kind(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_path = sse_decode_String(deserializer);
+        var var_from = sse_decode_String(deserializer);
+        return LinkedEventKind_Arrived(path: var_path, from: var_from);
+      case 1:
+        return LinkedEventKind_Updated();
+      case 2:
+        return LinkedEventKind_Conflict();
+      case 3:
+        return LinkedEventKind_Resolved();
+      case 4:
+        var var_device = sse_decode_String(deserializer);
+        return LinkedEventKind_PeerLeft(device: var_device);
+      case 5:
+        return LinkedEventKind_Left();
+      case 6:
+        return LinkedEventKind_Missing();
+      case 7:
+        return LinkedEventKind_Found();
+      case 8:
+        return LinkedEventKind_Moved();
+      case 9:
+        var var_message = sse_decode_String(deserializer);
+        return LinkedEventKind_Error(message: var_message);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  LinkedLogView sse_decode_linked_log_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_atMs = sse_decode_u_64(deserializer);
+    var var_device = sse_decode_String(deserializer);
+    var var_text = sse_decode_String(deserializer);
+    return LinkedLogView(atMs: var_atMs, device: var_device, text: var_text);
+  }
+
+  @protected
+  LinkedState sse_decode_linked_state(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return LinkedState.values[inner];
+  }
+
+  @protected
+  LinkedView sse_decode_linked_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    var var_devices = sse_decode_list_String(deserializer);
+    var var_state = sse_decode_linked_state(deserializer);
+    var var_size = sse_decode_u_64(deserializer);
+    var var_conflict = sse_decode_opt_box_autoadd_conflict_view(deserializer);
+    return LinkedView(
+      id: var_id,
+      name: var_name,
+      path: var_path,
+      devices: var_devices,
+      state: var_state,
+      size: var_size,
+      conflict: var_conflict,
     );
   }
 
@@ -1182,6 +1769,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<LinkedLogView> sse_decode_list_linked_log_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <LinkedLogView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_linked_log_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<LinkedView> sse_decode_list_linked_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <LinkedView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_linked_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
@@ -1194,6 +1807,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  ConflictView? sse_decode_opt_box_autoadd_conflict_view(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_conflict_view(deserializer));
     } else {
       return null;
     }
@@ -1303,12 +1929,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt sse_decode_usize(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getBigUint64();
-  }
-
-  @protected
-  int sse_decode_i_32(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getInt32();
   }
 
   @protected
@@ -1423,6 +2043,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_conflict_view(
+    ConflictView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_conflict_view(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_core_config(
     CoreConfig self,
     SseSerializer serializer,
@@ -1432,9 +2061,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_linked_event_kind(
+    LinkedEventKind self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_linked_event_kind(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self, serializer);
+  }
+
+  @protected
+  void sse_encode_conflict_view(ConflictView self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.mineDevice, serializer);
+    sse_encode_u_64(self.mineAtMs, serializer);
+    sse_encode_u_64(self.mineSize, serializer);
+    sse_encode_String(self.theirsDevice, serializer);
+    sse_encode_u_64(self.theirsAtMs, serializer);
+    sse_encode_u_64(self.theirsSize, serializer);
+    sse_encode_String(self.theirsPath, serializer);
   }
 
   @protected
@@ -1443,6 +2093,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.home, serializer);
     sse_encode_String(self.deviceName, serializer);
     sse_encode_String(self.receiveDir, serializer);
+    sse_encode_bool(self.useSystemTrash, serializer);
   }
 
   @protected
@@ -1499,6 +2150,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case CoreEvent_ReceiveInterrupted(reason: final reason):
         sse_encode_i_32(8, serializer);
         sse_encode_String(reason, serializer);
+      case CoreEvent_Linked(id: final id, kind: final kind):
+        sse_encode_i_32(9, serializer);
+        sse_encode_String(id, serializer);
+        sse_encode_box_autoadd_linked_event_kind(kind, serializer);
     }
   }
 
@@ -1509,6 +2164,76 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.shortId, serializer);
     sse_encode_String(self.name, serializer);
     sse_encode_bool(self.online, serializer);
+    sse_encode_bool(self.linkedFiles, serializer);
+  }
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putInt32(self);
+  }
+
+  @protected
+  void sse_encode_linked_event_kind(
+    LinkedEventKind self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case LinkedEventKind_Arrived(path: final path, from: final from):
+        sse_encode_i_32(0, serializer);
+        sse_encode_String(path, serializer);
+        sse_encode_String(from, serializer);
+      case LinkedEventKind_Updated():
+        sse_encode_i_32(1, serializer);
+      case LinkedEventKind_Conflict():
+        sse_encode_i_32(2, serializer);
+      case LinkedEventKind_Resolved():
+        sse_encode_i_32(3, serializer);
+      case LinkedEventKind_PeerLeft(device: final device):
+        sse_encode_i_32(4, serializer);
+        sse_encode_String(device, serializer);
+      case LinkedEventKind_Left():
+        sse_encode_i_32(5, serializer);
+      case LinkedEventKind_Missing():
+        sse_encode_i_32(6, serializer);
+      case LinkedEventKind_Found():
+        sse_encode_i_32(7, serializer);
+      case LinkedEventKind_Moved():
+        sse_encode_i_32(8, serializer);
+      case LinkedEventKind_Error(message: final message):
+        sse_encode_i_32(9, serializer);
+        sse_encode_String(message, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_linked_log_view(
+    LinkedLogView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.atMs, serializer);
+    sse_encode_String(self.device, serializer);
+    sse_encode_String(self.text, serializer);
+  }
+
+  @protected
+  void sse_encode_linked_state(LinkedState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_linked_view(LinkedView self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.path, serializer);
+    sse_encode_list_String(self.devices, serializer);
+    sse_encode_linked_state(self.state, serializer);
+    sse_encode_u_64(self.size, serializer);
+    sse_encode_opt_box_autoadd_conflict_view(self.conflict, serializer);
   }
 
   @protected
@@ -1533,6 +2258,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_linked_log_view(
+    List<LinkedLogView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_linked_log_view(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_linked_view(
+    List<LinkedView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_linked_view(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -1549,6 +2298,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_String(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_conflict_view(
+    ConflictView? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_conflict_view(self, serializer);
     }
   }
 
@@ -1648,12 +2410,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
   }
-
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putInt32(self);
-  }
 }
 
 @sealed
@@ -1678,6 +2434,10 @@ class EcCoreImpl extends RustOpaque implements EcCore {
   /// The user's answer to the last [`PairingEvent::Confirm`].
   void answerPairing({required bool accept}) => RustLib.instance.api
       .crateApiCoreEcCoreAnswerPairing(that: this, accept: accept);
+
+  /// Deletes the waiting version of a conflict, keeping this device's.
+  void deleteConflict({required String id}) =>
+      RustLib.instance.api.crateApiCoreEcCoreDeleteConflict(that: this, id: id);
 
   /// Paired devices.
   List<DeviceView> devices() =>
@@ -1721,6 +2481,18 @@ class EcCoreImpl extends RustOpaque implements EcCore {
       .api
       .crateApiCoreEcCoreJoinPairing(that: this, invite: invite);
 
+  /// Stops syncing a file on this device. The file stays.
+  void leaveLink({required String id}) =>
+      RustLib.instance.api.crateApiCoreEcCoreLeaveLink(that: this, id: id);
+
+  /// Every linked file.
+  List<LinkedView> linkedFiles() =>
+      RustLib.instance.api.crateApiCoreEcCoreLinkedFiles(that: this);
+
+  /// The log of a linked file, newest first.
+  List<LinkedLogView> linkedLog({required String id}) =>
+      RustLib.instance.api.crateApiCoreEcCoreLinkedLog(that: this, id: id);
+
   /// This device's full id.
   String myId() => RustLib.instance.api.crateApiCoreEcCoreMyId(that: this);
 
@@ -1739,6 +2511,21 @@ class EcCoreImpl extends RustOpaque implements EcCore {
   bool receiveDirIsDefault() =>
       RustLib.instance.api.crateApiCoreEcCoreReceiveDirIsDefault(that: this);
 
+  /// Records where a linked file is now (found by the app, for example through a
+  /// bookmark). A path in the Trash means it was deleted.
+  void relocateLinked({required String id, required String path}) => RustLib
+      .instance
+      .api
+      .crateApiCoreEcCoreRelocateLinked(that: this, id: id, path: path);
+
+  /// Resolves a conflict, keeping the other device's version or this one's.
+  void resolveConflict({required String id, required bool keepTheirs}) =>
+      RustLib.instance.api.crateApiCoreEcCoreResolveConflict(
+        that: this,
+        id: id,
+        keepTheirs: keepTheirs,
+      );
+
   /// Sends files and folders to a paired device. With `open`, it opens them on
   /// arrival (a fling), at `page` if given.
   Stream<SendUpdate> send({
@@ -1754,8 +2541,31 @@ class EcCoreImpl extends RustOpaque implements EcCore {
     page: page,
   );
 
+  /// Links a file with a paired device and sends it. On Android pass
+  /// `copy_into_linked`: the shared file is copied into the Linked folder first.
+  /// Returns the link id.
+  Future<String> sendLinked({
+    required String deviceId,
+    required String path,
+    required bool copyIntoLinked,
+  }) => RustLib.instance.api.crateApiCoreEcCoreSendLinked(
+    that: this,
+    deviceId: deviceId,
+    path: path,
+    copyIntoLinked: copyIntoLinked,
+  );
+
+  /// How often linked files are checked without a file system event, in seconds.
+  void setLinkedCheckInterval({required int seconds}) => RustLib.instance.api
+      .crateApiCoreEcCoreSetLinkedCheckInterval(that: this, seconds: seconds);
+
   /// Saves received files to `path` from the next transfer on; `None` goes back to
   /// the default folder. Returns the folder now in use.
   String setReceiveDir({String? path}) => RustLib.instance.api
       .crateApiCoreEcCoreSetReceiveDir(that: this, path: path);
+
+  /// Files set aside for the system Trash (with `use_system_trash`). The app moves
+  /// each to the Trash; they stay listed until it does.
+  List<String> takePendingTrash() =>
+      RustLib.instance.api.crateApiCoreEcCoreTakePendingTrash(that: this);
 }

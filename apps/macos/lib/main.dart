@@ -16,6 +16,12 @@ const _folder = MethodChannel(
   'io.github.serhanensar.ecosystemconnector/folder',
 );
 
+/// LinkedAccess in FolderAccess.swift: access to linked files across restarts, and
+/// the Trash for versions the user chose not to keep.
+const _linked = MethodChannel(
+  'io.github.serhanensar.ecosystemconnector/linked',
+);
+
 /// What "Share → ECOnnector" hands over (AppDelegate.swift's ShareInbox).
 const _share = MethodChannel('io.github.serhanensar.ecosystemconnector/share');
 
@@ -50,8 +56,21 @@ void main() {
   runEcApp(
     EcPlatform.macos,
     PlatformHooks(
-      // Before the core starts, so it can still save to the folder chosen last time.
-      beforeStart: () => _folder.invokeMethod<void>('restore'),
+      // Before the core starts, so it can still save to the folder chosen last time
+      // and reach the linked files it watches.
+      beforeStart: () async {
+        await _folder.invokeMethod<void>('restore');
+        await _linked.invokeMethod<Object?>('restore');
+      },
+      keepAccess: (id, path) =>
+          _linked.invokeMethod<void>('keep', {'id': id, 'path': path}),
+      restoreAccess: () async {
+        final places = await _linked.invokeMapMethod<String, String>('restore');
+        return places ?? const {};
+      },
+      forgetAccess: (id) => _linked.invokeMethod<void>('forget', {'id': id}),
+      trash: (path) async =>
+          await _linked.invokeMethod<bool>('trash', {'path': path}) ?? false,
       chooseFolder: () => _folder.invokeMethod<String>('choose'),
       folderReset: () => _folder.invokeMethod<void>('forget'),
       sharedFiles: () async* {

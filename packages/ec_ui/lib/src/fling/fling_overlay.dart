@@ -196,6 +196,24 @@ class _FlingOverlayState extends State<FlingOverlay>
   EdgeInsets _padding = EdgeInsets.zero;
   var _reduceMotion = false;
 
+  /// "Send linked" is chosen (remembered from last time).
+  late var _linked = widget.controller.sendLinked;
+
+  /// The file a linked send would link: only a single file can be linked.
+  String? get _linkablePath => switch (widget.gesture.content) {
+    FlingFile(:final path) => path,
+    FlingFiles(:final paths) when paths.length == 1 => paths.single,
+    _ => null,
+  };
+
+  bool get _linkOffered =>
+      _linkablePath != null && _online.any((d) => d.linkedFiles);
+
+  void _setLinked(bool linked) {
+    setState(() => _linked = linked);
+    widget.controller.sendLinked = linked;
+  }
+
   List<EcDevice> get _online =>
       widget.controller.devices.where((d) => d.online).toList();
 
@@ -368,8 +386,16 @@ class _FlingOverlayState extends State<FlingOverlay>
       _hovered = index;
     });
     HapticFeedback.mediumImpact();
-    final first = widget.controller
-        .fling(device, widget.gesture.content!)
+    final path = _linkablePath;
+    final Stream<SendStatus> sending =
+        !(_linked && _linkOffered && path != null)
+        ? widget.controller.fling(device, widget.gesture.content!)
+        : device.linkedFiles
+        ? widget.controller.sendLinkedFile(device, path)
+        : Stream.value(
+            SendFailed('${device.name} needs an update to keep linked files'),
+          );
+    final first = sending
         .firstWhere((s) => s is! SendProgress || s.sent > 0 || s.total == 0)
         .timeout(
           const Duration(seconds: 8),
@@ -516,6 +542,24 @@ class _FlingOverlayState extends State<FlingOverlay>
                       ),
                     ),
                   ),
+                  if (_linkOffered)
+                    Positioned(
+                      left: 24,
+                      right: 24,
+                      top: zone.top - 78,
+                      child: Opacity(
+                        opacity: chrome * (_phase == _Phase.resting ? 1 : 0.0),
+                        child: IgnorePointer(
+                          ignoring: _phase != _Phase.resting,
+                          child: Center(
+                            child: _LinkChoice(
+                              linked: _linked,
+                              onChanged: _setLinked,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   Positioned(
                     left: 24,
                     right: 24,
@@ -561,6 +605,67 @@ class _FlingOverlayState extends State<FlingOverlay>
     FlingPage() => Icons.public,
     FlingScreenshot() => Icons.screenshot_monitor_outlined,
   };
+}
+
+/// "Send" or "Send linked", above the drop zone.
+class _LinkChoice extends StatelessWidget {
+  const _LinkChoice({required this.linked, required this.onChanged});
+
+  final bool linked;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget option(String label, bool value, {IconData? icon}) {
+      final selected = linked == value;
+      return GestureDetector(
+        onTap: () => onChanged(value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            color: selected
+                ? Colors.white.withValues(alpha: 0.22)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 15, color: Colors.white),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: selected ? 1 : 0.7),
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1B2433).withValues(alpha: 0.86),
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          option('Send', false),
+          option('Send linked', true, icon: Icons.link),
+        ],
+      ),
+    );
+  }
 }
 
 class _Header extends StatelessWidget {

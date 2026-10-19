@@ -15,6 +15,8 @@ struct Arrival: Identifiable {
   let kind: Kind
   let title: String
   let from: String
+  /// A linked file: later edits on either device reach the other.
+  var linked = false
 }
 
 /// Shows arrivals at the top of the screen: a drop falls from the top edge and spreads
@@ -216,7 +218,8 @@ struct ArrivalView: View {
   private var detail: String {
     switch arrival.kind {
     case .file(_, let size), .files(_, let size):
-      return ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+      let bytes = ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+      return arrival.linked ? "Linked, kept up to date · \(bytes)" : bytes
     case .page(let url):
       return url.host ?? url.absoluteString
     case .text(let text):

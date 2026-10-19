@@ -215,6 +215,7 @@ version = "0.0.0"
 dependencies = [
  "ec-core",
  "ec-net",
+ "ec-sync",
  "ec-transfer",
  "libfuzzer-sys",
 ]
@@ -234,6 +235,21 @@ dependencies = [
  "serde",
  "thiserror",
  "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "ec-sync"
+version = "0.0.1"
+dependencies = [
+ "ec-core",
+ "ec-net",
+ "ec-transfer",
+ "hex",
+ "postcard",
+ "rand",
+ "serde",
+ "thiserror",
  "tracing",
 ]
 

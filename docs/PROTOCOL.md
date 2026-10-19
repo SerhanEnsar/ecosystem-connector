@@ -106,6 +106,8 @@ every stream on a regular connection names the service it belongs to:
 | `0` | bidirectional | Session: hello and ping |
 | `1` | bidirectional | Transfer control |
 | `2` | unidirectional | Transfer chunk |
+| `3` | bidirectional | Fling: a web page or text to show in an arrival card |
+| `4` | bidirectional | Linked files: sync control |
 
 A stream of an unknown kind is stopped.
 
@@ -182,6 +184,21 @@ resumes it.
 When every chunk is written, the receiver flushes each file to disk and renames it into
 place. It never overwrites: an existing name gets ` (1)`, ` (2)`, … before the extension.
 
+### New versions of linked files
+
+An offer of exactly one file may carry `Target { key }` before `OfferEnd`: the file is a
+new version of the linked file `key`. The receiver asks its linked files service where
+it goes; if the file is not linked with the sending device, the offer is answered with
+`Rejected { reason: "not linked" }`. An offer with a target and more than one file is
+rejected too.
+
+Before listing what it needs, the receiver looks for the chunks in its own copy of the
+file: it hashes that copy on the offer's chunk grid and copies every chunk whose hash
+the new version has, at any index, into the partial file. Only the rest is requested.
+When everything is verified, the linked files service moves the file into place
+instead of the usual non-colliding rename. If that fails, the receiver answers
+`Rejected` instead of `Done`, so the sender stops instead of retrying.
+
 ### Limits enforced by the receiver
 
 | What | Limit |
@@ -198,3 +215,32 @@ component may not be empty, `.` or `..`; may not contain `/ \ : * ? " < > |`, co
 characters or bidirectional overrides; may not end with a dot or space; and may not be
 a reserved Windows device name (`CON`, `NUL`, `COM1`, …). Folders are created one by
 one and must not be symbolic links.
+
+## Linked files (kind 4)
+
+Code: `crates/ec-sync`. Each message is one short stream: an announcement answered with
+`Reply`, an `Unlinked` notice, or a `Summary`. Hash lists follow an announcement in
+`Hashes` messages of at most 1024 hashes, as in a transfer offer.
+
+| Message | When | Carries |
+|---|---|---|
+| `Link { id, name, version, content }` | A file is linked with this device | A new linked file, named `name` on the sender |
+| `Changed { id, version, content }` | A new version was made | Its version vector and size; hashes follow |
+| `Resolved { id, version, content }` | A conflict was resolved | The chosen version |
+| `Hashes { id, start, hashes }` | After the three above | Chunk hashes `start..start + len` |
+| `Summary { entries, last }` | Every time two devices connect, in batches of 32 | The versions of all files both share |
+| `Unlinked { id }` | The sender left the link | — |
+| `Reply { id, want }` | Answer to `Link`, `Changed`, `Resolved`; with id all zeros, to the last `Summary` batch | Whether to send the contents |
+
+After `want: true` the sender sends the file as an ordinary transfer with
+`Target { key: id }` (see [New versions of linked files](#new-versions-of-linked-files)).
+The receiver only takes a transfer that matches the size and hashes it agreed to.
+
+**Capability.** `Hello` is unchanged: postcard rejects trailing bytes, so a new field
+would break older devices. A device that does not know kind 4 stops the summary stream;
+the sender then marks it as not supporting linked files and does not offer them for it.
+
+Limits enforced by the receiver: a file name is one `RelPath` component of at most 255
+bytes; a version vector has at most 16 devices; chunk sizes and counts follow the
+transfer limits. Messages about a file are accepted only from devices it is linked with.
+

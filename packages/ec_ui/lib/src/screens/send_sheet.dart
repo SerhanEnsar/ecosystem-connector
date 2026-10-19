@@ -32,12 +32,38 @@ Future<void> sendWithProgress(
   );
 }
 
+/// Links [path] with [device] and sends it, showing progress in a bottom sheet.
+Future<void> sendLinkedWithProgress(
+  BuildContext context,
+  EcController controller,
+  EcDevice device,
+  String path,
+) {
+  return showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (_) => SendSheet(
+      status: controller.sendLinkedFile(device, path),
+      device: device,
+      linked: true,
+    ),
+  );
+}
+
 /// Shows the progress of one send.
 class SendSheet extends StatefulWidget {
-  const SendSheet({super.key, required this.status, required this.device});
+  const SendSheet({
+    super.key,
+    required this.status,
+    required this.device,
+    this.linked = false,
+  });
 
   final Stream<SendStatus> status;
   final EcDevice device;
+
+  /// A linked file: kept up to date on both devices from now on.
+  final bool linked;
 
   @override
   State<SendSheet> createState() => _SendSheetState();
@@ -103,9 +129,16 @@ class _SendSheetState extends State<SendSheet> {
           const Icon(Icons.check_circle, size: 40),
           const SizedBox(height: 8),
           Text(
-            'Sent ${files == 1 ? '1 file' : '$files files'} to $name',
+            widget.linked
+                ? 'Linked with $name'
+                : 'Sent ${files == 1 ? '1 file' : '$files files'} to $name',
             style: text.titleMedium,
           ),
+          if (widget.linked)
+            Text(
+              'Edits on either device now reach the other.',
+              style: text.bodySmall,
+            ),
           Text(
             '${formatBytes(bytes)} at ${formatBytes(bytesPerSecond)}/s',
             style: text.bodySmall,

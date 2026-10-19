@@ -63,6 +63,8 @@ Future<void> flingMain() async {
       deviceName: () async =>
           await fling.invokeMethod<String>('deviceName') ?? 'Android',
       receiveDir: () async => (await fling.invokeMethod<String>('receiveDir'))!,
+      // A shared file's original cannot be watched; its copy in Linked/ is linked.
+      copyIntoLinked: true,
       showArrival: (arrival) async {
         arrivals.add(arrival);
         return true;
@@ -82,6 +84,8 @@ PlatformHooks _hooks({
       await _platform.invokeMethod<String>('deviceName') ?? 'Android',
   receiveDir: () async => (await _platform.invokeMethod<String>('receiveDir'))!,
   beforeStart: beforeStart,
+  // A shared file's original cannot be watched; its copy in Linked/ is linked.
+  copyIntoLinked: true,
   scanInvite: () => _platform.invokeMethod<String>('scanInvite'),
   sharedFiles: sharedFiles,
   incomingInvites: incomingInvites,

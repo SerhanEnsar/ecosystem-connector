@@ -47,7 +47,7 @@ flowchart TB
 | `ec-core` | Long-term device key (Ed25519), device name, pairing handshake, trust store of paired devices. |
 | `ec-net` | mDNS advertisement and discovery, QUIC connections (quinn) with mutual TLS 1.3 using pinned certificates derived from device keys, path changes. |
 | `ec-transfer` | Splits files into chunks, sends them over parallel streams, verifies BLAKE3 hashes, resumes from the missing chunks, sends only changed chunks of edited files. |
-| `ec-sync` | Linked files: a stable file ID shared by all devices, version vectors, file watching, history of previous versions, conflict copies. |
+| `ec-sync` | Linked files: a link id shared by all devices, version vectors, the journal and change log, file watching, conflicts. |
 | `ec-runtime` | A running device: identity, trust store, node, presence, remembered addresses, one connection per paired device, pairing, sending and receiving. Used by the apps and tested on its own. |
 | `ec-ffi` | flutter_rust_bridge API over `ec-runtime` for the Flutter apps (crate `ec_ffi`). |
 | `ec-clipboard` | Clipboard and link messages. |
@@ -92,12 +92,44 @@ If the connection carrying the control stream fails, the sender starts a new att
 the receiver hashes its partial files and asks only for what is missing. Details:
 [PROTOCOL.md](PROTOCOL.md#file-transfer-kinds-1-and-2).
 
-### Linked files (planned)
+### Linked files
 
-A linked file has the same ID on every device. When it changes on disk, the watcher waits
-for writes to settle, hashes the chunks, and sends only the changed ones to the peers.
-Each device shows whether its copy is current, updating or in conflict. If two devices
-edit the same version, both are kept and the user picks one.
+Implemented in phase 4 (`ec-sync`). Design:
+[superpowers/specs/2026-10-19-linked-files-design.md](superpowers/specs/2026-10-19-linked-files-design.md).
+
+A linked file has the same link id on every device and a **version vector**: each device
+numbers its own changes. A version that includes all changes of another follows it;
+two versions that each have changes the other lacks were made independently, which is a
+conflict. Clocks are never compared between devices.
+
+```mermaid
+sequenceDiagram
+    participant M as Mac
+    participant T as Tablet
+    Note over M: saved; quiet for 2 s; size or time changed → hash
+    M->>M: Mac's counter + 1, log entry
+    M->>T: sync: Changed { id, version, hashes }
+    Note over T: version follows mine → update
+    T->>M: sync: Reply { want: true }
+    M->>T: transfer with Target { id }: only chunks the tablet lacks
+    Note over T: unchanged since last look? replace in one step : keep as conflict
+```
+
+The **watcher** hashes a file only when its size or modification time changed, and only
+after two quiet seconds. File system events (FSEvents, inotify) say when to look; a
+periodic check of size and time (every 5 s in the Android app, 60 s elsewhere) covers
+folders where events are unreliable. A file that is no longer at its path is looked for
+by its identity on the volume: found, it was moved and syncing continues; gone with a
+delete event, it was deleted and this device leaves the link; otherwise it is *missing*
+and the link is kept.
+
+On the receiving device linked files go to `<receive folder>/Linked/<date>/`. A received
+version is placed by the linked files service instead of the usual non-colliding rename:
+it replaces the file if the file is unchanged since the device last looked, and
+otherwise waits as a conflict, so a local edit is never overwritten. Chunks the local
+copy already has, at any index, are copied from it rather than received. No old
+versions are kept; a conflicting version waits until the user chooses, then goes to the
+Trash. A device linked with several others passes a received version on to the rest.
 
 ## Platform constraints
 

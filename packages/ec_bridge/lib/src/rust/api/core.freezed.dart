@@ -56,7 +56,7 @@ extension CoreEventPatterns on CoreEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CoreEvent_DevicesChanged value)?  devicesChanged,TResult Function( CoreEvent_Paired value)?  paired,TResult Function( CoreEvent_ReceiveStarted value)?  receiveStarted,TResult Function( CoreEvent_ReceiveProgress value)?  receiveProgress,TResult Function( CoreEvent_Saved value)?  saved,TResult Function( CoreEvent_FlingUrl value)?  flingUrl,TResult Function( CoreEvent_FlingText value)?  flingText,TResult Function( CoreEvent_ReceiveFinished value)?  receiveFinished,TResult Function( CoreEvent_ReceiveInterrupted value)?  receiveInterrupted,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CoreEvent_DevicesChanged value)?  devicesChanged,TResult Function( CoreEvent_Paired value)?  paired,TResult Function( CoreEvent_ReceiveStarted value)?  receiveStarted,TResult Function( CoreEvent_ReceiveProgress value)?  receiveProgress,TResult Function( CoreEvent_Saved value)?  saved,TResult Function( CoreEvent_FlingUrl value)?  flingUrl,TResult Function( CoreEvent_FlingText value)?  flingText,TResult Function( CoreEvent_ReceiveFinished value)?  receiveFinished,TResult Function( CoreEvent_ReceiveInterrupted value)?  receiveInterrupted,TResult Function( CoreEvent_Linked value)?  linked,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case CoreEvent_DevicesChanged() when devicesChanged != null:
@@ -68,7 +68,8 @@ return saved(_that);case CoreEvent_FlingUrl() when flingUrl != null:
 return flingUrl(_that);case CoreEvent_FlingText() when flingText != null:
 return flingText(_that);case CoreEvent_ReceiveFinished() when receiveFinished != null:
 return receiveFinished(_that);case CoreEvent_ReceiveInterrupted() when receiveInterrupted != null:
-return receiveInterrupted(_that);case _:
+return receiveInterrupted(_that);case CoreEvent_Linked() when linked != null:
+return linked(_that);case _:
   return orElse();
 
 }
@@ -86,7 +87,7 @@ return receiveInterrupted(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CoreEvent_DevicesChanged value)  devicesChanged,required TResult Function( CoreEvent_Paired value)  paired,required TResult Function( CoreEvent_ReceiveStarted value)  receiveStarted,required TResult Function( CoreEvent_ReceiveProgress value)  receiveProgress,required TResult Function( CoreEvent_Saved value)  saved,required TResult Function( CoreEvent_FlingUrl value)  flingUrl,required TResult Function( CoreEvent_FlingText value)  flingText,required TResult Function( CoreEvent_ReceiveFinished value)  receiveFinished,required TResult Function( CoreEvent_ReceiveInterrupted value)  receiveInterrupted,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CoreEvent_DevicesChanged value)  devicesChanged,required TResult Function( CoreEvent_Paired value)  paired,required TResult Function( CoreEvent_ReceiveStarted value)  receiveStarted,required TResult Function( CoreEvent_ReceiveProgress value)  receiveProgress,required TResult Function( CoreEvent_Saved value)  saved,required TResult Function( CoreEvent_FlingUrl value)  flingUrl,required TResult Function( CoreEvent_FlingText value)  flingText,required TResult Function( CoreEvent_ReceiveFinished value)  receiveFinished,required TResult Function( CoreEvent_ReceiveInterrupted value)  receiveInterrupted,required TResult Function( CoreEvent_Linked value)  linked,}){
 final _that = this;
 switch (_that) {
 case CoreEvent_DevicesChanged():
@@ -98,7 +99,8 @@ return saved(_that);case CoreEvent_FlingUrl():
 return flingUrl(_that);case CoreEvent_FlingText():
 return flingText(_that);case CoreEvent_ReceiveFinished():
 return receiveFinished(_that);case CoreEvent_ReceiveInterrupted():
-return receiveInterrupted(_that);}
+return receiveInterrupted(_that);case CoreEvent_Linked():
+return linked(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -112,7 +114,7 @@ return receiveInterrupted(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CoreEvent_DevicesChanged value)?  devicesChanged,TResult? Function( CoreEvent_Paired value)?  paired,TResult? Function( CoreEvent_ReceiveStarted value)?  receiveStarted,TResult? Function( CoreEvent_ReceiveProgress value)?  receiveProgress,TResult? Function( CoreEvent_Saved value)?  saved,TResult? Function( CoreEvent_FlingUrl value)?  flingUrl,TResult? Function( CoreEvent_FlingText value)?  flingText,TResult? Function( CoreEvent_ReceiveFinished value)?  receiveFinished,TResult? Function( CoreEvent_ReceiveInterrupted value)?  receiveInterrupted,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CoreEvent_DevicesChanged value)?  devicesChanged,TResult? Function( CoreEvent_Paired value)?  paired,TResult? Function( CoreEvent_ReceiveStarted value)?  receiveStarted,TResult? Function( CoreEvent_ReceiveProgress value)?  receiveProgress,TResult? Function( CoreEvent_Saved value)?  saved,TResult? Function( CoreEvent_FlingUrl value)?  flingUrl,TResult? Function( CoreEvent_FlingText value)?  flingText,TResult? Function( CoreEvent_ReceiveFinished value)?  receiveFinished,TResult? Function( CoreEvent_ReceiveInterrupted value)?  receiveInterrupted,TResult? Function( CoreEvent_Linked value)?  linked,}){
 final _that = this;
 switch (_that) {
 case CoreEvent_DevicesChanged() when devicesChanged != null:
@@ -124,7 +126,8 @@ return saved(_that);case CoreEvent_FlingUrl() when flingUrl != null:
 return flingUrl(_that);case CoreEvent_FlingText() when flingText != null:
 return flingText(_that);case CoreEvent_ReceiveFinished() when receiveFinished != null:
 return receiveFinished(_that);case CoreEvent_ReceiveInterrupted() when receiveInterrupted != null:
-return receiveInterrupted(_that);case _:
+return receiveInterrupted(_that);case CoreEvent_Linked() when linked != null:
+return linked(_that);case _:
   return null;
 
 }
@@ -141,7 +144,7 @@ return receiveInterrupted(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  devicesChanged,TResult Function( String name)?  paired,TResult Function( String from,  int files,  BigInt totalBytes,  BigInt alreadyHave)?  receiveStarted,TResult Function( BigInt received,  BigInt total)?  receiveProgress,TResult Function( String path,  bool open,  int? page)?  saved,TResult Function( String from,  String url,  String title)?  flingUrl,TResult Function( String from,  String text)?  flingText,TResult Function()?  receiveFinished,TResult Function( String reason)?  receiveInterrupted,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  devicesChanged,TResult Function( String name)?  paired,TResult Function( String from,  int files,  BigInt totalBytes,  BigInt alreadyHave)?  receiveStarted,TResult Function( BigInt received,  BigInt total)?  receiveProgress,TResult Function( String path,  bool open,  int? page)?  saved,TResult Function( String from,  String url,  String title)?  flingUrl,TResult Function( String from,  String text)?  flingText,TResult Function()?  receiveFinished,TResult Function( String reason)?  receiveInterrupted,TResult Function( String id,  LinkedEventKind kind)?  linked,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case CoreEvent_DevicesChanged() when devicesChanged != null:
 return devicesChanged();case CoreEvent_Paired() when paired != null:
@@ -152,7 +155,8 @@ return saved(_that.path,_that.open,_that.page);case CoreEvent_FlingUrl() when fl
 return flingUrl(_that.from,_that.url,_that.title);case CoreEvent_FlingText() when flingText != null:
 return flingText(_that.from,_that.text);case CoreEvent_ReceiveFinished() when receiveFinished != null:
 return receiveFinished();case CoreEvent_ReceiveInterrupted() when receiveInterrupted != null:
-return receiveInterrupted(_that.reason);case _:
+return receiveInterrupted(_that.reason);case CoreEvent_Linked() when linked != null:
+return linked(_that.id,_that.kind);case _:
   return orElse();
 
 }
@@ -170,7 +174,7 @@ return receiveInterrupted(_that.reason);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  devicesChanged,required TResult Function( String name)  paired,required TResult Function( String from,  int files,  BigInt totalBytes,  BigInt alreadyHave)  receiveStarted,required TResult Function( BigInt received,  BigInt total)  receiveProgress,required TResult Function( String path,  bool open,  int? page)  saved,required TResult Function( String from,  String url,  String title)  flingUrl,required TResult Function( String from,  String text)  flingText,required TResult Function()  receiveFinished,required TResult Function( String reason)  receiveInterrupted,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  devicesChanged,required TResult Function( String name)  paired,required TResult Function( String from,  int files,  BigInt totalBytes,  BigInt alreadyHave)  receiveStarted,required TResult Function( BigInt received,  BigInt total)  receiveProgress,required TResult Function( String path,  bool open,  int? page)  saved,required TResult Function( String from,  String url,  String title)  flingUrl,required TResult Function( String from,  String text)  flingText,required TResult Function()  receiveFinished,required TResult Function( String reason)  receiveInterrupted,required TResult Function( String id,  LinkedEventKind kind)  linked,}) {final _that = this;
 switch (_that) {
 case CoreEvent_DevicesChanged():
 return devicesChanged();case CoreEvent_Paired():
@@ -181,7 +185,8 @@ return saved(_that.path,_that.open,_that.page);case CoreEvent_FlingUrl():
 return flingUrl(_that.from,_that.url,_that.title);case CoreEvent_FlingText():
 return flingText(_that.from,_that.text);case CoreEvent_ReceiveFinished():
 return receiveFinished();case CoreEvent_ReceiveInterrupted():
-return receiveInterrupted(_that.reason);}
+return receiveInterrupted(_that.reason);case CoreEvent_Linked():
+return linked(_that.id,_that.kind);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -195,7 +200,7 @@ return receiveInterrupted(_that.reason);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  devicesChanged,TResult? Function( String name)?  paired,TResult? Function( String from,  int files,  BigInt totalBytes,  BigInt alreadyHave)?  receiveStarted,TResult? Function( BigInt received,  BigInt total)?  receiveProgress,TResult? Function( String path,  bool open,  int? page)?  saved,TResult? Function( String from,  String url,  String title)?  flingUrl,TResult? Function( String from,  String text)?  flingText,TResult? Function()?  receiveFinished,TResult? Function( String reason)?  receiveInterrupted,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  devicesChanged,TResult? Function( String name)?  paired,TResult? Function( String from,  int files,  BigInt totalBytes,  BigInt alreadyHave)?  receiveStarted,TResult? Function( BigInt received,  BigInt total)?  receiveProgress,TResult? Function( String path,  bool open,  int? page)?  saved,TResult? Function( String from,  String url,  String title)?  flingUrl,TResult? Function( String from,  String text)?  flingText,TResult? Function()?  receiveFinished,TResult? Function( String reason)?  receiveInterrupted,TResult? Function( String id,  LinkedEventKind kind)?  linked,}) {final _that = this;
 switch (_that) {
 case CoreEvent_DevicesChanged() when devicesChanged != null:
 return devicesChanged();case CoreEvent_Paired() when paired != null:
@@ -206,7 +211,8 @@ return saved(_that.path,_that.open,_that.page);case CoreEvent_FlingUrl() when fl
 return flingUrl(_that.from,_that.url,_that.title);case CoreEvent_FlingText() when flingText != null:
 return flingText(_that.from,_that.text);case CoreEvent_ReceiveFinished() when receiveFinished != null:
 return receiveFinished();case CoreEvent_ReceiveInterrupted() when receiveInterrupted != null:
-return receiveInterrupted(_that.reason);case _:
+return receiveInterrupted(_that.reason);case CoreEvent_Linked() when linked != null:
+return linked(_that.id,_that.kind);case _:
   return null;
 
 }
@@ -781,6 +787,729 @@ class _$CoreEvent_ReceiveInterruptedCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? reason = null,}) {
   return _then(CoreEvent_ReceiveInterrupted(
 reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class CoreEvent_Linked extends CoreEvent {
+  const CoreEvent_Linked({required this.id, required this.kind}): super._();
+  
+
+/// The link id.
+ final  String id;
+/// What happened.
+ final  LinkedEventKind kind;
+
+/// Create a copy of CoreEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$CoreEvent_LinkedCopyWith<CoreEvent_Linked> get copyWith => _$CoreEvent_LinkedCopyWithImpl<CoreEvent_Linked>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is CoreEvent_Linked&&(identical(other.id, id) || other.id == id)&&(identical(other.kind, kind) || other.kind == kind));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,id,kind);
+}
+
+@override
+String toString() {
+    return 'CoreEvent.linked(id: $id, kind: $kind)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $CoreEvent_LinkedCopyWith<$Res> implements $CoreEventCopyWith<$Res> {
+  factory $CoreEvent_LinkedCopyWith(CoreEvent_Linked value, $Res Function(CoreEvent_Linked) _then) = _$CoreEvent_LinkedCopyWithImpl;
+@useResult
+$Res call({
+ String id, LinkedEventKind kind
+});
+
+
+$LinkedEventKindCopyWith<$Res> get kind;
+
+}
+/// @nodoc
+class _$CoreEvent_LinkedCopyWithImpl<$Res>
+    implements $CoreEvent_LinkedCopyWith<$Res> {
+  _$CoreEvent_LinkedCopyWithImpl(this._self, this._then);
+
+  final CoreEvent_Linked _self;
+  final $Res Function(CoreEvent_Linked) _then;
+
+/// Create a copy of CoreEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,Object? kind = null,}) {
+  return _then(CoreEvent_Linked(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
+as LinkedEventKind,
+  ));
+}
+
+/// Create a copy of CoreEvent
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LinkedEventKindCopyWith<$Res> get kind {
+  
+  return $LinkedEventKindCopyWith<$Res>(_self.kind, (value) {
+    return _then(_self.copyWith(kind: value));
+  });
+}
+}
+
+/// @nodoc
+mixin _$LinkedEventKind {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is LinkedEventKind);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+    return 'LinkedEventKind()';
+}
+
+
+}
+
+/// @nodoc
+class $LinkedEventKindCopyWith<$Res>  {
+$LinkedEventKindCopyWith(LinkedEventKind _, $Res Function(LinkedEventKind) __);
+}
+
+
+/// Adds pattern-matching-related methods to [LinkedEventKind].
+extension LinkedEventKindPatterns on LinkedEventKind {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( LinkedEventKind_Arrived value)?  arrived,TResult Function( LinkedEventKind_Updated value)?  updated,TResult Function( LinkedEventKind_Conflict value)?  conflict,TResult Function( LinkedEventKind_Resolved value)?  resolved,TResult Function( LinkedEventKind_PeerLeft value)?  peerLeft,TResult Function( LinkedEventKind_Left value)?  left,TResult Function( LinkedEventKind_Missing value)?  missing,TResult Function( LinkedEventKind_Found value)?  found,TResult Function( LinkedEventKind_Moved value)?  moved,TResult Function( LinkedEventKind_Error value)?  error,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case LinkedEventKind_Arrived() when arrived != null:
+return arrived(_that);case LinkedEventKind_Updated() when updated != null:
+return updated(_that);case LinkedEventKind_Conflict() when conflict != null:
+return conflict(_that);case LinkedEventKind_Resolved() when resolved != null:
+return resolved(_that);case LinkedEventKind_PeerLeft() when peerLeft != null:
+return peerLeft(_that);case LinkedEventKind_Left() when left != null:
+return left(_that);case LinkedEventKind_Missing() when missing != null:
+return missing(_that);case LinkedEventKind_Found() when found != null:
+return found(_that);case LinkedEventKind_Moved() when moved != null:
+return moved(_that);case LinkedEventKind_Error() when error != null:
+return error(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( LinkedEventKind_Arrived value)  arrived,required TResult Function( LinkedEventKind_Updated value)  updated,required TResult Function( LinkedEventKind_Conflict value)  conflict,required TResult Function( LinkedEventKind_Resolved value)  resolved,required TResult Function( LinkedEventKind_PeerLeft value)  peerLeft,required TResult Function( LinkedEventKind_Left value)  left,required TResult Function( LinkedEventKind_Missing value)  missing,required TResult Function( LinkedEventKind_Found value)  found,required TResult Function( LinkedEventKind_Moved value)  moved,required TResult Function( LinkedEventKind_Error value)  error,}){
+final _that = this;
+switch (_that) {
+case LinkedEventKind_Arrived():
+return arrived(_that);case LinkedEventKind_Updated():
+return updated(_that);case LinkedEventKind_Conflict():
+return conflict(_that);case LinkedEventKind_Resolved():
+return resolved(_that);case LinkedEventKind_PeerLeft():
+return peerLeft(_that);case LinkedEventKind_Left():
+return left(_that);case LinkedEventKind_Missing():
+return missing(_that);case LinkedEventKind_Found():
+return found(_that);case LinkedEventKind_Moved():
+return moved(_that);case LinkedEventKind_Error():
+return error(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( LinkedEventKind_Arrived value)?  arrived,TResult? Function( LinkedEventKind_Updated value)?  updated,TResult? Function( LinkedEventKind_Conflict value)?  conflict,TResult? Function( LinkedEventKind_Resolved value)?  resolved,TResult? Function( LinkedEventKind_PeerLeft value)?  peerLeft,TResult? Function( LinkedEventKind_Left value)?  left,TResult? Function( LinkedEventKind_Missing value)?  missing,TResult? Function( LinkedEventKind_Found value)?  found,TResult? Function( LinkedEventKind_Moved value)?  moved,TResult? Function( LinkedEventKind_Error value)?  error,}){
+final _that = this;
+switch (_that) {
+case LinkedEventKind_Arrived() when arrived != null:
+return arrived(_that);case LinkedEventKind_Updated() when updated != null:
+return updated(_that);case LinkedEventKind_Conflict() when conflict != null:
+return conflict(_that);case LinkedEventKind_Resolved() when resolved != null:
+return resolved(_that);case LinkedEventKind_PeerLeft() when peerLeft != null:
+return peerLeft(_that);case LinkedEventKind_Left() when left != null:
+return left(_that);case LinkedEventKind_Missing() when missing != null:
+return missing(_that);case LinkedEventKind_Found() when found != null:
+return found(_that);case LinkedEventKind_Moved() when moved != null:
+return moved(_that);case LinkedEventKind_Error() when error != null:
+return error(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String path,  String from)?  arrived,TResult Function()?  updated,TResult Function()?  conflict,TResult Function()?  resolved,TResult Function( String device)?  peerLeft,TResult Function()?  left,TResult Function()?  missing,TResult Function()?  found,TResult Function()?  moved,TResult Function( String message)?  error,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case LinkedEventKind_Arrived() when arrived != null:
+return arrived(_that.path,_that.from);case LinkedEventKind_Updated() when updated != null:
+return updated();case LinkedEventKind_Conflict() when conflict != null:
+return conflict();case LinkedEventKind_Resolved() when resolved != null:
+return resolved();case LinkedEventKind_PeerLeft() when peerLeft != null:
+return peerLeft(_that.device);case LinkedEventKind_Left() when left != null:
+return left();case LinkedEventKind_Missing() when missing != null:
+return missing();case LinkedEventKind_Found() when found != null:
+return found();case LinkedEventKind_Moved() when moved != null:
+return moved();case LinkedEventKind_Error() when error != null:
+return error(_that.message);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String path,  String from)  arrived,required TResult Function()  updated,required TResult Function()  conflict,required TResult Function()  resolved,required TResult Function( String device)  peerLeft,required TResult Function()  left,required TResult Function()  missing,required TResult Function()  found,required TResult Function()  moved,required TResult Function( String message)  error,}) {final _that = this;
+switch (_that) {
+case LinkedEventKind_Arrived():
+return arrived(_that.path,_that.from);case LinkedEventKind_Updated():
+return updated();case LinkedEventKind_Conflict():
+return conflict();case LinkedEventKind_Resolved():
+return resolved();case LinkedEventKind_PeerLeft():
+return peerLeft(_that.device);case LinkedEventKind_Left():
+return left();case LinkedEventKind_Missing():
+return missing();case LinkedEventKind_Found():
+return found();case LinkedEventKind_Moved():
+return moved();case LinkedEventKind_Error():
+return error(_that.message);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String path,  String from)?  arrived,TResult? Function()?  updated,TResult? Function()?  conflict,TResult? Function()?  resolved,TResult? Function( String device)?  peerLeft,TResult? Function()?  left,TResult? Function()?  missing,TResult? Function()?  found,TResult? Function()?  moved,TResult? Function( String message)?  error,}) {final _that = this;
+switch (_that) {
+case LinkedEventKind_Arrived() when arrived != null:
+return arrived(_that.path,_that.from);case LinkedEventKind_Updated() when updated != null:
+return updated();case LinkedEventKind_Conflict() when conflict != null:
+return conflict();case LinkedEventKind_Resolved() when resolved != null:
+return resolved();case LinkedEventKind_PeerLeft() when peerLeft != null:
+return peerLeft(_that.device);case LinkedEventKind_Left() when left != null:
+return left();case LinkedEventKind_Missing() when missing != null:
+return missing();case LinkedEventKind_Found() when found != null:
+return found();case LinkedEventKind_Moved() when moved != null:
+return moved();case LinkedEventKind_Error() when error != null:
+return error(_that.message);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class LinkedEventKind_Arrived extends LinkedEventKind {
+  const LinkedEventKind_Arrived({required this.path, required this.from}): super._();
+  
+
+/// Where it was saved.
+ final  String path;
+/// The sending device's name.
+ final  String from;
+
+/// Create a copy of LinkedEventKind
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LinkedEventKind_ArrivedCopyWith<LinkedEventKind_Arrived> get copyWith => _$LinkedEventKind_ArrivedCopyWithImpl<LinkedEventKind_Arrived>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is LinkedEventKind_Arrived&&(identical(other.path, path) || other.path == path)&&(identical(other.from, from) || other.from == from));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,path,from);
+}
+
+@override
+String toString() {
+    return 'LinkedEventKind.arrived(path: $path, from: $from)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LinkedEventKind_ArrivedCopyWith<$Res> implements $LinkedEventKindCopyWith<$Res> {
+  factory $LinkedEventKind_ArrivedCopyWith(LinkedEventKind_Arrived value, $Res Function(LinkedEventKind_Arrived) _then) = _$LinkedEventKind_ArrivedCopyWithImpl;
+@useResult
+$Res call({
+ String path, String from
+});
+
+
+
+
+}
+/// @nodoc
+class _$LinkedEventKind_ArrivedCopyWithImpl<$Res>
+    implements $LinkedEventKind_ArrivedCopyWith<$Res> {
+  _$LinkedEventKind_ArrivedCopyWithImpl(this._self, this._then);
+
+  final LinkedEventKind_Arrived _self;
+  final $Res Function(LinkedEventKind_Arrived) _then;
+
+/// Create a copy of LinkedEventKind
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? path = null,Object? from = null,}) {
+  return _then(LinkedEventKind_Arrived(
+path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
+as String,from: null == from ? _self.from : from // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class LinkedEventKind_Updated extends LinkedEventKind {
+  const LinkedEventKind_Updated(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is LinkedEventKind_Updated);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+    return 'LinkedEventKind.updated()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class LinkedEventKind_Conflict extends LinkedEventKind {
+  const LinkedEventKind_Conflict(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is LinkedEventKind_Conflict);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+    return 'LinkedEventKind.conflict()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class LinkedEventKind_Resolved extends LinkedEventKind {
+  const LinkedEventKind_Resolved(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is LinkedEventKind_Resolved);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+    return 'LinkedEventKind.resolved()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class LinkedEventKind_PeerLeft extends LinkedEventKind {
+  const LinkedEventKind_PeerLeft({required this.device}): super._();
+  
+
+/// Its name.
+ final  String device;
+
+/// Create a copy of LinkedEventKind
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LinkedEventKind_PeerLeftCopyWith<LinkedEventKind_PeerLeft> get copyWith => _$LinkedEventKind_PeerLeftCopyWithImpl<LinkedEventKind_PeerLeft>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is LinkedEventKind_PeerLeft&&(identical(other.device, device) || other.device == device));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,device);
+}
+
+@override
+String toString() {
+    return 'LinkedEventKind.peerLeft(device: $device)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LinkedEventKind_PeerLeftCopyWith<$Res> implements $LinkedEventKindCopyWith<$Res> {
+  factory $LinkedEventKind_PeerLeftCopyWith(LinkedEventKind_PeerLeft value, $Res Function(LinkedEventKind_PeerLeft) _then) = _$LinkedEventKind_PeerLeftCopyWithImpl;
+@useResult
+$Res call({
+ String device
+});
+
+
+
+
+}
+/// @nodoc
+class _$LinkedEventKind_PeerLeftCopyWithImpl<$Res>
+    implements $LinkedEventKind_PeerLeftCopyWith<$Res> {
+  _$LinkedEventKind_PeerLeftCopyWithImpl(this._self, this._then);
+
+  final LinkedEventKind_PeerLeft _self;
+  final $Res Function(LinkedEventKind_PeerLeft) _then;
+
+/// Create a copy of LinkedEventKind
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? device = null,}) {
+  return _then(LinkedEventKind_PeerLeft(
+device: null == device ? _self.device : device // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class LinkedEventKind_Left extends LinkedEventKind {
+  const LinkedEventKind_Left(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is LinkedEventKind_Left);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+    return 'LinkedEventKind.left()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class LinkedEventKind_Missing extends LinkedEventKind {
+  const LinkedEventKind_Missing(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is LinkedEventKind_Missing);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+    return 'LinkedEventKind.missing()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class LinkedEventKind_Found extends LinkedEventKind {
+  const LinkedEventKind_Found(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is LinkedEventKind_Found);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+    return 'LinkedEventKind.found()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class LinkedEventKind_Moved extends LinkedEventKind {
+  const LinkedEventKind_Moved(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is LinkedEventKind_Moved);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+    return 'LinkedEventKind.moved()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class LinkedEventKind_Error extends LinkedEventKind {
+  const LinkedEventKind_Error({required this.message}): super._();
+  
+
+/// What.
+ final  String message;
+
+/// Create a copy of LinkedEventKind
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LinkedEventKind_ErrorCopyWith<LinkedEventKind_Error> get copyWith => _$LinkedEventKind_ErrorCopyWithImpl<LinkedEventKind_Error>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is LinkedEventKind_Error&&(identical(other.message, message) || other.message == message));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,message);
+}
+
+@override
+String toString() {
+    return 'LinkedEventKind.error(message: $message)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LinkedEventKind_ErrorCopyWith<$Res> implements $LinkedEventKindCopyWith<$Res> {
+  factory $LinkedEventKind_ErrorCopyWith(LinkedEventKind_Error value, $Res Function(LinkedEventKind_Error) _then) = _$LinkedEventKind_ErrorCopyWithImpl;
+@useResult
+$Res call({
+ String message
+});
+
+
+
+
+}
+/// @nodoc
+class _$LinkedEventKind_ErrorCopyWithImpl<$Res>
+    implements $LinkedEventKind_ErrorCopyWith<$Res> {
+  _$LinkedEventKind_ErrorCopyWithImpl(this._self, this._then);
+
+  final LinkedEventKind_Error _self;
+  final $Res Function(LinkedEventKind_Error) _then;
+
+/// Create a copy of LinkedEventKind
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
+  return _then(LinkedEventKind_Error(
+message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }

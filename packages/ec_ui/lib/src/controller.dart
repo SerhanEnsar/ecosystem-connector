@@ -99,4 +99,39 @@ abstract class EcController extends ChangeNotifier {
 
   /// Opens a received file with the system's default app.
   Future<void> open(String path);
+
+  /// Whether "Send linked" was chosen last time, so the choice is remembered.
+  bool get sendLinked;
+  set sendLinked(bool value);
+
+  /// Links the file at [path] with [device] and sends it; afterwards edits on either
+  /// device reach the other.
+  Stream<SendStatus> sendLinkedFile(EcDevice device, String path);
+
+  /// Every linked file.
+  List<EcLinkedFile> get linkedFiles;
+
+  /// The log of a linked file, newest first.
+  Future<List<EcLinkedLog>> linkedLog(String id);
+
+  /// A linked file in conflict that has not been shown or dismissed yet.
+  EcLinkedFile? get pendingConflict;
+
+  /// Hides the conflict card of [id]; the conflict stays in the Linked files screen.
+  void dismissConflict(String id);
+
+  /// Resolves a conflict: keeps the other device's version or this device's.
+  Future<void> resolveConflict(String id, {required bool keepTheirs});
+
+  /// Deletes the waiting version of a conflict, keeping this device's.
+  Future<void> deleteConflict(String id);
+
+  /// Stops syncing a file on this device. The file stays.
+  Future<void> leaveLink(String id);
+
+  /// Lets the user show where a missing linked file is now.
+  Future<void> locateLinked(String id);
+
+  /// Lets the user pick a file and links it with [device].
+  Future<void> linkFile(EcDevice device);
 }

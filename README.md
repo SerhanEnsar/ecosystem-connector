@@ -33,7 +33,7 @@ edit again, send again, and soon every device holds a different copy.
 Platform ecosystems solve this only inside their own walls. ECOnnector does it
 across platforms: Mac ↔ Android, Android ↔ Android, Windows ↔ Mac, Windows ↔ Android.
 
-## Features (planned)
+## Features
 
 | Feature | What it does | Status |
 |---|---|---|
@@ -41,7 +41,7 @@ across platforms: Mac ↔ Android, Android ↔ Android, Windows ↔ Mac, Windows
 | **Fling** | On Android, swipe in from the strip on the screen edge: the screen shrinks into a card. Keep dragging it onto a device at the bottom to send the screenshot or the web page in the browser. Share → ECOnnector in any app opens the same card for files, links and text. On the Mac, Share → ECOnnector asks which device to send to. | Android, macOS, pre-release |
 | **Arrival cards** | Received files and pages arrive as a drop at the top of the screen that spreads into a card: show in folder, open, save elsewhere. Nothing opens by itself. | macOS and Android, pre-release |
 | **Cable boost** | Plug in a USB-C cable (USB tethering or Thunderbolt bridge) and an active transfer starts using the faster path without restarting. | Core done, device test pending |
-| **Linked files** | One file, one version on every device. Edit it anywhere and the others update within seconds. No duplicate copies. | Planned |
+| **Linked files** | One file, one version on every device. Edit it anywhere and the others update within seconds, sending only what changed. No duplicate copies; edits made while apart become a conflict card, and a moved file keeps syncing. | Android, macOS, pre-release |
 | **Shared clipboard** | Copy on one device, paste on another. Send the current browser tab. | Planned |
 | **Handoff** | "Continue on this device?" for the file or web page open on your other device. | Planned |
 
@@ -78,7 +78,7 @@ Details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the wire format in
 - [x] Phase 1: device identity, pairing, discovery, encrypted connection
 - [x] Phase 2: fast resumable transfer and cable boost, first benchmarks
 - [ ] Phase 3: desktop and Android apps (3a: apps on the core ✓, 3b: Fling and arrival cards ✓)
-- [ ] Phase 4: linked files
+- [ ] Phase 4: linked files (Android and macOS ✓, Windows app next)
 - [ ] Phase 5: shared clipboard and browser extension
 - [ ] Phase 6: handoff
 - [ ] Phase 7: signed releases

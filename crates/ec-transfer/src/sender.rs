@@ -60,6 +60,8 @@ pub struct SendOptions {
     pub reuse: Option<ConnSource>,
     /// Asks the receiver to open the files once saved (a fling).
     pub open: Option<OpenHint>,
+    /// Sends the single file as a new version of this linked file.
+    pub target: Option<[u8; 16]>,
 }
 
 /// Returns an existing connection with the peer, if any.
@@ -73,6 +75,7 @@ impl Default for SendOptions {
             rediscover: None,
             reuse: None,
             open: None,
+            target: None,
         }
     }
 }
@@ -263,7 +266,7 @@ async fn run_attempt(
         None => node.connect(peer, addrs).await?,
     };
     let (mut send, mut recv) = conn.open_bi(CONTROL_KIND).await?;
-    write_offer(&mut send, id, files, options.open).await?;
+    write_offer(&mut send, id, files, options.open, options.target).await?;
     let needed = read_needs(&mut recv, files).await?;
 
     let to_send: u64 = needed
@@ -460,6 +463,7 @@ async fn write_offer(
     id: TransferId,
     files: &[SourceFile],
     open: Option<OpenHint>,
+    target: Option<[u8; 16]>,
 ) -> Result<()> {
     let total_bytes = files.iter().map(|f| f.entry.size).sum();
     write_msg(
@@ -495,6 +499,9 @@ async fn write_offer(
             page: hint.page,
         };
         write_msg(send, &msg).await?;
+    }
+    if let Some(key) = target {
+        write_msg(send, &Control::Target { key }).await?;
     }
     write_msg(send, &Control::OfferEnd).await?;
     Ok(())
@@ -552,6 +559,8 @@ async fn read_acks(mut recv: RecvStream, attempt: Arc<Attempt>) -> Result<()> {
             }
             Control::FileDone { .. } => {}
             Control::Done => return Ok(()),
+            // The receiver could not save the result (a linked file it cannot place).
+            Control::Rejected { reason } => return Err(Error::Rejected(reason)),
             _ => return Err(Error::Protocol("unexpected message during transfer")),
         }
     }

@@ -9,13 +9,16 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'core.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `confirm_through`, `convert`, `finish_pairing`, `running`, `wrap`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`
+// These functions are ignored because they are not marked as `pub`: `confirm_through`, `convert_sync`, `convert`, `device_name`, `finish_pairing`, `link_id`, `log_text`, `running`, `wrap`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EcCore>>
 abstract class EcCore implements RustOpaqueInterface {
   /// The user's answer to the last [`PairingEvent::Confirm`].
   void answerPairing({required bool accept});
+
+  /// Deletes the waiting version of a conflict, keeping this device's.
+  void deleteConflict({required String id});
 
   /// Paired devices.
   List<DeviceView> devices();
@@ -42,6 +45,15 @@ abstract class EcCore implements RustOpaqueInterface {
   /// Joins the device that shows `invite`.
   Stream<PairingEvent> joinPairing({required String invite});
 
+  /// Stops syncing a file on this device. The file stays.
+  void leaveLink({required String id});
+
+  /// Every linked file.
+  List<LinkedView> linkedFiles();
+
+  /// The log of a linked file, newest first.
+  List<LinkedLogView> linkedLog({required String id});
+
   /// This device's full id.
   String myId();
 
@@ -57,6 +69,13 @@ abstract class EcCore implements RustOpaqueInterface {
   /// Whether received files go to the app's default folder.
   bool receiveDirIsDefault();
 
+  /// Records where a linked file is now (found by the app, for example through a
+  /// bookmark). A path in the Trash means it was deleted.
+  void relocateLinked({required String id, required String path});
+
+  /// Resolves a conflict, keeping the other device's version or this one's.
+  void resolveConflict({required String id, required bool keepTheirs});
+
   /// Sends files and folders to a paired device. With `open`, it opens them on
   /// arrival (a fling), at `page` if given.
   Stream<SendUpdate> send({
@@ -65,6 +84,18 @@ abstract class EcCore implements RustOpaqueInterface {
     required bool open,
     int? page,
   });
+
+  /// Links a file with a paired device and sends it. On Android pass
+  /// `copy_into_linked`: the shared file is copied into the Linked folder first.
+  /// Returns the link id.
+  Future<String> sendLinked({
+    required String deviceId,
+    required String path,
+    required bool copyIntoLinked,
+  });
+
+  /// How often linked files are checked without a file system event, in seconds.
+  void setLinkedCheckInterval({required int seconds});
 
   /// Saves received files to `path` from the next transfer on; `None` goes back to
   /// the default folder. Returns the folder now in use.
@@ -77,6 +108,67 @@ abstract class EcCore implements RustOpaqueInterface {
   /// again with the same home returns the running core instead of a second one.
   static Future<EcCore> start({required CoreConfig config}) =>
       RustLib.instance.api.crateApiCoreEcCoreStart(config: config);
+
+  /// Files set aside for the system Trash (with `use_system_trash`). The app moves
+  /// each to the Trash; they stay listed until it does.
+  List<String> takePendingTrash();
+}
+
+/// The two versions of a file in conflict.
+class ConflictView {
+  /// This device's name.
+  final String mineDevice;
+
+  /// When this device's version was last changed (ms since the Unix epoch).
+  final BigInt mineAtMs;
+
+  /// Its size.
+  final BigInt mineSize;
+
+  /// The other device's name.
+  final String theirsDevice;
+
+  /// When the other version arrived (ms since the Unix epoch).
+  final BigInt theirsAtMs;
+
+  /// Its size.
+  final BigInt theirsSize;
+
+  /// Where the other version waits, to open it.
+  final String theirsPath;
+
+  const ConflictView({
+    required this.mineDevice,
+    required this.mineAtMs,
+    required this.mineSize,
+    required this.theirsDevice,
+    required this.theirsAtMs,
+    required this.theirsSize,
+    required this.theirsPath,
+  });
+
+  @override
+  int get hashCode =>
+      mineDevice.hashCode ^
+      mineAtMs.hashCode ^
+      mineSize.hashCode ^
+      theirsDevice.hashCode ^
+      theirsAtMs.hashCode ^
+      theirsSize.hashCode ^
+      theirsPath.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ConflictView &&
+          runtimeType == other.runtimeType &&
+          mineDevice == other.mineDevice &&
+          mineAtMs == other.mineAtMs &&
+          mineSize == other.mineSize &&
+          theirsDevice == other.theirsDevice &&
+          theirsAtMs == other.theirsAtMs &&
+          theirsSize == other.theirsSize &&
+          theirsPath == other.theirsPath;
 }
 
 /// Where the core keeps its data.
@@ -90,14 +182,23 @@ class CoreConfig {
   /// Folder for received files.
   final String receiveDir;
 
+  /// Whether the platform has a Trash for files the user chose not to keep (macOS).
+  /// They are then set aside for [`EcCore::take_pending_trash`]; otherwise deleted.
+  final bool useSystemTrash;
+
   const CoreConfig({
     required this.home,
     required this.deviceName,
     required this.receiveDir,
+    required this.useSystemTrash,
   });
 
   @override
-  int get hashCode => home.hashCode ^ deviceName.hashCode ^ receiveDir.hashCode;
+  int get hashCode =>
+      home.hashCode ^
+      deviceName.hashCode ^
+      receiveDir.hashCode ^
+      useSystemTrash.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -106,7 +207,8 @@ class CoreConfig {
           runtimeType == other.runtimeType &&
           home == other.home &&
           deviceName == other.deviceName &&
-          receiveDir == other.receiveDir;
+          receiveDir == other.receiveDir &&
+          useSystemTrash == other.useSystemTrash;
 }
 
 @freezed
@@ -187,6 +289,15 @@ sealed class CoreEvent with _$CoreEvent {
     /// Why.
     required String reason,
   }) = CoreEvent_ReceiveInterrupted;
+
+  /// Something happened to a linked file; read `linked_files()` again.
+  const factory CoreEvent.linked({
+    /// The link id.
+    required String id,
+
+    /// What happened.
+    required LinkedEventKind kind,
+  }) = CoreEvent_Linked;
 }
 
 /// A paired device.
@@ -203,16 +314,24 @@ class DeviceView {
   /// Whether it is on the network now.
   final bool online;
 
+  /// Whether files can be linked with it.
+  final bool linkedFiles;
+
   const DeviceView({
     required this.id,
     required this.shortId,
     required this.name,
     required this.online,
+    required this.linkedFiles,
   });
 
   @override
   int get hashCode =>
-      id.hashCode ^ shortId.hashCode ^ name.hashCode ^ online.hashCode;
+      id.hashCode ^
+      shortId.hashCode ^
+      name.hashCode ^
+      online.hashCode ^
+      linkedFiles.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -222,7 +341,157 @@ class DeviceView {
           id == other.id &&
           shortId == other.shortId &&
           name == other.name &&
-          online == other.online;
+          online == other.online &&
+          linkedFiles == other.linkedFiles;
+}
+
+@freezed
+sealed class LinkedEventKind with _$LinkedEventKind {
+  const LinkedEventKind._();
+
+  /// It was linked from another device and arrived at `path`.
+  const factory LinkedEventKind.arrived({
+    /// Where it was saved.
+    required String path,
+
+    /// The sending device's name.
+    required String from,
+  }) = LinkedEventKind_Arrived;
+
+  /// A newer version replaced it.
+  const factory LinkedEventKind.updated() = LinkedEventKind_Updated;
+
+  /// Changed on two devices; the user chooses.
+  const factory LinkedEventKind.conflict() = LinkedEventKind_Conflict;
+
+  /// The conflict was resolved.
+  const factory LinkedEventKind.resolved() = LinkedEventKind_Resolved;
+
+  /// Another device left the link.
+  const factory LinkedEventKind.peerLeft({
+    /// Its name.
+    required String device,
+  }) = LinkedEventKind_PeerLeft;
+
+  /// This device left the link.
+  const factory LinkedEventKind.left() = LinkedEventKind_Left;
+
+  /// It cannot be found.
+  const factory LinkedEventKind.missing() = LinkedEventKind_Missing;
+
+  /// It was found again.
+  const factory LinkedEventKind.found() = LinkedEventKind_Found;
+
+  /// It was moved or renamed here.
+  const factory LinkedEventKind.moved() = LinkedEventKind_Moved;
+
+  /// Something went wrong.
+  const factory LinkedEventKind.error({
+    /// What.
+    required String message,
+  }) = LinkedEventKind_Error;
+}
+
+/// One entry of a linked file's log.
+class LinkedLogView {
+  /// When (ms since the Unix epoch).
+  final BigInt atMs;
+
+  /// The device it happened on.
+  final String device;
+
+  /// What happened, for display.
+  final String text;
+
+  const LinkedLogView({
+    required this.atMs,
+    required this.device,
+    required this.text,
+  });
+
+  @override
+  int get hashCode => atMs.hashCode ^ device.hashCode ^ text.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LinkedLogView &&
+          runtimeType == other.runtimeType &&
+          atMs == other.atMs &&
+          device == other.device &&
+          text == other.text;
+}
+
+/// Where a linked file stands on this device.
+enum LinkedState {
+  /// Up to date.
+  current,
+
+  /// A newer version is arriving.
+  updating,
+
+  /// Changed on two devices; the user chooses.
+  conflict,
+
+  /// Cannot be found; the link is kept.
+  missing,
+}
+
+/// A linked file.
+class LinkedView {
+  /// The link id (32 hex characters).
+  final String id;
+
+  /// The file name on this device.
+  final String name;
+
+  /// Where it is on this device.
+  final String path;
+
+  /// Names of the devices it is linked with.
+  final List<String> devices;
+
+  /// Where it stands.
+  final LinkedState state;
+
+  /// Its size.
+  final BigInt size;
+
+  /// Set when in conflict.
+  final ConflictView? conflict;
+
+  const LinkedView({
+    required this.id,
+    required this.name,
+    required this.path,
+    required this.devices,
+    required this.state,
+    required this.size,
+    this.conflict,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      path.hashCode ^
+      devices.hashCode ^
+      state.hashCode ^
+      size.hashCode ^
+      conflict.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LinkedView &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          path == other.path &&
+          devices == other.devices &&
+          state == other.state &&
+          size == other.size &&
+          conflict == other.conflict;
 }
 
 @freezed

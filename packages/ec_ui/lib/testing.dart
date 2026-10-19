@@ -193,5 +193,76 @@ class FakeController extends EcController {
   }
 
   @override
-  Future<void> open(String path) async {}
+  Future<void> open(String path) async => opened.add(path);
+
+  @override
+  bool sendLinked = false;
+
+  /// Linked sends requested through [sendLinkedFile].
+  final linkedSends = <(EcDevice, String)>[];
+
+  @override
+  Stream<SendStatus> sendLinkedFile(EcDevice device, String path) {
+    linkedSends.add((device, path));
+    return sending.stream;
+  }
+
+  List<EcLinkedFile> _linked = [];
+
+  set linkedFiles(List<EcLinkedFile> value) {
+    _linked = value;
+    notifyListeners();
+  }
+
+  @override
+  List<EcLinkedFile> get linkedFiles => _linked;
+
+  /// Returned by [linkedLog].
+  List<EcLinkedLog> log = [];
+
+  @override
+  Future<List<EcLinkedLog>> linkedLog(String id) async => log;
+
+  final _dismissed = <String>{};
+
+  @override
+  EcLinkedFile? get pendingConflict {
+    for (final file in _linked) {
+      if (file.state == EcLinkedState.conflict &&
+          !_dismissed.contains(file.id)) {
+        return file;
+      }
+    }
+    return null;
+  }
+
+  @override
+  void dismissConflict(String id) {
+    _dismissed.add(id);
+    notifyListeners();
+  }
+
+  /// Calls made to the linked files methods, such as `resolve:id:theirs`.
+  final linkedCalls = <String>[];
+
+  @override
+  Future<void> resolveConflict(String id, {required bool keepTheirs}) async =>
+      linkedCalls.add('resolve:$id:${keepTheirs ? 'theirs' : 'mine'}');
+
+  @override
+  Future<void> deleteConflict(String id) async =>
+      linkedCalls.add('delete-conflict:$id');
+
+  @override
+  Future<void> leaveLink(String id) async => linkedCalls.add('leave:$id');
+
+  @override
+  Future<void> locateLinked(String id) async => linkedCalls.add('locate:$id');
+
+  @override
+  Future<void> linkFile(EcDevice device) async =>
+      linkedCalls.add('link:${device.id}');
+
+  /// Paths given to [open].
+  final opened = <String>[];
 }

@@ -11,6 +11,7 @@ class MainFlutterWindow: NSWindow {
     RegisterGeneratedPlugins(registry: flutterViewController)
     registerArrivalChannel(flutterViewController.engine.binaryMessenger)
     registerFolderChannel(flutterViewController.engine.binaryMessenger)
+    registerLinkedChannel(flutterViewController.engine.binaryMessenger)
     ShareInbox.shared.attach(flutterViewController.engine.binaryMessenger)
 
     super.awakeFromNib()
@@ -44,7 +45,8 @@ private func registerArrivalChannel(_ messenger: FlutterBinaryMessenger) {
       result(FlutterError(code: "bad-args", message: "no path or url", details: nil))
       return
     }
-    ArrivalPresenter.shared.show(Arrival(kind: kind, title: title, from: from))
+    let linked = args["linked"] as? Bool ?? false
+    ArrivalPresenter.shared.show(Arrival(kind: kind, title: title, from: from, linked: linked))
     result(nil)
   }
 }

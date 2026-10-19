@@ -5,6 +5,7 @@ class EcDevice {
     required this.shortId,
     required this.name,
     required this.online,
+    this.linkedFiles = false,
   });
 
   /// Full id (64 hex characters).
@@ -18,6 +19,9 @@ class EcDevice {
 
   /// Whether it is on the network now.
   final bool online;
+
+  /// Whether files can be linked with it (it runs a version that supports them).
+  final bool linkedFiles;
 }
 
 /// One step of pairing, as shown to the user.
@@ -216,4 +220,107 @@ class FlingSetup {
 
   /// Everything is in place.
   bool get ready => handleOn && canDrawOverlays && screenAccess;
+}
+
+/// Where a linked file stands on this device.
+enum EcLinkedState {
+  /// Up to date.
+  current,
+
+  /// A newer version is arriving.
+  updating,
+
+  /// Changed on two devices; the user chooses.
+  conflict,
+
+  /// Cannot be found; the link is kept.
+  missing,
+}
+
+/// The two versions of a linked file that changed on two devices.
+class EcLinkedConflict {
+  const EcLinkedConflict({
+    required this.mineDevice,
+    required this.mineAt,
+    required this.mineSize,
+    required this.theirsDevice,
+    required this.theirsAt,
+    required this.theirsSize,
+    required this.theirsPath,
+  });
+
+  /// This device's name.
+  final String mineDevice;
+  final DateTime mineAt;
+  final int mineSize;
+
+  /// The other device's name.
+  final String theirsDevice;
+  final DateTime theirsAt;
+  final int theirsSize;
+
+  /// Where the other version waits.
+  final String theirsPath;
+}
+
+/// A file kept current on several devices.
+class EcLinkedFile {
+  const EcLinkedFile({
+    required this.id,
+    required this.name,
+    required this.path,
+    required this.devices,
+    required this.state,
+    required this.size,
+    this.conflict,
+  });
+
+  final String id;
+
+  /// Its name on this device.
+  final String name;
+
+  /// Where it is on this device.
+  final String path;
+
+  /// Names of the devices it is linked with.
+  final List<String> devices;
+  final EcLinkedState state;
+  final int size;
+
+  /// Set when [state] is [EcLinkedState.conflict].
+  final EcLinkedConflict? conflict;
+}
+
+/// One entry of a linked file's log.
+class EcLinkedLog {
+  const EcLinkedLog({
+    required this.at,
+    required this.device,
+    required this.text,
+  });
+
+  final DateTime at;
+
+  /// The device it happened on.
+  final String device;
+
+  /// What happened, such as "changed".
+  final String text;
+}
+
+/// A time for display: "today 14:02", "yesterday 09:30" or "2026-10-12 18:45".
+String formatWhen(DateTime at, {DateTime? now}) {
+  final today = now ?? DateTime.now();
+  String two(int n) => n.toString().padLeft(2, '0');
+  final clock = '${two(at.hour)}:${two(at.minute)}';
+  final day = DateTime(at.year, at.month, at.day);
+  final days = DateTime(
+    today.year,
+    today.month,
+    today.day,
+  ).difference(day).inDays;
+  if (days == 0) return 'today $clock';
+  if (days == 1) return 'yesterday $clock';
+  return '${at.year}-${two(at.month)}-${two(at.day)} $clock';
 }

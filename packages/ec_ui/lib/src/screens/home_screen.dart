@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../controller.dart';
+import '../linked/conflict_card.dart';
 import '../model.dart';
 import '../platform.dart';
 import '../widgets/device_spine.dart';
@@ -113,6 +114,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 VpnNotice(
                   onDismiss: () => setState(() => _vpnDismissed = true),
                 ),
+              if (controller.pendingConflict case final file?)
+                ConflictCard(controller: controller, file: file),
               if (controller.pendingShare case final paths
                   when paths.isNotEmpty)
                 ShareBar(
@@ -121,9 +124,26 @@ class _HomeScreenState extends State<HomeScreen> {
                       : 'Send ${paths.length} files to',
                   devices: controller.devices,
                   onDismiss: controller.dismissShare,
+                  linkedOffered:
+                      paths.length == 1 &&
+                      controller.devices.any((d) => d.online && d.linkedFiles),
+                  linked: paths.length == 1 && controller.sendLinked,
+                  onLinkedChanged: (linked) =>
+                      setState(() => controller.sendLinked = linked),
                   onSend: (device) {
                     controller.dismissShare();
-                    sendWithProgress(context, controller, device, paths);
+                    if (paths.length == 1 &&
+                        controller.sendLinked &&
+                        device.linkedFiles) {
+                      sendLinkedWithProgress(
+                        context,
+                        controller,
+                        device,
+                        paths.single,
+                      );
+                    } else {
+                      sendWithProgress(context, controller, device, paths);
+                    }
                   },
                 )
               else if (controller.pendingItem case final item?)

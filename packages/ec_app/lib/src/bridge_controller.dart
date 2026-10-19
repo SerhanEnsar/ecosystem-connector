@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:ec_bridge/ec_bridge.dart';
 import 'package:ec_ui/ec_ui.dart';
@@ -13,6 +14,11 @@ import 'notifier.dart';
 class BridgeController extends EcController with WidgetsBindingObserver {
   BridgeController(this._core, this._hooks, this._notifier) {
     _refresh();
+    _refreshLinked();
+    unawaited(_restoreAccess());
+    // Android may not report changes in shared storage; check linked files often
+    // while the app is in front. The receive service checks less often.
+    if (Platform.isAndroid) _core.setLinkedCheckInterval(seconds: 5);
     _events = _core.events().listen(_onEvent);
     _invites = _hooks.incomingInvites?.listen((invite) {
       _pendingInvite = invite;
@@ -28,7 +34,9 @@ class BridgeController extends EcController with WidgetsBindingObserver {
       _pendingItem = item;
       notifyListeners();
     });
-    if (_hooks.vpnActive != null || _hooks.fling != null) {
+    if (_hooks.vpnActive != null ||
+        _hooks.fling != null ||
+        Platform.isAndroid) {
       unawaited(_checkPlatform());
       // A VPN or a permission can change at any time.
       _vpnTimer = Timer.periodic(
@@ -43,6 +51,11 @@ class BridgeController extends EcController with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Back from the system settings: show the new state right away.
     if (state == AppLifecycleState.resumed) unawaited(_checkPlatform());
+    if (Platform.isAndroid) {
+      _core.setLinkedCheckInterval(
+        seconds: state == AppLifecycleState.resumed ? 5 : 30,
+      );
+    }
   }
 
   Future<void> _checkPlatform() async {
@@ -86,6 +99,8 @@ class BridgeController extends EcController with WidgetsBindingObserver {
   var _vpnActive = false;
 
   List<EcDevice> _devices = const [];
+  List<EcLinkedFile> _linked = const [];
+  final _dismissedConflicts = <String>{};
   ReceiveStatus? _receiving;
   final _recent = <String>[];
   final _savedInTransfer = <String>[];
@@ -157,6 +172,7 @@ class BridgeController extends EcController with WidgetsBindingObserver {
                 shortId: d.shortId,
                 name: d.name,
                 online: d.online,
+                linkedFiles: d.linkedFiles,
               ),
             )
             .toList()
@@ -164,6 +180,115 @@ class BridgeController extends EcController with WidgetsBindingObserver {
             if (a.online != b.online) return a.online ? -1 : 1;
             return a.name.compareTo(b.name);
           });
+  }
+
+  void _refreshLinked() {
+    _linked = _core.linkedFiles().map(_linkedFile).toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  }
+
+  EcLinkedFile _linkedFile(LinkedView f) => EcLinkedFile(
+    id: f.id,
+    name: f.name,
+    path: f.path,
+    devices: f.devices,
+    state: switch (f.state) {
+      LinkedState.current => EcLinkedState.current,
+      LinkedState.updating => EcLinkedState.updating,
+      LinkedState.conflict => EcLinkedState.conflict,
+      LinkedState.missing => EcLinkedState.missing,
+    },
+    size: f.size.toInt(),
+    conflict: switch (f.conflict) {
+      final c? => EcLinkedConflict(
+        mineDevice: c.mineDevice,
+        mineAt: DateTime.fromMillisecondsSinceEpoch(c.mineAtMs.toInt()),
+        mineSize: c.mineSize.toInt(),
+        theirsDevice: c.theirsDevice,
+        theirsAt: DateTime.fromMillisecondsSinceEpoch(c.theirsAtMs.toInt()),
+        theirsSize: c.theirsSize.toInt(),
+        theirsPath: c.theirsPath,
+      ),
+      null => null,
+    },
+  );
+
+  String _linkedName(String id) =>
+      _linked.where((f) => f.id == id).firstOrNull?.name ?? 'A linked file';
+
+  /// Opens linked files kept from an earlier run again (macOS bookmarks) and tells
+  /// the core where any of them went meanwhile.
+  Future<void> _restoreAccess() async {
+    final restore = _hooks.restoreAccess;
+    if (restore == null) return;
+    final places = await restore();
+    for (final file in _linked) {
+      final now = places[file.id];
+      if (now != null && now != file.path) {
+        _core.relocateLinked(id: file.id, path: now);
+      }
+    }
+    await _emptyTrash();
+  }
+
+  /// Moves the versions the user chose not to keep to the system Trash.
+  Future<void> _emptyTrash() async {
+    final trash = _hooks.trash;
+    if (trash == null) return;
+    for (final path in _core.takePendingTrash()) {
+      await trash(path);
+    }
+  }
+
+  Future<void> _onLinked(String id, LinkedEventKind kind) async {
+    final name = _linkedName(id);
+    switch (kind) {
+      case LinkedEventKind_Arrived(:final path, :final from):
+        await _hooks.keepAccess?.call(id, path);
+        await _arrived(
+          ArrivalInfo.files(
+            [path],
+            from: _nameOf(from),
+            size: _linked.where((f) => f.id == id).firstOrNull?.size ?? 0,
+            linked: true,
+          ),
+        );
+      case LinkedEventKind_Conflict():
+        _dismissedConflicts.remove(id);
+        await _notifier.linked(
+          id,
+          '$name changed on two devices',
+          'Choose which version to keep.',
+        );
+      case LinkedEventKind_PeerLeft(:final device):
+        await _notifier.linked(
+          id,
+          '${_nameOf(device)} left the link of $name',
+          'The file stays here and on your other devices.',
+        );
+      case LinkedEventKind_Left():
+        await _hooks.forgetAccess?.call(id);
+        await _notifier.linked(
+          id,
+          '$name is no longer linked',
+          'It was deleted here; your other devices keep it.',
+        );
+      case LinkedEventKind_Missing():
+        await _notifier.linked(
+          id,
+          '$name cannot be found',
+          'Show where it is in Settings → Linked files, or leave the link.',
+        );
+      case LinkedEventKind_Moved():
+        final file = _linked.where((f) => f.id == id).firstOrNull;
+        if (file != null) await _hooks.keepAccess?.call(id, file.path);
+      case LinkedEventKind_Resolved():
+        await _emptyTrash();
+      case LinkedEventKind_Error(:final message):
+        await _notifier.linked(id, '$name could not be synced', message);
+      case LinkedEventKind_Updated() || LinkedEventKind_Found():
+        break;
+    }
   }
 
   String _nameOf(String shortId) => _devices
@@ -227,6 +352,9 @@ class BridgeController extends EcController with WidgetsBindingObserver {
         _receiving = null;
       case CoreEvent_ReceiveInterrupted():
         _receiving = null;
+      case CoreEvent_Linked(:final id, :final kind):
+        _refreshLinked();
+        unawaited(_onLinked(id, kind));
     }
     notifyListeners();
   }
@@ -350,6 +478,107 @@ class BridgeController extends EcController with WidgetsBindingObserver {
       SendUpdate_Failed(:final reason) => SendFailed(reason),
     },
   );
+
+  @override
+  bool sendLinked = false;
+
+  @override
+  Stream<SendStatus> sendLinkedFile(EcDevice device, String path) async* {
+    // Nothing is yielded before the core call: a listener that takes the first
+    // status and cancels (the fling layer) would otherwise stop it here.
+    final watch = Stopwatch()..start();
+    try {
+      final id = await _core.sendLinked(
+        deviceId: device.id,
+        path: path,
+        copyIntoLinked: _hooks.copyIntoLinked,
+      );
+      _refreshLinked();
+      final file = _linked.where((f) => f.id == id).firstOrNull;
+      if (file != null) await _hooks.keepAccess?.call(id, file.path);
+      notifyListeners();
+      yield SendDone(
+        files: 1,
+        bytes: file?.size ?? 0,
+        elapsed: watch.elapsed,
+        paths: 1,
+      );
+    } catch (e) {
+      yield SendFailed(_reason(e));
+    }
+  }
+
+  @override
+  List<EcLinkedFile> get linkedFiles => _linked;
+
+  @override
+  Future<List<EcLinkedLog>> linkedLog(String id) async => _core
+      .linkedLog(id: id)
+      .map(
+        (e) => EcLinkedLog(
+          at: DateTime.fromMillisecondsSinceEpoch(e.atMs.toInt()),
+          device: e.device,
+          text: e.text,
+        ),
+      )
+      .toList();
+
+  @override
+  EcLinkedFile? get pendingConflict => _linked
+      .where(
+        (f) =>
+            f.state == EcLinkedState.conflict &&
+            !_dismissedConflicts.contains(f.id),
+      )
+      .firstOrNull;
+
+  @override
+  void dismissConflict(String id) {
+    _dismissedConflicts.add(id);
+    notifyListeners();
+  }
+
+  @override
+  Future<void> resolveConflict(String id, {required bool keepTheirs}) async {
+    _core.resolveConflict(id: id, keepTheirs: keepTheirs);
+    await _afterLinkedChange();
+  }
+
+  @override
+  Future<void> deleteConflict(String id) async {
+    _core.deleteConflict(id: id);
+    await _afterLinkedChange();
+  }
+
+  @override
+  Future<void> leaveLink(String id) async {
+    _core.leaveLink(id: id);
+    await _hooks.forgetAccess?.call(id);
+    await _afterLinkedChange();
+  }
+
+  @override
+  Future<void> locateLinked(String id) async {
+    final file = await openFile();
+    if (file == null) return;
+    _core.relocateLinked(id: id, path: file.path);
+    await _hooks.keepAccess?.call(id, file.path);
+    await _afterLinkedChange();
+  }
+
+  @override
+  Future<void> linkFile(EcDevice device) async {
+    final file = await openFile();
+    if (file == null) return;
+    final status = await sendLinkedFile(device, file.path).last;
+    if (status is SendFailed) throw Exception(status.reason);
+  }
+
+  Future<void> _afterLinkedChange() async {
+    await _emptyTrash();
+    _refreshLinked();
+    notifyListeners();
+  }
 
   @override
   Future<void> forget(EcDevice device) async {

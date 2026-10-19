@@ -23,10 +23,14 @@ class FlingHooks {
 
 /// Something that arrived from another device, for the arrival card.
 class ArrivalInfo {
-  ArrivalInfo.files(this.paths, {required this.from, this.size = 0})
-    : url = null,
-      text = null,
-      title = paths.length == 1 ? '' : '${paths.length} files';
+  ArrivalInfo.files(
+    this.paths, {
+    required this.from,
+    this.size = 0,
+    this.linked = false,
+  }) : url = null,
+       text = null,
+       title = paths.length == 1 ? '' : '${paths.length} files';
 
   const ArrivalInfo.page(
     String this.url, {
@@ -34,13 +38,15 @@ class ArrivalInfo {
     required this.from,
   }) : paths = const [],
        text = null,
-       size = 0;
+       size = 0,
+       linked = false;
 
   const ArrivalInfo.text(String this.text, {required this.from})
     : paths = const [],
       url = null,
       title = '',
-      size = 0;
+      size = 0,
+      linked = false;
 
   /// Saved files (empty for a page or text).
   final List<String> paths;
@@ -59,6 +65,9 @@ class ArrivalInfo {
 
   /// Total size of the files in bytes.
   final int size;
+
+  /// A linked file: later edits on either device reach the other.
+  final bool linked;
 
   /// The card's title: the file name, the number of files, the page title, or the
   /// text's first line.
@@ -79,6 +88,7 @@ class ArrivalInfo {
     'title': displayTitle,
     'from': from,
     'size': size,
+    'linked': linked,
   };
 }
 
@@ -98,6 +108,11 @@ class PlatformHooks {
     this.incomingInvites,
     this.chooseFolder,
     this.folderReset,
+    this.copyIntoLinked = false,
+    this.trash,
+    this.keepAccess,
+    this.restoreAccess,
+    this.forgetAccess,
   });
 
   /// The name this device gets when it is set up for the first time.
@@ -145,4 +160,23 @@ class PlatformHooks {
   /// Called when the user goes back to the default folder, so a platform can let go
   /// of the folder chosen before.
   final Future<void> Function()? folderReset;
+
+  /// Whether a file is copied into the Linked folder before it is linked (Android,
+  /// where the original of a shared file cannot be watched).
+  final bool copyIntoLinked;
+
+  /// Moves a file to the system Trash and returns whether it did (macOS). Files the
+  /// user chose not to keep wait in the core until this succeeds.
+  final Future<bool> Function(String path)? trash;
+
+  /// Keeps access to a linked file across restarts (macOS: a security-scoped
+  /// bookmark per link id).
+  final Future<void> Function(String id, String path)? keepAccess;
+
+  /// Opens the linked files kept with [keepAccess] again and returns, for each link
+  /// id, where the file is now (it may have been moved or renamed meanwhile).
+  final Future<Map<String, String>> Function()? restoreAccess;
+
+  /// Lets go of a linked file kept with [keepAccess], once it is no longer linked.
+  final Future<void> Function(String id)? forgetAccess;
 }

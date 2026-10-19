@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../controller.dart';
 import '../fling/fling_setup_card.dart';
+import '../linked/linked_files_screen.dart';
 
 /// Opens the settings page.
 Future<void> showSettings(BuildContext context, EcController controller) =>
@@ -77,6 +78,21 @@ class SettingsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                child: Text('Linked files', style: text.titleSmall),
+              ),
+              ListTile(
+                leading: const Icon(Icons.link),
+                title: const Text('Linked files'),
+                subtitle: Text(switch (controller.linkedFiles.length) {
+                  0 => 'Files kept up to date on several devices',
+                  1 => '1 file',
+                  final n => '$n files',
+                }),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => showLinkedFiles(context, controller),
+              ),
               if (setup != null) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
