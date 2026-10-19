@@ -18,7 +18,7 @@
 - Quiet period before checking a changed file: 2 s.
 - Android stat check: every 5 s while the app is open, every 30 s while the receive service runs. macOS: FSEvents, with a 60 s stat check as backstop.
 - Log trimmed to its last 200 entries per file.
-- Receive location: `<receive dir>/Linked/<YYYY-MM-DD>/<name>`, date of first arrival, never changed; same name on the same day → `name (2).ext`.
+- Receive location: `<receive dir>/Linked/<YYYY-MM-DD>/<name>`, date of first arrival, never changed; same name on the same day → `name (1).ext` (the receive folder's rule).
 - `Hello` is not changed. Capability is detected by the peer stopping a kind 4 stream.
 - No old versions are kept; a conflict version is kept until resolved, then moved to the macOS Trash or deleted on Android.
 - Never break a link when a file cannot be found: state `Missing`.

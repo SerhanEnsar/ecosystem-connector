@@ -11,6 +11,7 @@ use std::path::PathBuf;
 mod identity;
 pub mod journal;
 pub mod proto;
+pub mod service;
 mod version;
 pub mod watch;
 
@@ -19,6 +20,7 @@ pub use journal::{
     Content, FileIdentity, Journal, LinkId, LinkedFile, LogEntry, LogKind, Seen, State, new_link_id,
 };
 pub use proto::{ContentHeader, SYNC_KIND, SyncMessage};
+pub use service::{Outbox, SyncConfig, SyncEvent, SyncService};
 pub use version::{Order, VersionVector};
 
 /// Errors of this crate.
@@ -49,6 +51,12 @@ pub enum Error {
     /// File system events could not be set up.
     #[error("cannot watch files: {0}")]
     Watch(String),
+    /// The device is not connected.
+    #[error("the device is not connected")]
+    Offline,
+    /// Sending a file failed.
+    #[error("cannot send: {0}")]
+    Send(String),
     /// A message from a peer was refused.
     #[error("refused: {0}")]
     Refused(&'static str),

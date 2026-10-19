@@ -73,6 +73,8 @@ pub enum State {
     Conflict {
         /// The other version, kept until the user chooses.
         theirs: Content,
+        /// Its version vector.
+        version: VersionVector,
         /// The device it came from.
         from: DeviceId,
         /// When it arrived, in milliseconds since the Unix epoch.
@@ -315,6 +317,7 @@ mod tests {
             },
             state: State::Conflict {
                 theirs: Content::default(),
+                version: [(B, 2)].into_iter().collect(),
                 from: B,
                 at_ms: 5,
             },

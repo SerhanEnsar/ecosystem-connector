@@ -29,7 +29,7 @@ Not in 0.4.0:
 |---|---|
 | Change detection | Size and modification time on the device, a hash only when one of them changed. Modification times are never compared between devices. |
 | Ordering between devices | A version vector per file (each device numbers its own changes), stored in the journal. |
-| Location on the receiving device | `<receive folder>/Linked/<YYYY-MM-DD>/<name>`, where the date is the day the link first arrived. It never changes afterwards. Two different linked files with the same name on the same day: the second becomes `name (2).ext`. |
+| Location on the receiving device | `<receive folder>/Linked/<YYYY-MM-DD>/<name>`, where the date is the day the link first arrived. It never changes afterwards. Two different linked files with the same name on the same day: the second becomes `name (1).ext`, as received files are named. |
 | Location on the linking device | macOS: the file stays where it is. Android: the shared file is copied into `Linked/<date>/` and that copy is the linked file, because Android gives no lasting access to a shared file's original. |
 | Deletion | The deleting device leaves the link. Its copy is gone; the other devices keep theirs and keep syncing. A notice is shown on the deleting device and on the others. |
 | Conflict | A conflict card (in the style of the arrival cards): both versions with device, time and size, and *Keep Mac's / Keep Tablet's / Open both*. Sync of that file waits until the user chooses. |
@@ -93,10 +93,10 @@ and 2, so resume, several paths and cable boost work unchanged.
 |---|---|---|
 | `Link { id, name, version, size, chunk_size, hashes }` | *Send linked* | A new linked file. Its content follows as a transfer. |
 | `Changed { id, version, size, chunk_size, hashes }` | A local change | The new version. |
-| `Summary { entries: [(id, version)] }` | Every time two devices connect | The versions of all files they share. |
+| `Summary { entries: [(id, version)], last }` | Every time two devices connect, in batches of 32 | The versions of all files they share. |
 | `Unlinked { id }` | A file was deleted on a device | That device left the link. |
 | `Resolved { id, version, size, chunk_size, hashes }` | The user chose in a conflict card | The winning version; the other side applies it. |
-| `Reply { id, want }` | Answer to `Link`, `Changed` and `Resolved` | Whether the content should be sent. `false` when the receiver already has it or is ahead. |
+| `Reply { id, want }` | Answer to `Link`, `Changed` and `Resolved`; also acknowledges the last `Summary` batch (id all zeros) | Whether the content should be sent. `false` when the receiver already has it or is ahead. |
 
 Transfers are always started by the device that has the content: after `want: true` it
 sends the file as an ordinary transfer that carries the link id (`Control::Target`, see
