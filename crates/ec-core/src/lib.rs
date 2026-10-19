@@ -6,7 +6,7 @@
 //! paired. See `docs/THREAT_MODEL.md` for the reasoning.
 
 mod error;
-mod fsutil;
+pub mod fsutil;
 mod id;
 mod identity;
 mod invite;

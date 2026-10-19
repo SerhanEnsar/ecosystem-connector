@@ -11,7 +11,7 @@ use crate::{Error, Result};
 ///
 /// On Unix the file is created with mode `0600` because it may hold a private key.
 /// On Windows the file inherits the ACL of the user's profile directory.
-pub(crate) fn write_private(path: &Path, data: &[u8]) -> Result<()> {
+pub fn write_private(path: &Path, data: &[u8]) -> Result<()> {
     let tmp = path.with_extension("tmp");
     let io = |action, source| Error::Io {
         action,
@@ -42,7 +42,7 @@ pub(crate) fn write_private(path: &Path, data: &[u8]) -> Result<()> {
 }
 
 /// Creates `dir` and its parents. On Unix the directory is private to the user.
-pub(crate) fn create_private_dir(dir: &Path) -> Result<()> {
+pub fn create_private_dir(dir: &Path) -> Result<()> {
     let io = |source| Error::Io {
         action: "create directory",
         path: dir.to_path_buf(),
@@ -58,7 +58,7 @@ pub(crate) fn create_private_dir(dir: &Path) -> Result<()> {
 }
 
 /// Reads `path`, returning `Ok(None)` when it does not exist.
-pub(crate) fn read_optional(path: &Path) -> Result<Option<Vec<u8>>> {
+pub fn read_optional(path: &Path) -> Result<Option<Vec<u8>>> {
     match fs::read(path) {
         Ok(data) => Ok(Some(data)),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),

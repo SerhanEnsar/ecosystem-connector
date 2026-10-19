@@ -546,6 +546,16 @@ dependencies = [
 [[package]]
 name = "ec-sync"
 version = "0.0.1"
+dependencies = [
+ "ec-core",
+ "hex",
+ "postcard",
+ "rand",
+ "serde",
+ "tempfile",
+ "thiserror",
+ "tracing",
+]
 
 [[package]]
 name = "ec-transfer"
