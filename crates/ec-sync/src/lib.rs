@@ -8,10 +8,13 @@
 
 use std::path::PathBuf;
 
+mod identity;
 pub mod journal;
 pub mod proto;
 mod version;
+pub mod watch;
 
+pub use identity::stat;
 pub use journal::{
     Content, FileIdentity, Journal, LinkId, LinkedFile, LogEntry, LogKind, Seen, State, new_link_id,
 };
@@ -40,6 +43,12 @@ pub enum Error {
     /// Network error.
     #[error(transparent)]
     Net(#[from] ec_net::Error),
+    /// Transfer error, also used for hashing files.
+    #[error(transparent)]
+    Transfer(#[from] ec_transfer::Error),
+    /// File system events could not be set up.
+    #[error("cannot watch files: {0}")]
+    Watch(String),
     /// A message from a peer was refused.
     #[error("refused: {0}")]
     Refused(&'static str),
