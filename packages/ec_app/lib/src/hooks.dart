@@ -112,6 +112,7 @@ class PlatformHooks {
     this.trash,
     this.keepAccess,
     this.restoreAccess,
+    this.forgetAccess,
   });
 
   /// The name this device gets when it is set up for the first time.
@@ -175,4 +176,7 @@ class PlatformHooks {
   /// Opens the linked files kept with [keepAccess] again and returns, for each link
   /// id, where the file is now (it may have been moved or renamed meanwhile).
   final Future<Map<String, String>> Function()? restoreAccess;
+
+  /// Lets go of a linked file kept with [keepAccess], once it is no longer linked.
+  final Future<void> Function(String id)? forgetAccess;
 }

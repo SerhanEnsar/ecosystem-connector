@@ -267,6 +267,7 @@ class BridgeController extends EcController with WidgetsBindingObserver {
           'The file stays here and on your other devices.',
         );
       case LinkedEventKind_Left():
+        await _hooks.forgetAccess?.call(id);
         await _notifier.linked(
           id,
           '$name is no longer linked',
@@ -283,9 +284,9 @@ class BridgeController extends EcController with WidgetsBindingObserver {
         if (file != null) await _hooks.keepAccess?.call(id, file.path);
       case LinkedEventKind_Resolved():
         await _emptyTrash();
-      case LinkedEventKind_Updated() ||
-          LinkedEventKind_Found() ||
-          LinkedEventKind_Error():
+      case LinkedEventKind_Error(:final message):
+        await _notifier.linked(id, '$name could not be synced', message);
+      case LinkedEventKind_Updated() || LinkedEventKind_Found():
         break;
     }
   }
@@ -552,6 +553,7 @@ class BridgeController extends EcController with WidgetsBindingObserver {
   @override
   Future<void> leaveLink(String id) async {
     _core.leaveLink(id: id);
+    await _hooks.forgetAccess?.call(id);
     await _afterLinkedChange();
   }
 

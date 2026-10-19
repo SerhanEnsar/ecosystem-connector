@@ -200,6 +200,9 @@ async fn unreadable_file_is_missing_once() {
     }
 }
 
+// Windows reports a file moved out of a watched folder as removed, so there it is a
+// delete (see the spec's known limits).
+#[cfg(not(windows))]
 #[tokio::test]
 async fn an_old_remove_event_does_not_make_a_later_loss_a_delete() {
     let mut s = start(None);

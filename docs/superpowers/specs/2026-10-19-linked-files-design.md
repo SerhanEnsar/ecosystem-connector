@@ -166,6 +166,8 @@ and every move is logged.
 - A file moved to the Trash while the app runs shows as *missing* (Show where it is /
   Leave link). On the next start its bookmark resolves into the Trash and the device
   leaves the link.
+- On Windows a file moved out of its folder is reported as removed, so it counts as
+  deleted there (the Windows app comes after 0.4.0).
 - Only one conflicting version waits at a time. Another version made independently of
   it is refused until the user chooses, and arrives with the next summary.
 

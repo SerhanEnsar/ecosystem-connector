@@ -68,6 +68,7 @@ void main() {
         final places = await _linked.invokeMapMethod<String, String>('restore');
         return places ?? const {};
       },
+      forgetAccess: (id) => _linked.invokeMethod<void>('forget', {'id': id}),
       trash: (path) async =>
           await _linked.invokeMethod<bool>('trash', {'path': path}) ?? false,
       chooseFolder: () => _folder.invokeMethod<String>('choose'),

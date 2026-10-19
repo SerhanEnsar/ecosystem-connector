@@ -129,6 +129,14 @@ final class LinkedAccess {
     return places
   }
 
+  /// Lets go of the linked file `id`.
+  func forget(id: String) {
+    open.removeValue(forKey: id)?.stopAccessingSecurityScopedResource()
+    var all = stored()
+    all.removeValue(forKey: id)
+    UserDefaults.standard.set(all, forKey: key)
+  }
+
   private func stored() -> [String: Data] {
     UserDefaults.standard.dictionary(forKey: key) as? [String: Data] ?? [:]
   }
@@ -159,6 +167,9 @@ func registerLinkedChannel(_ messenger: FlutterBinaryMessenger) {
       result(nil)
     case "restore":
       result(LinkedAccess.shared.restore())
+    case "forget":
+      if let id = args["id"] as? String { LinkedAccess.shared.forget(id: id) }
+      result(nil)
     case "trash":
       guard let path = args["path"] as? String else {
         result(false)

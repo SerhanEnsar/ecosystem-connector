@@ -165,9 +165,15 @@ pub fn check(file: &Watched, hashes: &AtomicU64) -> CheckResult {
     }
 }
 
-/// Whether the file can be opened for reading.
+/// Whether the file can be opened for reading. On Windows a file another app holds
+/// open without sharing counts as readable: it is busy, not lost.
 fn readable(path: &Path) -> bool {
-    std::fs::File::open(path).is_ok()
+    match std::fs::File::open(path) {
+        Ok(_) => true,
+        // ERROR_SHARING_VIOLATION, ERROR_LOCK_VIOLATION.
+        Err(e) if cfg!(windows) && matches!(e.raw_os_error(), Some(32 | 33)) => true,
+        Err(_) => false,
+    }
 }
 
 struct Entry {
@@ -635,15 +641,16 @@ fn collect_files(dir: &Path, depth: usize, out: &mut Vec<(PathBuf, std::fs::Meta
         return;
     };
     for entry in entries.flatten() {
-        // Hidden folders and files (waiting conflict versions, partial transfers,
-        // editors' temporary files) are never the moved file.
-        if entry.file_name().to_string_lossy().starts_with('.') {
-            continue;
-        }
         let path = entry.path();
         let Ok(meta) = std::fs::symlink_metadata(&path) else {
             continue;
         };
+        let name = entry.file_name().to_string_lossy().into_owned();
+        // Hidden folders (waiting conflict versions, partial transfers) and this
+        // app's temporary files are never the moved file; a hidden file can be.
+        if (meta.is_dir() && name.starts_with('.')) || name.contains(".ecsync") {
+            continue;
+        }
         if meta.is_file() {
             out.push((path, meta));
         } else if meta.is_dir() && depth > 0 {
