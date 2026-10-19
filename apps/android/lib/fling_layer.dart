@@ -186,7 +186,12 @@ class _FlingLayerState extends State<FlingLayer> {
                           ArrivalInfo(:final text?) => Clipboard.setData(
                             ClipboardData(text: text),
                           ),
-                          _ => _channel.invokeMethod<bool>('showInFolder'),
+                          // The folder of the file itself (Linked/<date>/ for a
+                          // linked file), not the receive folder.
+                          _ => _channel.invokeMethod<bool>(
+                            'showInFolder',
+                            arrival.paths.firstOrNull,
+                          ),
                         },
                         onOpen: arrival.paths.length == 1
                             ? () => _channel.invokeMethod<bool>(

@@ -113,6 +113,7 @@ class PlatformHooks {
     this.keepAccess,
     this.restoreAccess,
     this.forgetAccess,
+    this.showNotice,
   });
 
   /// The name this device gets when it is set up for the first time.
@@ -179,4 +180,8 @@ class PlatformHooks {
 
   /// Lets go of a linked file kept with [keepAccess], once it is no longer linked.
   final Future<void> Function(String id)? forgetAccess;
+
+  /// Shows a warning or error as an animated card (macOS) and returns whether it
+  /// did; if not, a notification is shown.
+  final Future<bool> Function(String title, String body)? showNotice;
 }

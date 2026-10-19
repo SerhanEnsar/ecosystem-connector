@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 532327019;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -14953328;
 
 // Section: executor
 
@@ -918,6 +918,54 @@ fn wire__crate__api__core__EcCore_receive_dir_is_default_impl(
         },
     )
 }
+fn wire__crate__api__core__EcCore_refresh_linked_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "EcCore_refresh_linked",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EcCore>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let mut api_that_guard = None;
+                let decode_indices_ =
+                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                            &api_that, 0, false,
+                        ),
+                    ]);
+                for i in decode_indices_ {
+                    match i {
+                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                        _ => unreachable!(),
+                    }
+                }
+                let api_that_guard = api_that_guard.unwrap();
+                let output_ok = Ok::<_, ()>({
+                    crate::api::core::EcCore::refresh_linked(&*api_that_guard);
+                })?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__core__EcCore_relocate_linked_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -1615,31 +1663,42 @@ impl SseDecode for crate::api::core::LinkedEventKind {
                 };
             }
             1 => {
-                return crate::api::core::LinkedEventKind::Updated;
+                return crate::api::core::LinkedEventKind::Changed;
             }
             2 => {
-                return crate::api::core::LinkedEventKind::Conflict;
+                let mut var_device = <String>::sse_decode(deserializer);
+                let mut var_missing = <bool>::sse_decode(deserializer);
+                return crate::api::core::LinkedEventKind::PeerMissing {
+                    device: var_device,
+                    missing: var_missing,
+                };
             }
             3 => {
-                return crate::api::core::LinkedEventKind::Resolved;
+                return crate::api::core::LinkedEventKind::Updated;
             }
             4 => {
+                return crate::api::core::LinkedEventKind::Conflict;
+            }
+            5 => {
+                return crate::api::core::LinkedEventKind::Resolved;
+            }
+            6 => {
                 let mut var_device = <String>::sse_decode(deserializer);
                 return crate::api::core::LinkedEventKind::PeerLeft { device: var_device };
             }
-            5 => {
+            7 => {
                 return crate::api::core::LinkedEventKind::Left;
             }
-            6 => {
+            8 => {
                 return crate::api::core::LinkedEventKind::Missing;
             }
-            7 => {
+            9 => {
                 return crate::api::core::LinkedEventKind::Found;
             }
-            8 => {
+            10 => {
                 return crate::api::core::LinkedEventKind::Moved;
             }
-            9 => {
+            11 => {
                 let mut var_message = <String>::sse_decode(deserializer);
                 return crate::api::core::LinkedEventKind::Error {
                     message: var_message,
@@ -1690,6 +1749,7 @@ impl SseDecode for crate::api::core::LinkedView {
         let mut var_state = <crate::api::core::LinkedState>::sse_decode(deserializer);
         let mut var_size = <u64>::sse_decode(deserializer);
         let mut var_conflict = <Option<crate::api::core::ConflictView>>::sse_decode(deserializer);
+        let mut var_missingOn = <Vec<String>>::sse_decode(deserializer);
         return crate::api::core::LinkedView {
             id: var_id,
             name: var_name,
@@ -1698,6 +1758,7 @@ impl SseDecode for crate::api::core::LinkedView {
             state: var_state,
             size: var_size,
             conflict: var_conflict,
+            missing_on: var_missingOn,
         };
     }
 }
@@ -1918,10 +1979,10 @@ fn pde_ffi_dispatcher_primary_impl(
         6 => wire__crate__api__core__EcCore_fling_url_impl(port, ptr, rust_vec_len, data_len),
         8 => wire__crate__api__core__EcCore_host_pairing_impl(port, ptr, rust_vec_len, data_len),
         9 => wire__crate__api__core__EcCore_join_pairing_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__core__EcCore_send_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__core__EcCore_send_linked_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__core__EcCore_start_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__core__init_app_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__core__EcCore_send_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__core__EcCore_send_linked_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__core__EcCore_start_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__core__init_app_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1948,15 +2009,16 @@ fn pde_ffi_dispatcher_sync_impl(
         17 => {
             wire__crate__api__core__EcCore_receive_dir_is_default_impl(ptr, rust_vec_len, data_len)
         }
-        18 => wire__crate__api__core__EcCore_relocate_linked_impl(ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__core__EcCore_resolve_conflict_impl(ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__core__EcCore_set_linked_check_interval_impl(
+        18 => wire__crate__api__core__EcCore_refresh_linked_impl(ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__core__EcCore_relocate_linked_impl(ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__core__EcCore_resolve_conflict_impl(ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__core__EcCore_set_linked_check_interval_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        23 => wire__crate__api__core__EcCore_set_receive_dir_impl(ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__core__EcCore_take_pending_trash_impl(ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__core__EcCore_set_receive_dir_impl(ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__core__EcCore_take_pending_trash_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2126,18 +2188,25 @@ impl flutter_rust_bridge::IntoDart for crate::api::core::LinkedEventKind {
                 from.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::core::LinkedEventKind::Updated => [1.into_dart()].into_dart(),
-            crate::api::core::LinkedEventKind::Conflict => [2.into_dart()].into_dart(),
-            crate::api::core::LinkedEventKind::Resolved => [3.into_dart()].into_dart(),
+            crate::api::core::LinkedEventKind::Changed => [1.into_dart()].into_dart(),
+            crate::api::core::LinkedEventKind::PeerMissing { device, missing } => [
+                2.into_dart(),
+                device.into_into_dart().into_dart(),
+                missing.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::core::LinkedEventKind::Updated => [3.into_dart()].into_dart(),
+            crate::api::core::LinkedEventKind::Conflict => [4.into_dart()].into_dart(),
+            crate::api::core::LinkedEventKind::Resolved => [5.into_dart()].into_dart(),
             crate::api::core::LinkedEventKind::PeerLeft { device } => {
-                [4.into_dart(), device.into_into_dart().into_dart()].into_dart()
+                [6.into_dart(), device.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::core::LinkedEventKind::Left => [5.into_dart()].into_dart(),
-            crate::api::core::LinkedEventKind::Missing => [6.into_dart()].into_dart(),
-            crate::api::core::LinkedEventKind::Found => [7.into_dart()].into_dart(),
-            crate::api::core::LinkedEventKind::Moved => [8.into_dart()].into_dart(),
+            crate::api::core::LinkedEventKind::Left => [7.into_dart()].into_dart(),
+            crate::api::core::LinkedEventKind::Missing => [8.into_dart()].into_dart(),
+            crate::api::core::LinkedEventKind::Found => [9.into_dart()].into_dart(),
+            crate::api::core::LinkedEventKind::Moved => [10.into_dart()].into_dart(),
             crate::api::core::LinkedEventKind::Error { message } => {
-                [9.into_dart(), message.into_into_dart().into_dart()].into_dart()
+                [11.into_dart(), message.into_into_dart().into_dart()].into_dart()
             }
             _ => {
                 unimplemented!("");
@@ -2209,6 +2278,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::core::LinkedView {
             self.state.into_into_dart().into_dart(),
             self.size.into_into_dart().into_dart(),
             self.conflict.into_into_dart().into_dart(),
+            self.missing_on.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -2489,33 +2559,41 @@ impl SseEncode for crate::api::core::LinkedEventKind {
                 <String>::sse_encode(path, serializer);
                 <String>::sse_encode(from, serializer);
             }
-            crate::api::core::LinkedEventKind::Updated => {
+            crate::api::core::LinkedEventKind::Changed => {
                 <i32>::sse_encode(1, serializer);
             }
-            crate::api::core::LinkedEventKind::Conflict => {
+            crate::api::core::LinkedEventKind::PeerMissing { device, missing } => {
                 <i32>::sse_encode(2, serializer);
+                <String>::sse_encode(device, serializer);
+                <bool>::sse_encode(missing, serializer);
             }
-            crate::api::core::LinkedEventKind::Resolved => {
+            crate::api::core::LinkedEventKind::Updated => {
                 <i32>::sse_encode(3, serializer);
             }
-            crate::api::core::LinkedEventKind::PeerLeft { device } => {
+            crate::api::core::LinkedEventKind::Conflict => {
                 <i32>::sse_encode(4, serializer);
+            }
+            crate::api::core::LinkedEventKind::Resolved => {
+                <i32>::sse_encode(5, serializer);
+            }
+            crate::api::core::LinkedEventKind::PeerLeft { device } => {
+                <i32>::sse_encode(6, serializer);
                 <String>::sse_encode(device, serializer);
             }
             crate::api::core::LinkedEventKind::Left => {
-                <i32>::sse_encode(5, serializer);
-            }
-            crate::api::core::LinkedEventKind::Missing => {
-                <i32>::sse_encode(6, serializer);
-            }
-            crate::api::core::LinkedEventKind::Found => {
                 <i32>::sse_encode(7, serializer);
             }
-            crate::api::core::LinkedEventKind::Moved => {
+            crate::api::core::LinkedEventKind::Missing => {
                 <i32>::sse_encode(8, serializer);
             }
-            crate::api::core::LinkedEventKind::Error { message } => {
+            crate::api::core::LinkedEventKind::Found => {
                 <i32>::sse_encode(9, serializer);
+            }
+            crate::api::core::LinkedEventKind::Moved => {
+                <i32>::sse_encode(10, serializer);
+            }
+            crate::api::core::LinkedEventKind::Error { message } => {
+                <i32>::sse_encode(11, serializer);
                 <String>::sse_encode(message, serializer);
             }
             _ => {
@@ -2562,6 +2640,7 @@ impl SseEncode for crate::api::core::LinkedView {
         <crate::api::core::LinkedState>::sse_encode(self.state, serializer);
         <u64>::sse_encode(self.size, serializer);
         <Option<crate::api::core::ConflictView>>::sse_encode(self.conflict, serializer);
+        <Vec<String>>::sse_encode(self.missing_on, serializer);
     }
 }
 

@@ -78,6 +78,14 @@ void main() {
         yield* files.stream;
       }(),
       sharedItems: items.stream,
+      // ArrivalPanel.swift draws warnings in the same card.
+      showNotice: (title, body) async {
+        await _arrival.invokeMethod<void>('notice', {
+          'title': title,
+          'body': body,
+        });
+        return true;
+      },
       // ArrivalPanel.swift draws the card.
       showArrival: (arrival) async {
         await _arrival.invokeMethod<void>('show', arrival.toMap());

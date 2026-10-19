@@ -69,6 +69,8 @@ pub enum SyncMessage {
     Unlinked { id: LinkId },
     /// Answer to `Link`, `Changed` and `Resolved`: whether to send the content.
     Reply { id: LinkId, want: bool },
+    /// The file cannot be found on the sending device (`missing`), or is back.
+    Status { id: LinkId, missing: bool },
 }
 
 impl SyncMessage {
@@ -80,7 +82,8 @@ impl SyncMessage {
             | SyncMessage::Resolved { id, .. }
             | SyncMessage::Hashes { id, .. }
             | SyncMessage::Unlinked { id }
-            | SyncMessage::Reply { id, .. } => Some(*id),
+            | SyncMessage::Reply { id, .. }
+            | SyncMessage::Status { id, .. } => Some(*id),
             SyncMessage::Summary { .. } => None,
         }
     }
@@ -130,7 +133,9 @@ impl SyncMessage {
                     check_version(version)?;
                 }
             }
-            SyncMessage::Unlinked { .. } | SyncMessage::Reply { .. } => {}
+            SyncMessage::Unlinked { .. }
+            | SyncMessage::Reply { .. }
+            | SyncMessage::Status { .. } => {}
         }
         Ok(self)
     }
@@ -349,6 +354,10 @@ mod tests {
             },
             SyncMessage::Unlinked { id: ID },
             SyncMessage::Reply { id: ID, want: true },
+            SyncMessage::Status {
+                id: ID,
+                missing: true,
+            },
         ] {
             let bytes = postcard::to_stdvec(&msg).unwrap();
             assert_eq!(ec_net::decode::<SyncMessage>(&bytes).unwrap(), msg);

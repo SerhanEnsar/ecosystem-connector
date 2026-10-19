@@ -175,6 +175,39 @@ void main() {
       expect(find.text('2026-10-12 18:45 · Mac changed'), findsOneWidget);
     });
 
+    testWidgets('a file missing on another device says where', (tester) async {
+      final controller = FakeController()
+        ..linkedFiles = [
+          EcLinkedFile(
+            id: 'm',
+            name: 'Makale.pdf',
+            path: '/x/Makale.pdf',
+            devices: const ['Galaxy'],
+            state: EcLinkedState.current,
+            size: 10,
+            missingOn: const ['Galaxy'],
+          ),
+        ];
+      await pump(tester, LinkedFilesScreen(controller: controller));
+      expect(
+        find.text('Up to date · missing on Galaxy · Galaxy'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('check now refreshes', (tester) async {
+      final controller = FakeController()
+        ..linkedFiles = [file('a', EcLinkedState.current)];
+      await pump(tester, LinkedFilesScreen(controller: controller));
+      await tester.tap(find.byTooltip('Check now'));
+      await tester.pump();
+      expect(controller.linkedCalls, ['refresh']);
+      // Pulling the list down does the same.
+      await tester.fling(find.text('Rapor.pdf'), const Offset(0, 400), 1000);
+      await tester.pumpAndSettle();
+      expect(controller.linkedCalls, ['refresh', 'refresh']);
+    });
+
     testWidgets('settings lead to it', (tester) async {
       final controller = FakeController()
         ..linkedFiles = [file('a', EcLinkedState.current)];

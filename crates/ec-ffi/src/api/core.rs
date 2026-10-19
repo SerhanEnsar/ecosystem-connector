@@ -117,6 +117,8 @@ pub struct LinkedView {
     pub size: u64,
     /// Set when in conflict.
     pub conflict: Option<ConflictView>,
+    /// Names of the devices where the file cannot be found.
+    pub missing_on: Vec<String>,
 }
 
 /// One entry of a linked file's log.
@@ -138,6 +140,15 @@ pub enum LinkedEventKind {
         path: String,
         /// The sending device's name.
         from: String,
+    },
+    /// It changed here; the new version is on its way to the other devices.
+    Changed,
+    /// Another device cannot find it, or found it again.
+    PeerMissing {
+        /// That device's name.
+        device: String,
+        /// Whether it is missing there now.
+        missing: bool,
     },
     /// A newer version replaced it.
     Updated,
@@ -493,6 +504,12 @@ impl EcCore {
                     state,
                     size: f.content.size,
                     conflict,
+                    missing_on: self
+                        .runtime
+                        .linked_missing_on(f.id)
+                        .iter()
+                        .map(|d| self.device_name(d))
+                        .collect(),
                 }
             })
             .collect()
@@ -516,18 +533,21 @@ impl EcCore {
     /// Resolves a conflict, keeping the other device's version or this one's.
     #[frb(sync)]
     pub fn resolve_conflict(&self, id: String, keep_theirs: bool) -> anyhow::Result<()> {
+        let _runtime = RT.enter();
         Ok(self.runtime.resolve_conflict(link_id(&id)?, keep_theirs)?)
     }
 
     /// Deletes the waiting version of a conflict, keeping this device's.
     #[frb(sync)]
     pub fn delete_conflict(&self, id: String) -> anyhow::Result<()> {
+        let _runtime = RT.enter();
         Ok(self.runtime.delete_conflict(link_id(&id)?)?)
     }
 
     /// Stops syncing a file on this device. The file stays.
     #[frb(sync)]
     pub fn leave_link(&self, id: String) -> anyhow::Result<()> {
+        let _runtime = RT.enter();
         Ok(self.runtime.leave_link(link_id(&id)?)?)
     }
 
@@ -535,9 +555,17 @@ impl EcCore {
     /// bookmark). A path in the Trash means it was deleted.
     #[frb(sync)]
     pub fn relocate_linked(&self, id: String, path: String) -> anyhow::Result<()> {
+        let _runtime = RT.enter();
         Ok(self
             .runtime
             .relocate_linked(link_id(&id)?, PathBuf::from(path))?)
+    }
+
+    /// Checks every linked file now and exchanges summaries with connected devices.
+    #[frb(sync)]
+    pub fn refresh_linked(&self) {
+        let _runtime = RT.enter();
+        self.runtime.refresh_linked();
     }
 
     /// How often linked files are checked without a file system event, in seconds.
@@ -774,6 +802,14 @@ fn convert_sync(event: ec_sync::SyncEvent) -> Option<CoreEvent> {
             },
         ),
         SyncEvent::Updated { id } => (id, LinkedEventKind::Updated),
+        SyncEvent::Changed { id } => (id, LinkedEventKind::Changed),
+        SyncEvent::PeerMissing { id, peer, missing } => (
+            id,
+            LinkedEventKind::PeerMissing {
+                device: peer.short(),
+                missing,
+            },
+        ),
         SyncEvent::Conflict { id } => (id, LinkedEventKind::Conflict),
         SyncEvent::Resolved { id } => (id, LinkedEventKind::Resolved),
         SyncEvent::PeerUnlinked { id, peer } => (
