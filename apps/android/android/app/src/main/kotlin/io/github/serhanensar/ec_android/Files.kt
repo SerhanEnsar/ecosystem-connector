@@ -24,17 +24,22 @@ object Files {
     }
 
     /**
-     * Opens the receive folder in a file manager: Samsung My Files at the folder, else
-     * the system Files app at it, else the downloads list.
+     * Opens the folder of [path] (the receive folder when there is none) in a file
+     * manager: Samsung My Files at the folder, else the system Files app at it, else
+     * the downloads list.
      */
-    fun showFolder(context: Context): Boolean {
+    fun showFolder(context: Context, path: String? = null): Boolean {
+        val dir = path?.let { File(it).parentFile?.path } ?: DeviceInfo.receiveDir()
         val samsung = Intent("samsung.myfiles.intent.action.LAUNCH_MY_FILES")
             .setPackage("com.sec.android.app.myfiles")
-            .putExtra("samsung.myfiles.intent.extra.START_PATH", DeviceInfo.receiveDir())
+            .putExtra("samsung.myfiles.intent.extra.START_PATH", dir)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        // Not our URI, so no permission flags: the Files app has its own access.
+        // Not our URI, so no permission flags: the Files app has its own access. Its
+        // document ids are paths on the primary volume.
+        val storage = android.os.Environment.getExternalStorageDirectory().path
+        val relative = dir.removePrefix(storage).trimStart('/').ifEmpty { "Download/ECOnnector" }
         val folder = DocumentsContract.buildDocumentUri(
-            "com.android.externalstorage.documents", "primary:Download/ECOnnector",
+            "com.android.externalstorage.documents", "primary:$relative",
         )
         val files = Intent(Intent.ACTION_VIEW)
             .setDataAndType(folder, DocumentsContract.Document.MIME_TYPE_DIR)

@@ -134,4 +134,7 @@ abstract class EcController extends ChangeNotifier {
 
   /// Lets the user pick a file and links it with [device].
   Future<void> linkFile(EcDevice device);
+
+  /// Checks every linked file now and asks the other devices for theirs.
+  Future<void> refreshLinked();
 }

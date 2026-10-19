@@ -9,6 +9,8 @@ struct Arrival: Identifiable {
     case files([URL], size: Int64)
     case page(URL)
     case text(String)
+    /// A warning or error about a linked file, with its explanation.
+    case notice(String)
   }
 
   let id = UUID()
@@ -151,7 +153,7 @@ struct ArrivalView: View {
         Text(arrival.title)
           .font(.system(size: 14, weight: .semibold))
           .lineLimit(2)
-        Text("From \(arrival.from)")
+        Text(arrival.from.isEmpty ? "ECOnnector" : "From \(arrival.from)")
           .font(.system(size: 12))
           .foregroundStyle(.secondary)
           .lineLimit(1)
@@ -212,6 +214,7 @@ struct ArrivalView: View {
     case .files: return "doc.on.doc"
     case .page: return "globe"
     case .text: return "text.alignleft"
+    case .notice: return "exclamationmark.triangle"
     }
   }
 
@@ -222,7 +225,7 @@ struct ArrivalView: View {
       return arrival.linked ? "Linked, kept up to date · \(bytes)" : bytes
     case .page(let url):
       return url.host ?? url.absoluteString
-    case .text(let text):
+    case .text(let text), .notice(let text):
       return text.split(whereSeparator: \.isNewline).joined(separator: " ")
     }
   }
@@ -232,6 +235,7 @@ struct ArrivalView: View {
     case .file, .files: return "Show in folder"
     case .page: return "Open in browser"
     case .text: return "Copy"
+    case .notice: return "Open ECOnnector"
     }
   }
 
@@ -252,6 +256,7 @@ struct ArrivalView: View {
     case .file(let url, _): NSWorkspace.shared.activateFileViewerSelecting([url])
     case .files(let urls, _): NSWorkspace.shared.activateFileViewerSelecting(urls)
     case .page(let url): NSWorkspace.shared.open(url)
+    case .notice: NSApp.activate(ignoringOtherApps: true)
     case .text(let text):
       NSPasteboard.general.clearContents()
       NSPasteboard.general.setString(text, forType: .string)

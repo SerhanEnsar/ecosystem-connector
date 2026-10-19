@@ -30,13 +30,17 @@ Future<void> runLinkedAction(
 }
 
 /// What a linked file's state reads as.
-String linkedStateText(EcLinkedFile file) => switch (file.state) {
-  EcLinkedState.current => 'Up to date',
-  EcLinkedState.updating => 'Updating…',
-  EcLinkedState.conflict =>
-    'Conflict (${formatBytes(file.conflict?.theirsSize ?? 0)} waiting)',
-  EcLinkedState.missing => 'Missing',
-};
+String linkedStateText(EcLinkedFile file) {
+  final here = switch (file.state) {
+    EcLinkedState.current => 'Up to date',
+    EcLinkedState.updating => 'Updating…',
+    EcLinkedState.conflict =>
+      'Conflict (${formatBytes(file.conflict?.theirsSize ?? 0)} waiting)',
+    EcLinkedState.missing => 'Missing',
+  };
+  if (file.missingOn.isEmpty) return here;
+  return '$here · missing on ${file.missingOn.join(', ')}';
+}
 
 /// Every linked file: its devices, its state, its log, and what can be done with it.
 class LinkedFilesScreen extends StatelessWidget {
@@ -85,6 +89,11 @@ class LinkedFilesScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Linked files'),
         actions: [
+          IconButton(
+            tooltip: 'Check now',
+            onPressed: () => runLinkedAction(context, controller.refreshLinked),
+            icon: const Icon(Icons.refresh),
+          ),
           TextButton.icon(
             onPressed: () => _link(context),
             icon: const Icon(Icons.add_link),
@@ -96,24 +105,31 @@ class LinkedFilesScreen extends StatelessWidget {
         listenable: controller,
         builder: (context, _) {
           final files = controller.linkedFiles;
-          if (files.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text(
-                  'No linked files yet. Choose "Send linked" when you send a file, '
-                  'and edits on either device reach the other.',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          }
-          return ListView(
-            padding: const EdgeInsets.only(bottom: 24),
-            children: [
-              for (final file in files)
-                _LinkedTile(controller: controller, file: file),
-            ],
+          // Pull down to check every file now and ask the other devices.
+          return RefreshIndicator(
+            onRefresh: () => runLinkedAction(context, controller.refreshLinked),
+            child: files.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: const [
+                      Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Text(
+                          'No linked files yet. Choose "Send linked" when you send '
+                          'a file, and edits on either device reach the other.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  )
+                : ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(bottom: 24),
+                    children: [
+                      for (final file in files)
+                        _LinkedTile(controller: controller, file: file),
+                    ],
+                  ),
           );
         },
       ),

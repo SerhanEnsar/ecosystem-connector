@@ -25,6 +25,7 @@ fn config(root: &Path) -> WatchConfig {
         quiet: Duration::from_millis(200),
         stat_interval: Duration::from_millis(200),
         roots: vec![root.to_path_buf()],
+        delete_grace: Duration::from_secs(1),
     }
 }
 
@@ -224,4 +225,46 @@ async fn an_old_remove_event_does_not_make_a_later_loss_a_delete() {
         Some(WatchEvent::Missing { .. }) => {}
         other => panic!("expected missing, got {other:?}"),
     }
+}
+
+#[tokio::test]
+async fn deleted_and_written_again_is_a_change() {
+    let mut s = start(None);
+    // An app saves by deleting the file and writing the new one a moment later.
+    std::fs::remove_file(&s.path).unwrap();
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    std::fs::write(&s.path, b"written again by the app").unwrap();
+    match next(&mut s.events, Duration::from_secs(5)).await {
+        Some(WatchEvent::Changed { content, .. }) => assert_eq!(content.size, 24),
+        other => panic!("expected a change, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn check_now_looks_without_waiting() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("Liste.txt");
+    std::fs::write(&path, b"v1").unwrap();
+    let file = describe(ID, &path).unwrap();
+    let (tx, mut events) = mpsc::unbounded_channel();
+    // No periodic check for a minute: only check_now makes the watcher look.
+    let cfg = WatchConfig {
+        quiet: Duration::from_millis(200),
+        stat_interval: Duration::from_secs(60),
+        roots: vec![],
+        delete_grace: Duration::from_secs(1),
+    };
+    let watcher = Watcher::start(cfg, vec![file.clone()], tx).unwrap();
+    // A record that no longer matches the disk (as after an unnoticed write).
+    let stale = ec_sync::Seen {
+        size: 2,
+        mtime_ns: 1,
+    };
+    watcher.expect_write(ID, stale, file.content);
+    nothing_for(&mut events, Duration::from_millis(600)).await;
+    assert_eq!(watcher.hash_count(), 0);
+    watcher.check_now();
+    // Same contents: looked at (hashed once) and nothing to report.
+    nothing_for(&mut events, Duration::from_millis(600)).await;
+    assert_eq!(watcher.hash_count(), 1);
 }

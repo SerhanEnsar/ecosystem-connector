@@ -273,6 +273,7 @@ class EcLinkedFile {
     required this.state,
     required this.size,
     this.conflict,
+    this.missingOn = const [],
   });
 
   final String id;
@@ -290,6 +291,9 @@ class EcLinkedFile {
 
   /// Set when [state] is [EcLinkedState.conflict].
   final EcLinkedConflict? conflict;
+
+  /// Names of the other devices where it cannot be found.
+  final List<String> missingOn;
 }
 
 /// One entry of a linked file's log.

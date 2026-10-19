@@ -107,7 +107,7 @@ class FlingHandle private constructor(private val context: Context) {
                         result.success(null)
                     }
                     "openFile" -> result.success(Files.open(context, call.arguments as String))
-                    "showInFolder" -> result.success(Files.showFolder(context))
+                    "showInFolder" -> result.success(Files.showFolder(context, call.arguments as? String))
                     "openUrl" -> result.success(Files.openUrl(context, call.arguments as String))
                     "deviceName" -> result.success(DeviceInfo.name(context))
                     "receiveDir" -> result.success(DeviceInfo.receiveDir())

@@ -919,11 +919,13 @@ extension LinkedEventKindPatterns on LinkedEventKind {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( LinkedEventKind_Arrived value)?  arrived,TResult Function( LinkedEventKind_Updated value)?  updated,TResult Function( LinkedEventKind_Conflict value)?  conflict,TResult Function( LinkedEventKind_Resolved value)?  resolved,TResult Function( LinkedEventKind_PeerLeft value)?  peerLeft,TResult Function( LinkedEventKind_Left value)?  left,TResult Function( LinkedEventKind_Missing value)?  missing,TResult Function( LinkedEventKind_Found value)?  found,TResult Function( LinkedEventKind_Moved value)?  moved,TResult Function( LinkedEventKind_Error value)?  error,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( LinkedEventKind_Arrived value)?  arrived,TResult Function( LinkedEventKind_Changed value)?  changed,TResult Function( LinkedEventKind_PeerMissing value)?  peerMissing,TResult Function( LinkedEventKind_Updated value)?  updated,TResult Function( LinkedEventKind_Conflict value)?  conflict,TResult Function( LinkedEventKind_Resolved value)?  resolved,TResult Function( LinkedEventKind_PeerLeft value)?  peerLeft,TResult Function( LinkedEventKind_Left value)?  left,TResult Function( LinkedEventKind_Missing value)?  missing,TResult Function( LinkedEventKind_Found value)?  found,TResult Function( LinkedEventKind_Moved value)?  moved,TResult Function( LinkedEventKind_Error value)?  error,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case LinkedEventKind_Arrived() when arrived != null:
-return arrived(_that);case LinkedEventKind_Updated() when updated != null:
+return arrived(_that);case LinkedEventKind_Changed() when changed != null:
+return changed(_that);case LinkedEventKind_PeerMissing() when peerMissing != null:
+return peerMissing(_that);case LinkedEventKind_Updated() when updated != null:
 return updated(_that);case LinkedEventKind_Conflict() when conflict != null:
 return conflict(_that);case LinkedEventKind_Resolved() when resolved != null:
 return resolved(_that);case LinkedEventKind_PeerLeft() when peerLeft != null:
@@ -950,11 +952,13 @@ return error(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( LinkedEventKind_Arrived value)  arrived,required TResult Function( LinkedEventKind_Updated value)  updated,required TResult Function( LinkedEventKind_Conflict value)  conflict,required TResult Function( LinkedEventKind_Resolved value)  resolved,required TResult Function( LinkedEventKind_PeerLeft value)  peerLeft,required TResult Function( LinkedEventKind_Left value)  left,required TResult Function( LinkedEventKind_Missing value)  missing,required TResult Function( LinkedEventKind_Found value)  found,required TResult Function( LinkedEventKind_Moved value)  moved,required TResult Function( LinkedEventKind_Error value)  error,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( LinkedEventKind_Arrived value)  arrived,required TResult Function( LinkedEventKind_Changed value)  changed,required TResult Function( LinkedEventKind_PeerMissing value)  peerMissing,required TResult Function( LinkedEventKind_Updated value)  updated,required TResult Function( LinkedEventKind_Conflict value)  conflict,required TResult Function( LinkedEventKind_Resolved value)  resolved,required TResult Function( LinkedEventKind_PeerLeft value)  peerLeft,required TResult Function( LinkedEventKind_Left value)  left,required TResult Function( LinkedEventKind_Missing value)  missing,required TResult Function( LinkedEventKind_Found value)  found,required TResult Function( LinkedEventKind_Moved value)  moved,required TResult Function( LinkedEventKind_Error value)  error,}){
 final _that = this;
 switch (_that) {
 case LinkedEventKind_Arrived():
-return arrived(_that);case LinkedEventKind_Updated():
+return arrived(_that);case LinkedEventKind_Changed():
+return changed(_that);case LinkedEventKind_PeerMissing():
+return peerMissing(_that);case LinkedEventKind_Updated():
 return updated(_that);case LinkedEventKind_Conflict():
 return conflict(_that);case LinkedEventKind_Resolved():
 return resolved(_that);case LinkedEventKind_PeerLeft():
@@ -977,11 +981,13 @@ return error(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( LinkedEventKind_Arrived value)?  arrived,TResult? Function( LinkedEventKind_Updated value)?  updated,TResult? Function( LinkedEventKind_Conflict value)?  conflict,TResult? Function( LinkedEventKind_Resolved value)?  resolved,TResult? Function( LinkedEventKind_PeerLeft value)?  peerLeft,TResult? Function( LinkedEventKind_Left value)?  left,TResult? Function( LinkedEventKind_Missing value)?  missing,TResult? Function( LinkedEventKind_Found value)?  found,TResult? Function( LinkedEventKind_Moved value)?  moved,TResult? Function( LinkedEventKind_Error value)?  error,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( LinkedEventKind_Arrived value)?  arrived,TResult? Function( LinkedEventKind_Changed value)?  changed,TResult? Function( LinkedEventKind_PeerMissing value)?  peerMissing,TResult? Function( LinkedEventKind_Updated value)?  updated,TResult? Function( LinkedEventKind_Conflict value)?  conflict,TResult? Function( LinkedEventKind_Resolved value)?  resolved,TResult? Function( LinkedEventKind_PeerLeft value)?  peerLeft,TResult? Function( LinkedEventKind_Left value)?  left,TResult? Function( LinkedEventKind_Missing value)?  missing,TResult? Function( LinkedEventKind_Found value)?  found,TResult? Function( LinkedEventKind_Moved value)?  moved,TResult? Function( LinkedEventKind_Error value)?  error,}){
 final _that = this;
 switch (_that) {
 case LinkedEventKind_Arrived() when arrived != null:
-return arrived(_that);case LinkedEventKind_Updated() when updated != null:
+return arrived(_that);case LinkedEventKind_Changed() when changed != null:
+return changed(_that);case LinkedEventKind_PeerMissing() when peerMissing != null:
+return peerMissing(_that);case LinkedEventKind_Updated() when updated != null:
 return updated(_that);case LinkedEventKind_Conflict() when conflict != null:
 return conflict(_that);case LinkedEventKind_Resolved() when resolved != null:
 return resolved(_that);case LinkedEventKind_PeerLeft() when peerLeft != null:
@@ -1007,10 +1013,12 @@ return error(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String path,  String from)?  arrived,TResult Function()?  updated,TResult Function()?  conflict,TResult Function()?  resolved,TResult Function( String device)?  peerLeft,TResult Function()?  left,TResult Function()?  missing,TResult Function()?  found,TResult Function()?  moved,TResult Function( String message)?  error,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String path,  String from)?  arrived,TResult Function()?  changed,TResult Function( String device,  bool missing)?  peerMissing,TResult Function()?  updated,TResult Function()?  conflict,TResult Function()?  resolved,TResult Function( String device)?  peerLeft,TResult Function()?  left,TResult Function()?  missing,TResult Function()?  found,TResult Function()?  moved,TResult Function( String message)?  error,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case LinkedEventKind_Arrived() when arrived != null:
-return arrived(_that.path,_that.from);case LinkedEventKind_Updated() when updated != null:
+return arrived(_that.path,_that.from);case LinkedEventKind_Changed() when changed != null:
+return changed();case LinkedEventKind_PeerMissing() when peerMissing != null:
+return peerMissing(_that.device,_that.missing);case LinkedEventKind_Updated() when updated != null:
 return updated();case LinkedEventKind_Conflict() when conflict != null:
 return conflict();case LinkedEventKind_Resolved() when resolved != null:
 return resolved();case LinkedEventKind_PeerLeft() when peerLeft != null:
@@ -1037,10 +1045,12 @@ return error(_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String path,  String from)  arrived,required TResult Function()  updated,required TResult Function()  conflict,required TResult Function()  resolved,required TResult Function( String device)  peerLeft,required TResult Function()  left,required TResult Function()  missing,required TResult Function()  found,required TResult Function()  moved,required TResult Function( String message)  error,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String path,  String from)  arrived,required TResult Function()  changed,required TResult Function( String device,  bool missing)  peerMissing,required TResult Function()  updated,required TResult Function()  conflict,required TResult Function()  resolved,required TResult Function( String device)  peerLeft,required TResult Function()  left,required TResult Function()  missing,required TResult Function()  found,required TResult Function()  moved,required TResult Function( String message)  error,}) {final _that = this;
 switch (_that) {
 case LinkedEventKind_Arrived():
-return arrived(_that.path,_that.from);case LinkedEventKind_Updated():
+return arrived(_that.path,_that.from);case LinkedEventKind_Changed():
+return changed();case LinkedEventKind_PeerMissing():
+return peerMissing(_that.device,_that.missing);case LinkedEventKind_Updated():
 return updated();case LinkedEventKind_Conflict():
 return conflict();case LinkedEventKind_Resolved():
 return resolved();case LinkedEventKind_PeerLeft():
@@ -1063,10 +1073,12 @@ return error(_that.message);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String path,  String from)?  arrived,TResult? Function()?  updated,TResult? Function()?  conflict,TResult? Function()?  resolved,TResult? Function( String device)?  peerLeft,TResult? Function()?  left,TResult? Function()?  missing,TResult? Function()?  found,TResult? Function()?  moved,TResult? Function( String message)?  error,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String path,  String from)?  arrived,TResult? Function()?  changed,TResult? Function( String device,  bool missing)?  peerMissing,TResult? Function()?  updated,TResult? Function()?  conflict,TResult? Function()?  resolved,TResult? Function( String device)?  peerLeft,TResult? Function()?  left,TResult? Function()?  missing,TResult? Function()?  found,TResult? Function()?  moved,TResult? Function( String message)?  error,}) {final _that = this;
 switch (_that) {
 case LinkedEventKind_Arrived() when arrived != null:
-return arrived(_that.path,_that.from);case LinkedEventKind_Updated() when updated != null:
+return arrived(_that.path,_that.from);case LinkedEventKind_Changed() when changed != null:
+return changed();case LinkedEventKind_PeerMissing() when peerMissing != null:
+return peerMissing(_that.device,_that.missing);case LinkedEventKind_Updated() when updated != null:
 return updated();case LinkedEventKind_Conflict() when conflict != null:
 return conflict();case LinkedEventKind_Resolved() when resolved != null:
 return resolved();case LinkedEventKind_PeerLeft() when peerLeft != null:
@@ -1149,6 +1161,110 @@ class _$LinkedEventKind_ArrivedCopyWithImpl<$Res>
 path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
 as String,from: null == from ? _self.from : from // ignore: cast_nullable_to_non_nullable
 as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class LinkedEventKind_Changed extends LinkedEventKind {
+  const LinkedEventKind_Changed(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is LinkedEventKind_Changed);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+    return 'LinkedEventKind.changed()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class LinkedEventKind_PeerMissing extends LinkedEventKind {
+  const LinkedEventKind_PeerMissing({required this.device, required this.missing}): super._();
+  
+
+/// That device's name.
+ final  String device;
+/// Whether it is missing there now.
+ final  bool missing;
+
+/// Create a copy of LinkedEventKind
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LinkedEventKind_PeerMissingCopyWith<LinkedEventKind_PeerMissing> get copyWith => _$LinkedEventKind_PeerMissingCopyWithImpl<LinkedEventKind_PeerMissing>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is LinkedEventKind_PeerMissing&&(identical(other.device, device) || other.device == device)&&(identical(other.missing, missing) || other.missing == missing));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,device,missing);
+}
+
+@override
+String toString() {
+    return 'LinkedEventKind.peerMissing(device: $device, missing: $missing)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LinkedEventKind_PeerMissingCopyWith<$Res> implements $LinkedEventKindCopyWith<$Res> {
+  factory $LinkedEventKind_PeerMissingCopyWith(LinkedEventKind_PeerMissing value, $Res Function(LinkedEventKind_PeerMissing) _then) = _$LinkedEventKind_PeerMissingCopyWithImpl;
+@useResult
+$Res call({
+ String device, bool missing
+});
+
+
+
+
+}
+/// @nodoc
+class _$LinkedEventKind_PeerMissingCopyWithImpl<$Res>
+    implements $LinkedEventKind_PeerMissingCopyWith<$Res> {
+  _$LinkedEventKind_PeerMissingCopyWithImpl(this._self, this._then);
+
+  final LinkedEventKind_PeerMissing _self;
+  final $Res Function(LinkedEventKind_PeerMissing) _then;
+
+/// Create a copy of LinkedEventKind
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? device = null,Object? missing = null,}) {
+  return _then(LinkedEventKind_PeerMissing(
+device: null == device ? _self.device : device // ignore: cast_nullable_to_non_nullable
+as String,missing: null == missing ? _self.missing : missing // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

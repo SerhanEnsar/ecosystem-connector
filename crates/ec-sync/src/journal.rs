@@ -24,6 +24,9 @@ pub type LinkId = [u8; 16];
 pub const MAX_LOG_ENTRIES: usize = 200;
 
 const JOURNAL_FILE: &str = "journal.bin";
+/// Which devices are known to have each file, kept apart so the journal format of
+/// 0.4.0-alpha.1 still reads.
+const DELIVERED_FILE: &str = "delivered.bin";
 const BROKEN_FILE: &str = "journal.broken";
 const LOG_DIR: &str = "log";
 const FORMAT: u32 = 1;
@@ -164,6 +167,7 @@ struct Stored {
 pub struct Journal {
     dir: PathBuf,
     files: BTreeMap<LinkId, LinkedFile>,
+    delivered: BTreeMap<LinkId, Vec<DeviceId>>,
     recovered: bool,
 }
 
@@ -194,9 +198,13 @@ impl Journal {
                 }
             },
         };
+        let delivered = read_optional(&dir.join(DELIVERED_FILE))?
+            .and_then(|data| postcard::from_bytes(&data).ok())
+            .unwrap_or_default();
         Ok(Self {
             dir: dir.to_path_buf(),
             files: files.into_iter().map(|f| (f.id, f)).collect(),
+            delivered,
             recovered,
         })
     }
@@ -208,6 +216,26 @@ impl Journal {
         };
         let data = postcard::to_stdvec(&stored).map_err(|_| Error::Encode("journal"))?;
         Ok(write_private(&self.dir.join(JOURNAL_FILE), &data)?)
+    }
+
+    fn save_delivered(&self) -> Result<()> {
+        let data = postcard::to_stdvec(&self.delivered).map_err(|_| Error::Encode("delivered"))?;
+        Ok(write_private(&self.dir.join(DELIVERED_FILE), &data)?)
+    }
+
+    /// Records that `peer` has the file `id` (it received or announced it).
+    pub fn mark_delivered(&mut self, id: &LinkId, peer: DeviceId) -> Result<()> {
+        let peers = self.delivered.entry(*id).or_default();
+        if peers.contains(&peer) {
+            return Ok(());
+        }
+        peers.push(peer);
+        self.save_delivered()
+    }
+
+    /// Whether `peer` is known to have had the file `id`.
+    pub fn was_delivered(&self, id: &LinkId, peer: &DeviceId) -> bool {
+        self.delivered.get(id).is_some_and(|p| p.contains(peer))
     }
 
     fn log_path(&self, id: &LinkId) -> PathBuf {
@@ -242,6 +270,9 @@ impl Journal {
         let removed = self.files.remove(id);
         if removed.is_some() {
             self.save()?;
+        }
+        if self.delivered.remove(id).is_some() {
+            self.save_delivered()?;
         }
         let log = self.log_path(id);
         match std::fs::remove_file(&log) {
@@ -288,7 +319,10 @@ impl Journal {
         if changed {
             self.save()?;
         }
-        Ok(())
+        for peers in self.delivered.values_mut() {
+            peers.retain(|p| p != peer);
+        }
+        self.save_delivered()
     }
 }
 

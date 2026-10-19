@@ -25,6 +25,13 @@ private func registerArrivalChannel(_ messenger: FlutterBinaryMessenger) {
     binaryMessenger: messenger
   )
   channel.setMethodCallHandler { call, result in
+    if call.method == "notice", let args = call.arguments as? [String: Any] {
+      let title = args["title"] as? String ?? ""
+      let body = args["body"] as? String ?? ""
+      ArrivalPresenter.shared.show(Arrival(kind: .notice(body), title: title, from: ""))
+      result(nil)
+      return
+    }
     guard call.method == "show", let args = call.arguments as? [String: Any] else {
       result(FlutterMethodNotImplemented)
       return

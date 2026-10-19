@@ -92,6 +92,20 @@ pub enum SyncEvent {
         /// Where it was saved.
         path: PathBuf,
     },
+    /// The file changed on this device; the new version goes to the other devices.
+    Changed {
+        /// The link.
+        id: LinkId,
+    },
+    /// Another device reported the file missing there, or back.
+    PeerMissing {
+        /// The link.
+        id: LinkId,
+        /// The device.
+        peer: DeviceId,
+        /// Whether it is missing there now.
+        missing: bool,
+    },
     /// A newer version arrived and replaced the file.
     Updated {
         /// The link.
@@ -206,6 +220,11 @@ struct Core {
     events: broadcast::Sender<SyncEvent>,
     support: Mutex<HashMap<DeviceId, bool>>,
     pending: Mutex<HashMap<(DeviceId, LinkId), Pending>>,
+    /// Devices that reported a file missing.
+    missing_on: Mutex<HashMap<LinkId, Vec<DeviceId>>>,
+    /// The runtime the service started on. Background work is spawned here, as the
+    /// apps also call in from threads outside any runtime.
+    rt: tokio::runtime::Handle,
 }
 
 /// The linked files service. Register it with an [`ec_net::Router`] for [`SYNC_KIND`]
@@ -290,8 +309,10 @@ impl SyncService {
             events,
             support: Mutex::new(HashMap::new()),
             pending: Mutex::new(HashMap::new()),
+            missing_on: Mutex::new(HashMap::new()),
+            rt: tokio::runtime::Handle::current(),
         });
-        tokio::spawn(watch_loop(Arc::downgrade(&core), rx));
+        core.rt.spawn(watch_loop(Arc::downgrade(&core), rx));
         Ok(Arc::new(Self { core }))
     }
 
@@ -358,7 +379,32 @@ impl SyncService {
     /// shows whether `peer` supports linked files.
     pub fn connected(&self, peer: DeviceId) {
         let core = self.core.clone();
-        tokio::spawn(async move { core.send_summary(peer).await });
+        self.core
+            .rt
+            .spawn(async move { core.send_summary(peer).await });
+    }
+
+    /// Looks at every linked file now and exchanges summaries with the connected
+    /// devices, instead of waiting for the next check (pull to refresh).
+    pub fn refresh(&self) {
+        self.core.watcher.check_now();
+        let peers: std::collections::BTreeSet<DeviceId> = lock(&self.core.journal)
+            .files()
+            .flat_map(|f| f.peers.clone())
+            .collect();
+        for peer in peers {
+            if self.core.outbox.conn(&peer).is_some() {
+                self.connected(peer);
+            }
+        }
+    }
+
+    /// The devices that reported `id` missing.
+    pub fn missing_on(&self, id: &LinkId) -> Vec<DeviceId> {
+        lock(&self.core.missing_on)
+            .get(id)
+            .cloned()
+            .unwrap_or_default()
     }
 
     /// Whether `peer` supports linked files, once known.
@@ -512,10 +558,14 @@ impl Core {
         };
         // The answer is awaited, so a refusal shows at once; the file itself is sent in
         // the background and a failure arrives as an error event.
-        match self.announce_only(peer, msg, &file).await {
+        let answer = self.announce_only(peer, msg, &file).await;
+        if answer.is_ok() {
+            let _ = lock(&self.journal).mark_delivered(&file.id, peer);
+        }
+        match answer {
             Ok(true) => {
                 let core = self.clone();
-                tokio::spawn(async move {
+                self.rt.spawn(async move {
                     if let Err(e) = core
                         .outbox
                         .send_file(peer, file.path.clone(), file.id)
@@ -614,7 +664,7 @@ impl Core {
             }
         };
         let (core, file) = (self.clone(), file.clone());
-        tokio::spawn(async move {
+        self.rt.spawn(async move {
             match core.announce(peer, msg, &file).await {
                 // Sent with the summary when the device connects again.
                 Ok(()) | Err(Error::Offline) => {}
@@ -649,6 +699,7 @@ impl Core {
                     // Only a device already linked with the file can announce it again;
                     // any other paired device is refused, as for Changed.
                     self.linked_with(&id, &peer)?;
+                    let _ = lock(&self.journal).mark_delivered(&id, peer);
                     return self.on_version(peer, id, version, content_of(content));
                 }
                 let pending = Pending {
@@ -672,7 +723,21 @@ impl Core {
                 content,
             } => {
                 self.linked_with(&id, &peer)?;
+                let _ = lock(&self.journal).mark_delivered(&id, peer);
                 self.on_version(peer, id, version, content_of(content))
+            }
+            SyncMessage::Status { id, missing } => {
+                self.linked_with(&id, &peer)?;
+                {
+                    let mut all = lock(&self.missing_on);
+                    let devices = all.entry(id).or_default();
+                    devices.retain(|d| *d != peer);
+                    if missing {
+                        devices.push(peer);
+                    }
+                }
+                self.emit(SyncEvent::PeerMissing { id, peer, missing });
+                Ok(None)
             }
             SyncMessage::Unlinked { id } => {
                 self.linked_with(&id, &peer)?;
@@ -683,6 +748,9 @@ impl Core {
                     };
                     file.peers.retain(|p| *p != peer);
                     self.put(&mut journal, &file, peer, LogKind::PeerLeft(peer))?;
+                }
+                if let Some(devices) = lock(&self.missing_on).get_mut(&id) {
+                    devices.retain(|d| *d != peer);
                 }
                 self.emit(SyncEvent::PeerUnlinked { id, peer });
                 Ok(None)
@@ -919,6 +987,7 @@ impl Core {
             state: State::Current,
         };
         self.put(journal, &file, peer, LogKind::Linked)?;
+        let _ = journal.mark_delivered(&id, peer);
         self.watcher.set(watched(journal));
         self.emit(SyncEvent::Linked {
             id,
@@ -1076,7 +1145,7 @@ impl Core {
         self.refresh_watch();
         for peer in file.peers {
             let core = self.clone();
-            tokio::spawn(async move {
+            self.rt.spawn(async move {
                 if let Some(conn) = core.outbox.conn(&peer)
                     && let Ok((mut send, _recv)) = conn.open_bi(SYNC_KIND).await
                 {
@@ -1133,6 +1202,7 @@ impl Core {
                         .is_ok()
                 };
                 if saved {
+                    self.emit(SyncEvent::Changed { id });
                     self.announce_to_peers(id, false);
                 }
             }
@@ -1160,6 +1230,7 @@ impl Core {
                 };
                 if saved {
                     self.emit(SyncEvent::Missing { id });
+                    self.tell_status(id, true);
                 }
             }
             WatchEvent::Found { id, at } => {
@@ -1178,9 +1249,32 @@ impl Core {
                 if saved {
                     self.refresh_watch();
                     self.emit(SyncEvent::Found { id });
+                    self.tell_status(id, false);
                 }
             }
         }
+    }
+
+    /// Tells the file's other devices that it is missing here, or back.
+    fn tell_status(self: &Arc<Self>, id: LinkId, missing: bool) {
+        let Some(file) = self.get(&id) else {
+            return;
+        };
+        for peer in file.peers {
+            self.send_status(peer, id, missing);
+        }
+    }
+
+    fn send_status(self: &Arc<Self>, peer: DeviceId, id: LinkId, missing: bool) {
+        let core = self.clone();
+        self.rt.spawn(async move {
+            if let Some(conn) = core.outbox.conn(&peer)
+                && let Ok((mut send, _recv)) = conn.open_bi(SYNC_KIND).await
+            {
+                let _ = write_sync(&mut send, &SyncMessage::Status { id, missing }).await;
+                let _ = send.finish();
+            }
+        });
     }
 
     async fn send_summary(self: &Arc<Self>, peer: DeviceId) {
@@ -1264,21 +1358,39 @@ impl Core {
             .collect();
         for file in shared {
             match theirs.get(&file.id) {
-                // The other device does not have it (it was offline when the file was
-                // linked): send the link.
+                // The other device does not have it. If it had it before, it left the
+                // link (its notice may have been lost): stop syncing with it rather than
+                // sending the file again as a new one.
+                None if lock(&self.journal).was_delivered(&file.id, &peer) => {
+                    {
+                        let mut journal = lock(&self.journal);
+                        if let Some(mut now) = journal.get(&file.id).cloned() {
+                            now.peers.retain(|p| *p != peer);
+                            let _ = self.put(&mut journal, &now, peer, LogKind::PeerLeft(peer));
+                        }
+                    }
+                    self.emit(SyncEvent::PeerUnlinked { id: file.id, peer });
+                }
+                // It was offline when the file was linked: send the link.
                 None => {
                     let core = self.clone();
-                    tokio::spawn(async move {
+                    self.rt.spawn(async move {
                         let msg = SyncMessage::Link {
                             id: file.id,
                             name: file.name.clone(),
                             version: file.version.clone(),
                             content: header(&file.content),
                         };
-                        let _ = core.announce(peer, msg, &file).await;
+                        if core.announce(peer, msg, &file).await.is_ok() {
+                            let _ = lock(&core.journal).mark_delivered(&file.id, peer);
+                        }
                     });
                 }
                 Some(version) => {
+                    let _ = lock(&self.journal).mark_delivered(&file.id, peer);
+                    if file.state == State::Missing {
+                        self.send_status(peer, file.id, true);
+                    }
                     if matches!(
                         file.version.compare(version),
                         Order::After | Order::Concurrent
@@ -1487,6 +1599,7 @@ mod tests {
                 quiet: Duration::from_millis(200),
                 stat_interval: Duration::from_secs(60),
                 roots: vec![dir.path().join("Received/Linked")],
+                delete_grace: Duration::from_secs(1),
             },
             before_commit: None,
         };
@@ -1937,6 +2050,22 @@ mod tests {
         // Unpairing C forgets what it asked to send.
         s.service.forget_peer(&C).unwrap();
         assert_eq!(lock(&core.pending).len(), 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn leaving_from_a_thread_outside_the_runtime_works() {
+        // The apps call some functions synchronously from their own threads.
+        let s = start();
+        let path = s.dir.path().join("Rapor.pdf");
+        std::fs::write(&path, b"mine").unwrap();
+        let file = record(&path, vec![B], v(&[(ME, 1)]));
+        lock(&s.service.core().journal).put(file.clone()).unwrap();
+        let service = s.service.clone();
+        std::thread::spawn(move || service.leave(file.id))
+            .join()
+            .expect("leave panicked outside the runtime")
+            .unwrap();
+        assert!(s.service.files().is_empty());
     }
 
     #[test]

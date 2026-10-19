@@ -69,6 +69,9 @@ abstract class EcCore implements RustOpaqueInterface {
   /// Whether received files go to the app's default folder.
   bool receiveDirIsDefault();
 
+  /// Checks every linked file now and exchanges summaries with connected devices.
+  void refreshLinked();
+
   /// Records where a linked file is now (found by the app, for example through a
   /// bookmark). A path in the Trash means it was deleted.
   void relocateLinked({required String id, required String path});
@@ -358,6 +361,18 @@ sealed class LinkedEventKind with _$LinkedEventKind {
     required String from,
   }) = LinkedEventKind_Arrived;
 
+  /// It changed here; the new version is on its way to the other devices.
+  const factory LinkedEventKind.changed() = LinkedEventKind_Changed;
+
+  /// Another device cannot find it, or found it again.
+  const factory LinkedEventKind.peerMissing({
+    /// That device's name.
+    required String device,
+
+    /// Whether it is missing there now.
+    required bool missing,
+  }) = LinkedEventKind_PeerMissing;
+
   /// A newer version replaced it.
   const factory LinkedEventKind.updated() = LinkedEventKind_Updated;
 
@@ -460,6 +475,9 @@ class LinkedView {
   /// Set when in conflict.
   final ConflictView? conflict;
 
+  /// Names of the devices where the file cannot be found.
+  final List<String> missingOn;
+
   const LinkedView({
     required this.id,
     required this.name,
@@ -468,6 +486,7 @@ class LinkedView {
     required this.state,
     required this.size,
     this.conflict,
+    required this.missingOn,
   });
 
   @override
@@ -478,7 +497,8 @@ class LinkedView {
       devices.hashCode ^
       state.hashCode ^
       size.hashCode ^
-      conflict.hashCode;
+      conflict.hashCode ^
+      missingOn.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -491,7 +511,8 @@ class LinkedView {
           devices == other.devices &&
           state == other.state &&
           size == other.size &&
-          conflict == other.conflict;
+          conflict == other.conflict &&
+          missingOn == other.missingOn;
 }
 
 @freezed

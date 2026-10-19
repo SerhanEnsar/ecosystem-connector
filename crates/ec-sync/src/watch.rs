@@ -25,7 +25,9 @@ use crate::identity::stat;
 use crate::{Content, Error, FileIdentity, LinkId, Result, Seen};
 
 /// How long a deleted file's remove event is remembered.
-const REMOVE_MEMORY: Duration = Duration::from_secs(10);
+/// It must outlast the delete grace; a remove event stops counting as soon as the
+/// file is seen again, so a long memory does not turn a later loss into a delete.
+const REMOVE_MEMORY: Duration = Duration::from_secs(60);
 /// How deep the roots are searched for a moved file.
 const SEARCH_DEPTH: usize = 8;
 
@@ -38,6 +40,9 @@ pub struct WatchConfig {
     pub stat_interval: Duration,
     /// Folders searched for a file that is no longer at its path.
     pub roots: Vec<PathBuf>,
+    /// How long a deleted file may take to come back before it counts as deleted:
+    /// some apps save by deleting the file and writing it again a little later.
+    pub delete_grace: Duration,
 }
 
 /// A file to watch, as the journal last recorded it.
@@ -205,6 +210,7 @@ struct Inner {
     removed: HashMap<PathBuf, Instant>,
     dirs: HashSet<PathBuf>,
     stat_interval: Duration,
+    quiet: Duration,
 }
 
 /// Watches linked files and reports [`WatchEvent`]s. Stops when dropped.
@@ -249,6 +255,7 @@ impl Watcher {
             removed: HashMap::new(),
             dirs: HashSet::new(),
             stat_interval: cfg.stat_interval,
+            quiet: cfg.quiet,
         }));
         let fs = Arc::new(Mutex::new(fs));
         update_dirs(&inner, &fs);
@@ -298,6 +305,18 @@ impl Watcher {
             entry.file.content = content;
             entry.dirty_since = None;
             entry.gone_since = None;
+            entry.missing = false;
+        }
+    }
+
+    /// Checks every file at the next tick instead of waiting for an event or the
+    /// periodic check (pull to refresh). Unchanged files are still not hashed.
+    pub fn check_now(&self) {
+        let due = Instant::now();
+        let mut inner = lock(&self.inner);
+        let quiet = inner.quiet;
+        for entry in inner.entries.values_mut() {
+            entry.dirty_since = Some(due.checked_sub(quiet).unwrap_or(due));
             entry.missing = false;
         }
     }
@@ -582,11 +601,15 @@ async fn gone(
         let Some(entry) = inner.entries.get_mut(&id) else {
             return;
         };
-        if removed {
+        let since = *entry.gone_since.get_or_insert_with(Instant::now);
+        if removed && since.elapsed() >= cfg.delete_grace {
             inner.entries.remove(&id);
             true
+        } else if removed {
+            // Deleted, maybe to be written again: look once more after a moment.
+            entry.dirty_since = Some(Instant::now());
+            false
         } else {
-            let since = *entry.gone_since.get_or_insert_with(Instant::now);
             if since.elapsed() >= grace {
                 entry.missing = true;
                 let _ = events.send(WatchEvent::Missing { id });

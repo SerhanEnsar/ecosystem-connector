@@ -18,7 +18,7 @@ class BridgeController extends EcController with WidgetsBindingObserver {
     unawaited(_restoreAccess());
     // Android may not report changes in shared storage; check linked files often
     // while the app is in front. The receive service checks less often.
-    if (Platform.isAndroid) _core.setLinkedCheckInterval(seconds: 5);
+    if (Platform.isAndroid) _core.setLinkedCheckInterval(seconds: 2);
     _events = _core.events().listen(_onEvent);
     _invites = _hooks.incomingInvites?.listen((invite) {
       _pendingInvite = invite;
@@ -53,7 +53,7 @@ class BridgeController extends EcController with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) unawaited(_checkPlatform());
     if (Platform.isAndroid) {
       _core.setLinkedCheckInterval(
-        seconds: state == AppLifecycleState.resumed ? 5 : 30,
+        seconds: state == AppLifecycleState.resumed ? 2 : 30,
       );
     }
   }
@@ -199,6 +199,7 @@ class BridgeController extends EcController with WidgetsBindingObserver {
       LinkedState.missing => EcLinkedState.missing,
     },
     size: f.size.toInt(),
+    missingOn: f.missingOn,
     conflict: switch (f.conflict) {
       final c? => EcLinkedConflict(
         mineDevice: c.mineDevice,
@@ -240,6 +241,14 @@ class BridgeController extends EcController with WidgetsBindingObserver {
     }
   }
 
+  /// A warning or error about a linked file: the animated card where the platform
+  /// has one (macOS), a notification otherwise.
+  Future<void> _warn(String id, String title, String body) async {
+    final show = _hooks.showNotice;
+    if (show != null && await show(title, body)) return;
+    await _notifier.linked(id, title, body);
+  }
+
   Future<void> _onLinked(String id, LinkedEventKind kind) async {
     final name = _linkedName(id);
     switch (kind) {
@@ -255,26 +264,26 @@ class BridgeController extends EcController with WidgetsBindingObserver {
         );
       case LinkedEventKind_Conflict():
         _dismissedConflicts.remove(id);
-        await _notifier.linked(
+        await _warn(
           id,
           '$name changed on two devices',
           'Choose which version to keep.',
         );
       case LinkedEventKind_PeerLeft(:final device):
-        await _notifier.linked(
+        await _warn(
           id,
           '${_nameOf(device)} left the link of $name',
           'The file stays here and on your other devices.',
         );
       case LinkedEventKind_Left():
         await _hooks.forgetAccess?.call(id);
-        await _notifier.linked(
+        await _warn(
           id,
           '$name is no longer linked',
           'It was deleted here; your other devices keep it.',
         );
       case LinkedEventKind_Missing():
-        await _notifier.linked(
+        await _warn(
           id,
           '$name cannot be found',
           'Show where it is in Settings → Linked files, or leave the link.',
@@ -285,8 +294,26 @@ class BridgeController extends EcController with WidgetsBindingObserver {
       case LinkedEventKind_Resolved():
         await _emptyTrash();
       case LinkedEventKind_Error(:final message):
-        await _notifier.linked(id, '$name could not be synced', message);
-      case LinkedEventKind_Updated() || LinkedEventKind_Found():
+        await _warn(id, '$name could not be synced', message);
+      case LinkedEventKind_PeerMissing(:final device, :final missing):
+        if (missing) {
+          await _warn(
+            id,
+            '$name cannot be found on ${_nameOf(device)}',
+            'It stays linked here; it syncs again once it is back there.',
+          );
+        }
+      // A small notice, replaced by the next one for the same file, so it is
+      // clear the change was noticed.
+      case LinkedEventKind_Updated():
+        await _notifier.linked(id, '$name updated', 'A newer version arrived.');
+      case LinkedEventKind_Changed():
+        final file = _linked.where((f) => f.id == id).firstOrNull;
+        final to = file == null || file.devices.isEmpty
+            ? 'your other devices'
+            : file.devices.join(', ');
+        await _notifier.linked(id, '$name changed', 'Sending it to $to.');
+      case LinkedEventKind_Found():
         break;
     }
   }
@@ -572,6 +599,15 @@ class BridgeController extends EcController with WidgetsBindingObserver {
     if (file == null) return;
     final status = await sendLinkedFile(device, file.path).last;
     if (status is SendFailed) throw Exception(status.reason);
+  }
+
+  @override
+  Future<void> refreshLinked() async {
+    _core.refreshLinked();
+    // Give the checks and the other devices a moment, then show what changed.
+    await Future<void>.delayed(const Duration(seconds: 2));
+    _refreshLinked();
+    notifyListeners();
   }
 
   Future<void> _afterLinkedChange() async {

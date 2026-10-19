@@ -69,7 +69,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 532327019;
+  int get rustContentHash => -14953328;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -138,6 +138,8 @@ abstract class RustLibApi extends BaseApi {
   String crateApiCoreEcCoreReceiveDir({required EcCore that});
 
   bool crateApiCoreEcCoreReceiveDirIsDefault({required EcCore that});
+
+  void crateApiCoreEcCoreRefreshLinked({required EcCore that});
 
   void crateApiCoreEcCoreRelocateLinked({
     required EcCore that,
@@ -742,6 +744,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  void crateApiCoreEcCoreRefreshLinked({required EcCore that}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEcCore(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCoreEcCoreRefreshLinkedConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreEcCoreRefreshLinkedConstMeta =>
+      const TaskConstMeta(
+        debugName: "EcCore_refresh_linked",
+        argNames: ["that"],
+      );
+
+  @override
   void crateApiCoreEcCoreRelocateLinked({
     required EcCore that,
     required String id,
@@ -757,7 +788,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
           sse_encode_String(id, serializer);
           sse_encode_String(path, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -792,7 +823,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
           sse_encode_String(id, serializer);
           sse_encode_bool(keepTheirs, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -837,7 +868,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 20,
+              funcId: 21,
               port: port_,
             );
           },
@@ -880,7 +911,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 22,
             port: port_,
           );
         },
@@ -915,7 +946,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_u_32(seconds, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -945,7 +976,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_opt_String(path, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 24)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -974,7 +1005,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 25,
             port: port_,
           );
         },
@@ -1003,7 +1034,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 25)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 26)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_String,
@@ -1031,7 +1062,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 27,
             port: port_,
           );
         },
@@ -1261,22 +1292,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           from: dco_decode_String(raw[2]),
         );
       case 1:
-        return LinkedEventKind_Updated();
+        return LinkedEventKind_Changed();
       case 2:
-        return LinkedEventKind_Conflict();
+        return LinkedEventKind_PeerMissing(
+          device: dco_decode_String(raw[1]),
+          missing: dco_decode_bool(raw[2]),
+        );
       case 3:
-        return LinkedEventKind_Resolved();
+        return LinkedEventKind_Updated();
       case 4:
-        return LinkedEventKind_PeerLeft(device: dco_decode_String(raw[1]));
+        return LinkedEventKind_Conflict();
       case 5:
-        return LinkedEventKind_Left();
+        return LinkedEventKind_Resolved();
       case 6:
-        return LinkedEventKind_Missing();
+        return LinkedEventKind_PeerLeft(device: dco_decode_String(raw[1]));
       case 7:
-        return LinkedEventKind_Found();
+        return LinkedEventKind_Left();
       case 8:
-        return LinkedEventKind_Moved();
+        return LinkedEventKind_Missing();
       case 9:
+        return LinkedEventKind_Found();
+      case 10:
+        return LinkedEventKind_Moved();
+      case 11:
         return LinkedEventKind_Error(message: dco_decode_String(raw[1]));
       default:
         throw Exception("unreachable");
@@ -1306,8 +1344,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   LinkedView dco_decode_linked_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return LinkedView(
       id: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
@@ -1316,6 +1354,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       state: dco_decode_linked_state(arr[4]),
       size: dco_decode_u_64(arr[5]),
       conflict: dco_decode_opt_box_autoadd_conflict_view(arr[6]),
+      missingOn: dco_decode_list_String(arr[7]),
     );
   }
 
@@ -1683,23 +1722,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_from = sse_decode_String(deserializer);
         return LinkedEventKind_Arrived(path: var_path, from: var_from);
       case 1:
-        return LinkedEventKind_Updated();
+        return LinkedEventKind_Changed();
       case 2:
-        return LinkedEventKind_Conflict();
+        var var_device = sse_decode_String(deserializer);
+        var var_missing = sse_decode_bool(deserializer);
+        return LinkedEventKind_PeerMissing(
+          device: var_device,
+          missing: var_missing,
+        );
       case 3:
-        return LinkedEventKind_Resolved();
+        return LinkedEventKind_Updated();
       case 4:
+        return LinkedEventKind_Conflict();
+      case 5:
+        return LinkedEventKind_Resolved();
+      case 6:
         var var_device = sse_decode_String(deserializer);
         return LinkedEventKind_PeerLeft(device: var_device);
-      case 5:
-        return LinkedEventKind_Left();
-      case 6:
-        return LinkedEventKind_Missing();
       case 7:
-        return LinkedEventKind_Found();
+        return LinkedEventKind_Left();
       case 8:
-        return LinkedEventKind_Moved();
+        return LinkedEventKind_Missing();
       case 9:
+        return LinkedEventKind_Found();
+      case 10:
+        return LinkedEventKind_Moved();
+      case 11:
         var var_message = sse_decode_String(deserializer);
         return LinkedEventKind_Error(message: var_message);
       default:
@@ -1733,6 +1781,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_state = sse_decode_linked_state(deserializer);
     var var_size = sse_decode_u_64(deserializer);
     var var_conflict = sse_decode_opt_box_autoadd_conflict_view(deserializer);
+    var var_missingOn = sse_decode_list_String(deserializer);
     return LinkedView(
       id: var_id,
       name: var_name,
@@ -1741,6 +1790,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       state: var_state,
       size: var_size,
       conflict: var_conflict,
+      missingOn: var_missingOn,
     );
   }
 
@@ -2184,25 +2234,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(0, serializer);
         sse_encode_String(path, serializer);
         sse_encode_String(from, serializer);
-      case LinkedEventKind_Updated():
+      case LinkedEventKind_Changed():
         sse_encode_i_32(1, serializer);
-      case LinkedEventKind_Conflict():
+      case LinkedEventKind_PeerMissing(
+        device: final device,
+        missing: final missing,
+      ):
         sse_encode_i_32(2, serializer);
-      case LinkedEventKind_Resolved():
+        sse_encode_String(device, serializer);
+        sse_encode_bool(missing, serializer);
+      case LinkedEventKind_Updated():
         sse_encode_i_32(3, serializer);
-      case LinkedEventKind_PeerLeft(device: final device):
+      case LinkedEventKind_Conflict():
         sse_encode_i_32(4, serializer);
+      case LinkedEventKind_Resolved():
+        sse_encode_i_32(5, serializer);
+      case LinkedEventKind_PeerLeft(device: final device):
+        sse_encode_i_32(6, serializer);
         sse_encode_String(device, serializer);
       case LinkedEventKind_Left():
-        sse_encode_i_32(5, serializer);
-      case LinkedEventKind_Missing():
-        sse_encode_i_32(6, serializer);
-      case LinkedEventKind_Found():
         sse_encode_i_32(7, serializer);
-      case LinkedEventKind_Moved():
+      case LinkedEventKind_Missing():
         sse_encode_i_32(8, serializer);
-      case LinkedEventKind_Error(message: final message):
+      case LinkedEventKind_Found():
         sse_encode_i_32(9, serializer);
+      case LinkedEventKind_Moved():
+        sse_encode_i_32(10, serializer);
+      case LinkedEventKind_Error(message: final message):
+        sse_encode_i_32(11, serializer);
         sse_encode_String(message, serializer);
     }
   }
@@ -2234,6 +2293,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_linked_state(self.state, serializer);
     sse_encode_u_64(self.size, serializer);
     sse_encode_opt_box_autoadd_conflict_view(self.conflict, serializer);
+    sse_encode_list_String(self.missingOn, serializer);
   }
 
   @protected
@@ -2510,6 +2570,10 @@ class EcCoreImpl extends RustOpaque implements EcCore {
   /// Whether received files go to the app's default folder.
   bool receiveDirIsDefault() =>
       RustLib.instance.api.crateApiCoreEcCoreReceiveDirIsDefault(that: this);
+
+  /// Checks every linked file now and exchanges summaries with connected devices.
+  void refreshLinked() =>
+      RustLib.instance.api.crateApiCoreEcCoreRefreshLinked(that: this);
 
   /// Records where a linked file is now (found by the app, for example through a
   /// bookmark). A path in the Trash means it was deleted.

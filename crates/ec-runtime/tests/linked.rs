@@ -15,7 +15,7 @@ use ec_sync::{LinkId, State, SyncEvent};
 use ec_transfer::ReceiveEvent;
 use tokio::sync::{broadcast, oneshot};
 
-const WAIT: Duration = Duration::from_secs(20);
+const WAIT: Duration = Duration::from_secs(30);
 const MIB: usize = 1024 * 1024;
 
 async fn device(name: &str, root: &Path, linked: LinkedConfig) -> Arc<Runtime> {
@@ -366,4 +366,72 @@ async fn older_peer_is_not_offered_linked() {
         }
     );
     assert!(!offers_linked(&mac, &old));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn leaving_while_the_other_is_away_does_not_send_the_file_again() {
+    let root = tempfile::tempdir().unwrap();
+    let (mac, tablet, id, file) =
+        linked_pair(root.path(), LinkedConfig::default(), "Makale.pdf", b"v1").await;
+    let mac_id = mac.id();
+
+    // The Mac goes away; the tablet leaves the link meanwhile, so its notice is lost.
+    mac.shutdown().await;
+    drop(mac);
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    tablet.leave_link(id).unwrap();
+    assert!(tablet.linked_files().is_empty());
+
+    let mut tablet_events = tablet.subscribe();
+    let mac = device("Mac", root.path(), LinkedConfig::default()).await;
+    assert_eq!(mac.id(), mac_id);
+    let mut mac_events = mac.subscribe();
+    sync_event(&mut mac_events, |e| {
+        matches!(e, SyncEvent::PeerUnlinked { .. })
+    })
+    .await;
+    assert!(mac.linked_files()[0].peers.is_empty());
+    // The Mac's next edit does not reach the tablet as a new file.
+    std::fs::write(&file, b"v2 on the Mac").unwrap();
+    let arrived = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            if let Ok(Event::Sync(SyncEvent::Linked { .. })) = tablet_events.recv().await {
+                return;
+            }
+        }
+    })
+    .await;
+    assert!(
+        arrived.is_err(),
+        "the file came back to the tablet as a new link"
+    );
+}
+
+// Windows reports a file moved out of its folder as removed, so there it is a delete
+// (a known limit in the spec), not missing.
+#[cfg(not(windows))]
+#[tokio::test(flavor = "multi_thread")]
+async fn a_missing_file_is_reported_to_the_other_device() {
+    let root = tempfile::tempdir().unwrap();
+    let (mac, tablet, id, _file) =
+        linked_pair(root.path(), LinkedConfig::default(), "Not.txt", b"v1").await;
+    let at = linked_path(&tablet, id);
+    let mut mac_events = mac.subscribe();
+    // Gone without a delete event: moved somewhere the watcher cannot see.
+    let away = root.path().join("elsewhere");
+    std::fs::create_dir_all(&away).unwrap();
+    std::fs::rename(&at, away.join("Not.txt")).unwrap();
+    let event = sync_event(&mut mac_events, |e| {
+        matches!(e, SyncEvent::PeerMissing { .. })
+    })
+    .await;
+    assert_eq!(
+        event,
+        SyncEvent::PeerMissing {
+            id,
+            peer: tablet.id(),
+            missing: true
+        }
+    );
+    assert_eq!(mac.linked_missing_on(id), vec![tablet.id()]);
 }

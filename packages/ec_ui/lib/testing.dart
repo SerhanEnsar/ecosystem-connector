@@ -263,6 +263,9 @@ class FakeController extends EcController {
   Future<void> linkFile(EcDevice device) async =>
       linkedCalls.add('link:${device.id}');
 
+  @override
+  Future<void> refreshLinked() async => linkedCalls.add('refresh');
+
   /// Paths given to [open].
   final opened = <String>[];
 }

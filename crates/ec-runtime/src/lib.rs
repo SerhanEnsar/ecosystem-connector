@@ -43,6 +43,9 @@ const LINKED_QUIET: Duration = Duration::from_secs(2);
 /// How often linked files are checked without a file system event. The apps lower it
 /// where events are unreliable (Android).
 const LINKED_CHECK_INTERVAL: Duration = Duration::from_secs(60);
+/// How long a deleted linked file may take to be written again before it counts as
+/// deleted (some apps save by deleting and rewriting).
+const LINKED_DELETE_GRACE: Duration = Duration::from_secs(10);
 /// The folder inside the receive folder that holds linked files from other devices.
 pub const LINKED_DIR: &str = "Linked";
 
@@ -359,6 +362,7 @@ impl Runtime {
                     quiet: LINKED_QUIET,
                     stat_interval: LINKED_CHECK_INTERVAL,
                     roots: vec![linked_root],
+                    delete_grace: LINKED_DELETE_GRACE,
                 },
                 before_commit: config.linked.before_commit.clone(),
             };
@@ -763,6 +767,21 @@ impl Runtime {
     /// Records where a linked file is now (the app found it).
     pub fn relocate_linked(&self, id: LinkId, path: PathBuf) -> Result<()> {
         Ok(self.sync()?.relocate(id, path)?)
+    }
+
+    /// Checks every linked file now and exchanges summaries with connected devices.
+    pub fn refresh_linked(&self) {
+        if let Some(sync) = &self.sync {
+            sync.refresh();
+        }
+    }
+
+    /// The devices that reported a linked file missing.
+    pub fn linked_missing_on(&self, id: LinkId) -> Vec<DeviceId> {
+        self.sync
+            .as_ref()
+            .map(|s| s.missing_on(&id))
+            .unwrap_or_default()
     }
 
     /// How often linked files are checked without a file system event.
