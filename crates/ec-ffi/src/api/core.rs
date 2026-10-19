@@ -215,6 +215,7 @@ impl EcCore {
             receive_dir: PathBuf::from(config.receive_dir),
             port: ec_runtime::DEFAULT_PORT,
             mdns: true,
+            linked: Default::default(),
         };
         let runtime = RT.spawn(Runtime::start(config)).await??;
         *RUNNING.lock().unwrap_or_else(|e| e.into_inner()) = Some((home, runtime.clone()));
@@ -488,6 +489,8 @@ fn convert(event: Event) -> Option<CoreEvent> {
             ReceiveEvent::Progress { received, total } => {
                 CoreEvent::ReceiveProgress { received, total }
             }
+            // Linked files arrive as sync events instead of an arrival card each time.
+            ReceiveEvent::Saved { linked: true, .. } => return None,
             ReceiveEvent::Saved { path, open, .. } => CoreEvent::Saved {
                 path: path.to_string_lossy().into_owned(),
                 open: open.is_some(),
@@ -496,6 +499,8 @@ fn convert(event: Event) -> Option<CoreEvent> {
             ReceiveEvent::Finished => CoreEvent::ReceiveFinished,
             ReceiveEvent::Interrupted { reason } => CoreEvent::ReceiveInterrupted { reason },
         },
+        // Mapped for the apps with the linked files API.
+        Event::Sync(_) => return None,
     })
 }
 

@@ -14,8 +14,8 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::sync::{Arc, Mutex, OnceLock, Weak};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use ec_core::{DeviceId, DeviceIdentity, PairingInvite, Settings, TrustStore, TrustedDevice};
 use ec_fling::{FLING_KIND, FlingItem, FlingService};
@@ -23,6 +23,8 @@ use ec_net::pairing::{PairedDevice, PairingListener, PairingPrompt, pair_with};
 use ec_net::{
     DiscoveredDevice, Node, PeerConnection, Presence, Router, local_addrs, serve_connection,
 };
+use ec_sync::watch::WatchConfig;
+use ec_sync::{LinkId, LinkedFile, LogEntry, SYNC_KIND, SyncConfig, SyncEvent, SyncService};
 use ec_transfer::{
     CHUNK_KIND, CONTROL_KIND, OpenHint, ReceiveEvent, Receiver, SendEvents, SendOptions,
     SendReport, send_paths,
@@ -36,6 +38,13 @@ const PROBE_INTERVAL: Duration = Duration::from_secs(10);
 /// How long a device counts as online after it was last reached directly.
 const REACHED_FOR: Duration = Duration::from_secs(35);
 const PROBE_TIMEOUT: Duration = Duration::from_secs(3);
+/// How long a linked file must stay unchanged before it is checked.
+const LINKED_QUIET: Duration = Duration::from_secs(2);
+/// How often linked files are checked without a file system event. The apps lower it
+/// where events are unreliable (Android).
+const LINKED_CHECK_INTERVAL: Duration = Duration::from_secs(60);
+/// The folder inside the receive folder that holds linked files from other devices.
+pub const LINKED_DIR: &str = "Linked";
 
 /// Errors returned by the runtime.
 #[derive(Debug, thiserror::Error)]
@@ -52,6 +61,12 @@ pub enum Error {
     /// Fling error.
     #[error(transparent)]
     Fling(#[from] ec_fling::Error),
+    /// Linked files error.
+    #[error(transparent)]
+    Sync(#[from] ec_sync::Error),
+    /// Linked files are turned off in this runtime.
+    #[error("linked files are not available")]
+    LinkedFilesOff,
     /// The device is not paired.
     #[error("this device is not paired")]
     NotPaired,
@@ -85,6 +100,41 @@ pub struct Config {
     pub port: u16,
     /// Whether to announce and look for devices with mDNS.
     pub mdns: bool,
+    /// Linked files.
+    pub linked: LinkedConfig,
+}
+
+/// Moves a file to the system Trash, or deletes it where there is none.
+pub type TrashFn = ec_sync::service::TrashFn;
+
+/// How linked files run.
+#[derive(Clone)]
+pub struct LinkedConfig {
+    /// Whether this device offers linked files. Off only to test older peers.
+    pub enabled: bool,
+    /// Removes a file the user chose not to keep. `None` deletes it.
+    pub trash: Option<TrashFn>,
+    /// For tests: runs just before a received version replaces a linked file.
+    #[doc(hidden)]
+    pub before_commit: Option<ec_sync::service::CommitHook>,
+}
+
+impl Default for LinkedConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            trash: None,
+            before_commit: None,
+        }
+    }
+}
+
+impl std::fmt::Debug for LinkedConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LinkedConfig")
+            .field("enabled", &self.enabled)
+            .finish_non_exhaustive()
+    }
 }
 
 /// Something the user interface may want to show.
@@ -108,6 +158,8 @@ pub enum Event {
         /// What it sent (already validated).
         item: FlingItem,
     },
+    /// Something happened to a linked file.
+    Sync(SyncEvent),
 }
 
 /// A paired device and whether it is reachable now.
@@ -121,6 +173,8 @@ pub struct DeviceStatus {
     pub online: bool,
     /// Its current addresses, empty when offline.
     pub addrs: Vec<SocketAddr>,
+    /// Whether it supports linked files (known once it has connected).
+    pub linked_files: bool,
 }
 
 /// State shared with the background tasks.
@@ -134,6 +188,7 @@ struct Shared {
     conns: Mutex<HashMap<DeviceId, PeerConnection>>,
     router: Arc<Router>,
     events: broadcast::Sender<Event>,
+    sync: Option<Arc<SyncService>>,
 }
 
 impl Shared {
@@ -157,6 +212,9 @@ impl Shared {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .insert(id, conn.clone());
+        if let Some(sync) = &self.sync {
+            sync.connected(id);
+        }
         let shared = self.clone();
         tokio::spawn(async move {
             let stable_id = conn.quic().stable_id();
@@ -227,6 +285,7 @@ pub struct Runtime {
     node: Arc<Node>,
     presence: Option<Arc<Presence>>,
     receiver: Arc<Receiver>,
+    sync: Option<Arc<SyncService>>,
     home: PathBuf,
     default_receive_dir: PathBuf,
     settings: Mutex<Settings>,
@@ -275,6 +334,62 @@ impl Runtime {
                 let _ = receive_events.send(Event::Receive(event));
             }),
         ));
+        // The service reaches other devices through `Shared`, which is made after the
+        // router that serves it; a weak link avoids a cycle.
+        let shared_slot: Arc<OnceLock<Weak<Shared>>> = Arc::new(OnceLock::new());
+        let mut tasks = Vec::new();
+        let sync = if config.linked.enabled {
+            let (sync_events, mut sync_rx) = broadcast::channel(256);
+            let linked_root = receiver.dir().join(LINKED_DIR);
+            let cfg = SyncConfig {
+                me: identity.id(),
+                dir: config.home.join("linked"),
+                linked_root: linked_root.clone(),
+                trash: config
+                    .linked
+                    .trash
+                    .clone()
+                    .unwrap_or_else(|| Arc::new(|path: &Path| std::fs::remove_file(path))),
+                now_ms: Arc::new(|| {
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .map_or(0, |d| d.as_millis() as u64)
+                }),
+                watch: WatchConfig {
+                    quiet: LINKED_QUIET,
+                    stat_interval: LINKED_CHECK_INTERVAL,
+                    roots: vec![linked_root],
+                },
+                before_commit: config.linked.before_commit.clone(),
+            };
+            let outbox = Arc::new(RuntimeOutbox {
+                shared: shared_slot.clone(),
+                node: node.clone(),
+                presence: presence.clone(),
+            });
+            let sync = SyncService::start(cfg, outbox, sync_events)?;
+            receiver.set_placer(sync.clone());
+            let forward = events.clone();
+            tasks.push(tokio::spawn(async move {
+                loop {
+                    match sync_rx.recv().await {
+                        Ok(event) => {
+                            let support = matches!(event, SyncEvent::Support { .. });
+                            let _ = forward.send(Event::Sync(event));
+                            if support {
+                                let _ = forward.send(Event::DevicesChanged);
+                            }
+                        }
+                        Err(broadcast::error::RecvError::Lagged(_)) => {}
+                        Err(broadcast::error::RecvError::Closed) => break,
+                    }
+                }
+            }));
+            Some(sync)
+        } else {
+            None
+        };
+
         let mut router = Router::with_session(identity.name(), |_, _| {});
         router.add(CONTROL_KIND, receiver.clone())?;
         router.add(CHUNK_KIND, receiver.clone())?;
@@ -285,6 +400,9 @@ impl Runtime {
                 let _ = fling_events.send(Event::Fling { from, item });
             }))),
         )?;
+        if let Some(sync) = &sync {
+            router.add(SYNC_KIND, sync.clone())?;
+        }
         let router = Arc::new(router);
         let shared = Arc::new(Shared {
             trust: Mutex::new(trust),
@@ -292,7 +410,9 @@ impl Runtime {
             conns: Mutex::default(),
             router,
             events: events.clone(),
+            sync: sync.clone(),
         });
+        let _ = shared_slot.set(Arc::downgrade(&shared));
 
         let accept_task = {
             let (node, shared) = (node.clone(), shared.clone());
@@ -323,10 +443,14 @@ impl Runtime {
             node,
             presence,
             receiver,
+            sync,
             home: config.home,
             default_receive_dir: config.receive_dir,
             settings: Mutex::new(settings),
-            tasks: vec![accept_task, probe_task],
+            tasks: {
+                tasks.extend([accept_task, probe_task]);
+                tasks
+            },
         }))
     }
 
@@ -368,6 +492,9 @@ impl Runtime {
         updated.save(&self.home)?;
         *settings = updated;
         self.receiver.set_dir(target.clone());
+        if let Some(sync) = &self.sync {
+            sync.set_linked_root(target.join(LINKED_DIR));
+        }
         Ok(target)
     }
 
@@ -404,6 +531,11 @@ impl Runtime {
                     name: seen.map_or(device.name, |s| s.name),
                     online: !addrs.is_empty(),
                     addrs,
+                    linked_files: self
+                        .sync
+                        .as_ref()
+                        .and_then(|s| s.supports(&device.id))
+                        .unwrap_or(false),
                 }
             })
             .collect()
@@ -481,6 +613,9 @@ impl Runtime {
     pub fn forget(&self, id: &DeviceId) -> Result<bool> {
         let removed = self.shared.trust().remove(id)?;
         self.node.untrust(id);
+        if let Some(sync) = &self.sync {
+            sync.forget_peer(id)?;
+        }
         let conn = self
             .shared
             .conns
@@ -571,6 +706,67 @@ impl Runtime {
         Ok(())
     }
 
+    fn sync(&self) -> Result<&Arc<SyncService>> {
+        self.sync.as_ref().ok_or(Error::LinkedFilesOff)
+    }
+
+    /// Links the file at `path` with a paired device and sends it. On Android pass
+    /// `copy_into_linked`: the file is copied into the Linked folder first and that copy
+    /// is linked. Linking a file that is already linked adds the device.
+    pub async fn send_linked(
+        &self,
+        id: DeviceId,
+        path: PathBuf,
+        copy_into_linked: bool,
+    ) -> Result<LinkId> {
+        if !self.shared.trust().contains(&id) {
+            return Err(Error::NotPaired);
+        }
+        Ok(self.sync()?.link(id, path, copy_into_linked).await?)
+    }
+
+    /// Every linked file.
+    pub fn linked_files(&self) -> Vec<LinkedFile> {
+        self.sync.as_ref().map(|s| s.files()).unwrap_or_default()
+    }
+
+    /// The change log of a linked file, oldest first.
+    pub fn linked_log(&self, id: LinkId) -> Result<Vec<LogEntry>> {
+        Ok(self.sync()?.log(&id)?)
+    }
+
+    /// Where the waiting version of a linked file in conflict is.
+    pub fn linked_conflict_path(&self, id: LinkId) -> Option<PathBuf> {
+        self.sync.as_ref().and_then(|s| s.conflict_path(&id))
+    }
+
+    /// Resolves a conflict, keeping the other device's version or this one's.
+    pub fn resolve_conflict(&self, id: LinkId, keep_theirs: bool) -> Result<()> {
+        Ok(self.sync()?.resolve(id, keep_theirs)?)
+    }
+
+    /// Deletes the waiting version of a conflict, keeping this device's.
+    pub fn delete_conflict(&self, id: LinkId) -> Result<()> {
+        Ok(self.sync()?.delete_conflict(id)?)
+    }
+
+    /// Stops syncing a file on this device. The file stays.
+    pub fn leave_link(&self, id: LinkId) -> Result<()> {
+        Ok(self.sync()?.leave(id)?)
+    }
+
+    /// Records where a linked file is now (the app found it).
+    pub fn relocate_linked(&self, id: LinkId, path: PathBuf) -> Result<()> {
+        Ok(self.sync()?.relocate(id, path)?)
+    }
+
+    /// How often linked files are checked without a file system event.
+    pub fn set_linked_check_interval(&self, interval: Duration) {
+        if let Some(sync) = &self.sync {
+            sync.set_stat_interval(interval);
+        }
+    }
+
     /// Stops listening and announcing.
     pub async fn shutdown(&self) {
         for task in &self.tasks {
@@ -640,5 +836,54 @@ async fn probe(node: &Node, shared: &Arc<Shared>, presence: Option<&Presence>) {
                 }
             }
         }
+    }
+}
+
+/// How the linked files service reaches other devices.
+struct RuntimeOutbox {
+    shared: Arc<OnceLock<Weak<Shared>>>,
+    node: Arc<Node>,
+    presence: Option<Arc<Presence>>,
+}
+
+impl RuntimeOutbox {
+    fn shared(&self) -> Option<Arc<Shared>> {
+        self.shared.get().and_then(Weak::upgrade)
+    }
+}
+
+impl ec_sync::Outbox for RuntimeOutbox {
+    fn send_file(
+        &self,
+        peer: DeviceId,
+        path: PathBuf,
+        key: LinkId,
+    ) -> ec_sync::service::BoxFuture<ec_sync::Result<()>> {
+        let shared = self.shared();
+        let (node, presence) = (self.node.clone(), self.presence.clone());
+        Box::pin(async move {
+            let shared = shared.ok_or(ec_sync::Error::Offline)?;
+            let addrs = candidate_addrs(&shared, presence.as_deref(), &peer);
+            let reuse = shared.clone();
+            let rediscover_shared = shared.clone();
+            let rediscover: ec_transfer::AddrSource = Arc::new(move || {
+                let addrs = candidate_addrs(&rediscover_shared, presence.as_deref(), &peer);
+                Box::pin(async move { addrs })
+            });
+            let options = SendOptions {
+                rediscover: Some(rediscover),
+                reuse: Some(Arc::new(move || reuse.live_conn(&peer))),
+                target: Some(key),
+                ..SendOptions::default()
+            };
+            send_paths(node, peer, addrs, vec![path], options, Arc::new(|_| {}))
+                .await
+                .map(|_| ())
+                .map_err(|e| ec_sync::Error::Send(e.to_string()))
+        })
+    }
+
+    fn conn(&self, peer: &DeviceId) -> Option<PeerConnection> {
+        self.shared()?.live_conn(peer)
     }
 }

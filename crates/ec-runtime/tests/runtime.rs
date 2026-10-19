@@ -20,6 +20,7 @@ async fn runtime_with(name: &str, root: &std::path::Path, mdns: bool) -> Arc<Run
         receive_dir: root.join(name).join("inbox"),
         port: 0,
         mdns,
+        linked: Default::default(),
     })
     .await
     .unwrap()

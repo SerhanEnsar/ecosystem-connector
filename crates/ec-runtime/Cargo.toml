@@ -12,6 +12,7 @@ publish = false
 ec-core = { version = "0.0.1", path = "../ec-core" }
 ec-fling = { version = "0.0.1", path = "../ec-fling" }
 ec-net = { version = "0.0.1", path = "../ec-net" }
+ec-sync = { version = "0.0.1", path = "../ec-sync" }
 ec-transfer = { version = "0.0.1", path = "../ec-transfer" }
 thiserror = "2.0.21"
 tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "sync", "time"] }
