@@ -78,3 +78,87 @@ func registerFolderChannel(_ messenger: FlutterBinaryMessenger) {
     }
   }
 }
+
+/// Keeps access to linked files across restarts: one security-scoped bookmark per
+/// link id. A bookmark follows its file when it is moved or renamed on the same
+/// volume, so restoring also tells where each file is now.
+final class LinkedAccess {
+  static let shared = LinkedAccess()
+
+  private let key = "linkedBookmarks"
+  private var open: [String: URL] = [:]
+
+  /// Keeps access to the linked file `id` at `path`.
+  func keep(id: String, path: String) {
+    let url = URL(fileURLWithPath: path)
+    guard let bookmark = try? url.bookmarkData(
+      options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil
+    ) else { return }
+    var all = stored()
+    all[id] = bookmark
+    UserDefaults.standard.set(all, forKey: key)
+    use(id, url)
+  }
+
+  /// Opens every kept file again and returns where each is now, by link id.
+  func restore() -> [String: String] {
+    var all = stored()
+    var places: [String: String] = [:]
+    for (id, bookmark) in all {
+      var stale = false
+      guard let url = try? URL(
+        resolvingBookmarkData: bookmark, options: .withSecurityScope,
+        relativeTo: nil, bookmarkDataIsStale: &stale
+      ) else { continue }
+      use(id, url)
+      places[id] = url.path
+      if stale, let fresh = try? url.bookmarkData(
+        options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil
+      ) {
+        all[id] = fresh
+      }
+    }
+    UserDefaults.standard.set(all, forKey: key)
+    return places
+  }
+
+  private func stored() -> [String: Data] {
+    UserDefaults.standard.dictionary(forKey: key) as? [String: Data] ?? [:]
+  }
+
+  private func use(_ id: String, _ url: URL) {
+    open[id]?.stopAccessingSecurityScopedResource()
+    open[id] = url.startAccessingSecurityScopedResource() ? url : nil
+  }
+}
+
+/// Lets Dart keep and restore access to linked files, and move a version the user
+/// chose not to keep to the Trash.
+func registerLinkedChannel(_ messenger: FlutterBinaryMessenger) {
+  let channel = FlutterMethodChannel(
+    name: "io.github.serhanensar.ecosystemconnector/linked",
+    binaryMessenger: messenger
+  )
+  channel.setMethodCallHandler { call, result in
+    let args = call.arguments as? [String: Any] ?? [:]
+    switch call.method {
+    case "keep":
+      if let id = args["id"] as? String, let path = args["path"] as? String {
+        LinkedAccess.shared.keep(id: id, path: path)
+      }
+      result(nil)
+    case "restore":
+      result(LinkedAccess.shared.restore())
+    case "trash":
+      guard let path = args["path"] as? String else {
+        result(false)
+        return
+      }
+      NSWorkspace.shared.recycle([URL(fileURLWithPath: path)]) { _, error in
+        DispatchQueue.main.async { result(error == nil) }
+      }
+    default:
+      result(FlutterMethodNotImplemented)
+    }
+  }
+}

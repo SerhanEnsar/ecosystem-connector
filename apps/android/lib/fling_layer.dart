@@ -139,6 +139,7 @@ class _FlingLayerState extends State<FlingLayer> {
       imagePath: isImage ? single : null,
       isPage: a.url != null,
       isText: a.text != null,
+      linked: a.linked,
     );
   }
 
