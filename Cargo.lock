@@ -533,6 +533,7 @@ dependencies = [
 name = "ec-runtime"
 version = "0.0.1"
 dependencies = [
+ "blake3",
  "ec-core",
  "ec-fling",
  "ec-net",

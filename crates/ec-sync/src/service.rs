@@ -520,6 +520,20 @@ impl Core {
         }
     }
 
+    /// Passes a version received from `from` on to the file's other devices, so a
+    /// device linked with several others keeps them all current.
+    fn forward(self: &Arc<Self>, id: LinkId, from: DeviceId) {
+        let Some(file) = self.get(&id) else {
+            return;
+        };
+        if matches!(file.state, State::Conflict { .. }) {
+            return;
+        }
+        for peer in file.peers.iter().filter(|p| **p != from) {
+            self.announce_in_background(*peer, &file, false);
+        }
+    }
+
     fn announce_in_background(self: &Arc<Self>, peer: DeviceId, file: &LinkedFile, resolved: bool) {
         let (id, version, content) = (file.id, file.version.clone(), header(&file.content));
         let msg = if resolved {
@@ -641,6 +655,7 @@ impl Core {
                     file.state = State::Current;
                 }
                 self.save(&file, peer, LogKind::Received)?;
+                self.forward(id, peer);
                 false
             }
             Decision::Update | Decision::Conflict => {
@@ -1095,15 +1110,19 @@ impl Placement for LinkedPlacement {
     }
 
     fn commit(&self, part: &Path) -> std::io::Result<PathBuf> {
-        self.core
-            .commit(self.peer, self.id, self.pending.clone(), part)
-            .map_err(|e| {
-                self.core.emit(SyncEvent::Error {
-                    id: self.id,
-                    message: e.to_string(),
-                });
-                std::io::Error::other(e.to_string())
-            })
+        let placed = self
+            .core
+            .commit(self.peer, self.id, self.pending.clone(), part);
+        if placed.is_ok() {
+            self.core.forward(self.id, self.peer);
+        }
+        placed.map_err(|e| {
+            self.core.emit(SyncEvent::Error {
+                id: self.id,
+                message: e.to_string(),
+            });
+            std::io::Error::other(e.to_string())
+        })
     }
 }
 
