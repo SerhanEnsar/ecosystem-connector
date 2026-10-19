@@ -163,9 +163,10 @@ and every move is logged.
 - **macOS.** `notify` (FSEvents) on the folder of each linked file, filtered by name.
   Access across restarts through the bookmark, as `FolderAccess.swift` does for the
   receive folder.
-  *To verify first:* whether a file arriving through the Share extension can give the app
-  lasting access. If not, the first link asks once for access with a panel that has the
-  file already selected.
+  *Checked on 2026-10-19:* the app can create a security-scoped bookmark for a file that
+  arrives through the Share extension. Resolving it after a restart is verified with
+  the real `LinkedAccess` in the device test of task 10; if that fails, the first link
+  asks once for access with a panel that has the file already selected.
 - **Android.** SAF folders give no reliable change notifications, so linked files are
   checked by size and modification time: every 5 s while the app is open, every 30 s
   while the receive service runs. `FileObserver` is used as well where the folder is a
