@@ -95,13 +95,21 @@ and 2, so resume, several paths and cable boost work unchanged.
 | `Changed { id, version, size, chunk_size, hashes }` | A local change | The new version. |
 | `Summary { entries: [(id, version)] }` | Every time two devices connect | The versions of all files they share. |
 | `Unlinked { id }` | A file was deleted on a device | That device left the link. |
-| `Resolved { id, version }` | The user chose in a conflict card | The winning version; the other side applies it. |
+| `Resolved { id, version, size, chunk_size, hashes }` | The user chose in a conflict card | The winning version; the other side applies it. |
+| `Reply { id, want }` | Answer to `Link`, `Changed` and `Resolved` | Whether the content should be sent. `false` when the receiver already has it or is ahead. |
+
+Transfers are always started by the device that has the content: after `want: true` it
+sends the file as an ordinary transfer that carries the link id (`Control::Target`, see
+below), and the receiver places it as the linked file or as a conflict version.
 
 Hash lists longer than one frame are split as the transfer offer already does (at most
 1024 hashes per message).
 
-`Hello` gains a capability field. *Send linked* is offered only for devices that
-announce sync. A 0.3 device stops kind 4 streams as unknown, which is harmless.
+**Capability.** `Hello` is not changed: postcard messages reject trailing bytes, so a new
+field would break 0.3 peers. Instead, when two devices connect, each sends `Summary` on a
+kind 4 stream. A 0.3 device stops the unknown stream; the sender then marks it as not
+supporting linked files, and *Send linked* is not offered for it. This is how Fling
+already detects an older peer.
 
 ## Sync flow
 
@@ -110,9 +118,9 @@ announce sync. A 0.3 device stops kind 4 streams as unknown, which is harmless.
    happens. Otherwise it hashes the file.
 2. If the hashes changed, the Mac increments its counter, writes the log entry and sends
    `Changed` to the file's peers.
-3. The tablet applies the decision rule. For an update it starts a transfer whose target
-   is *replace the linked file*. Chunks whose hash it already has locally (at any index)
-   are not requested.
+3. The tablet applies the decision rule and answers `Reply`. For an update or a conflict
+   it answers `want: true`, and the Mac sends the file as a transfer with the link id.
+   Chunks whose hash the tablet already has locally (at any index) are not requested.
 4. The new content is completed and verified in the partial folder, then renamed over
    the linked file in one step. Never ` (1)`.
 5. Just before the rename, the tablet checks the file's size and modification time
@@ -200,7 +208,7 @@ later.
 | Unreadable journal | Moved aside to `journal.broken`. Linked files are rescanned from disk and recovered from the peers' `Summary`. At worst this shows a conflict card; nothing is deleted. |
 | Message about a file the device is not linked with, or from an unpaired device | Rejected and logged. |
 | A device is unpaired | It is removed from every file's peers. Files stay where they are. |
-| Peer on 0.3 | No *Send linked* for it; kind 4 is stopped by the peer. |
+| Peer on 0.3 | Its kind 4 stream is stopped, so it is marked as not supporting linked files and *Send linked* is not offered for it. |
 
 Additions to `THREAT_MODEL.md`: a paired device can only change files linked with it;
 names go through the `RelPath` rules; a malicious peer can at most offer new versions of
