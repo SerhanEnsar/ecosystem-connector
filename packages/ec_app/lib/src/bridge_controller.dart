@@ -20,7 +20,8 @@ class BridgeController extends EcController with WidgetsBindingObserver {
     });
     _shares = _hooks.sharedFiles?.listen((paths) {
       if (paths.isEmpty) return;
-      _pendingShare = [..._pendingShare, ...paths];
+      // The same file shared twice is sent once.
+      _pendingShare = {..._pendingShare, ...paths}.toList();
       notifyListeners();
     });
     _items = _hooks.sharedItems?.listen((item) {

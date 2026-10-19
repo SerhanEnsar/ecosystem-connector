@@ -61,7 +61,11 @@ final class ShareViewController: NSViewController {
         }
       }
     }
-    group.notify(queue: .main) { done(files, link, text) }
+    // Finder can offer the same file in more than one attachment; send it once.
+    group.notify(queue: .main) {
+      var seen = Set<String>()
+      done(files.filter { seen.insert($0.standardizedFileURL.path).inserted }, link, text)
+    }
   }
 
   private static func url(from item: NSSecureCoding?) -> URL? {

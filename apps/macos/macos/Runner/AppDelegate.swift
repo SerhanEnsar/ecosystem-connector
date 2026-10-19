@@ -47,7 +47,8 @@ final class ShareInbox {
   }
 
   func receive(_ urls: [URL]) {
-    let files = urls.filter(\.isFileURL).map(\.path)
+    var seen = Set<String>()
+    let files = urls.filter(\.isFileURL).map(\.standardizedFileURL.path).filter { seen.insert($0).inserted }
     var shares: [[String: Any]] = files.isEmpty ? [] : [["files": files]]
     for url in urls where url.scheme == "econnector" && url.host == "share" {
       let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
