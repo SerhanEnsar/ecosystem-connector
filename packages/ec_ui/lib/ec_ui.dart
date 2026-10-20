@@ -10,6 +10,7 @@ export 'src/controller.dart';
 export 'src/fling/fling_overlay.dart';
 export 'src/fling/fling_setup_card.dart';
 export 'src/linked/conflict_card.dart';
+export 'src/linked/linked_access_notice.dart';
 export 'src/linked/linked_files_screen.dart';
 export 'src/model.dart';
 export 'src/platform.dart';

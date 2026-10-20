@@ -114,6 +114,8 @@ class PlatformHooks {
     this.restoreAccess,
     this.forgetAccess,
     this.showNotice,
+    this.linkedAccess,
+    this.openLinkedAccessSettings,
   });
 
   /// The name this device gets when it is set up for the first time.
@@ -184,4 +186,11 @@ class PlatformHooks {
   /// Shows a warning or error as an animated card (macOS) and returns whether it
   /// did; if not, a notification is shown.
   final Future<bool> Function(String title, String body)? showNotice;
+
+  /// Whether the app may change files other apps saved, which linked files need
+  /// (Android: all files access). Null where it always may.
+  final Future<bool> Function()? linkedAccess;
+
+  /// Opens the system page where [linkedAccess] is given.
+  final Future<void> Function()? openLinkedAccessSettings;
 }

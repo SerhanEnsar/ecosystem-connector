@@ -110,6 +110,19 @@ void main() {
   });
 
   group('linked files screen', () {
+    testWidgets('says why linked files need all files access', (tester) async {
+      final controller = FakeController()..linkedNeedsAccess = true;
+      await pump(tester, LinkedFilesScreen(controller: controller));
+      expect(find.text('Linked files need all files access'), findsOneWidget);
+      await tester.tap(find.text('Allow in settings'));
+      expect(controller.setupCalls, ['files']);
+    });
+
+    testWidgets('no access notice once it is given', (tester) async {
+      await pump(tester, LinkedFilesScreen(controller: FakeController()));
+      expect(find.text('Linked files need all files access'), findsNothing);
+    });
+
     testWidgets('lists each file with its state', (tester) async {
       final controller = FakeController()
         ..linkedFiles = [

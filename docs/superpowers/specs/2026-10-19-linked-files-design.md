@@ -151,6 +151,13 @@ and every move is logged.
 - **Android.** Linked files live in `Linked/`, so the search is small. When a file is not
   where it was, the `Linked/` tree is scanned for a file of the same size and
   modification time, and its first chunk hash is checked. A match is a move.
+- **Android file ownership.** Android lets an app rename or replace only the files in
+  shared storage that it created. An app that saves a linked file by writing it anew
+  (Samsung Notes) makes the file its own, and the next version from another device can no
+  longer be written. Linked files therefore ask for all files access
+  (`MANAGE_EXTERNAL_STORAGE`), from a notice on the Linked files screen (and on the home
+  screen once something is linked) that says why; the rest of the app works without it.
+  Once it is given, the linked files are checked again so waiting versions come again.
 
 | What happened | How it is told | What is done |
 |---|---|---|

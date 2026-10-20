@@ -60,6 +60,15 @@ class BridgeController extends EcController with WidgetsBindingObserver {
 
   Future<void> _checkPlatform() async {
     await _checkVpn();
+    if (_hooks.linkedAccess case final check?) {
+      final needs = !await check();
+      if (needs != _linkedNeedsAccess) {
+        _linkedNeedsAccess = needs;
+        notifyListeners();
+        // Versions that could not be written before come again when asked for.
+        if (!needs) unawaited(refreshLinked());
+      }
+    }
     final fling = _hooks.fling;
     if (fling != null) {
       final setup = await fling.status();
@@ -97,6 +106,7 @@ class BridgeController extends EcController with WidgetsBindingObserver {
   Timer? _vpnTimer;
   FlingSetup? _flingSetup;
   var _vpnActive = false;
+  var _linkedNeedsAccess = false;
 
   List<EcDevice> _devices = const [];
   List<EcLinkedFile> _linked = const [];
@@ -161,6 +171,13 @@ class BridgeController extends EcController with WidgetsBindingObserver {
 
   @override
   bool get canScan => _hooks.scanInvite != null;
+
+  @override
+  bool get linkedNeedsAccess => _linkedNeedsAccess;
+
+  @override
+  Future<void> openLinkedAccessSettings() async =>
+      _hooks.openLinkedAccessSettings?.call();
 
   void _refresh() {
     _devices =

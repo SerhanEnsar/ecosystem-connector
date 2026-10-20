@@ -4,6 +4,7 @@ import '../controller.dart';
 import '../model.dart';
 import '../theme.dart';
 import 'conflict_card.dart';
+import 'linked_access_notice.dart';
 
 /// Opens the list of linked files.
 Future<void> showLinkedFiles(BuildContext context, EcController controller) =>
@@ -105,14 +106,16 @@ class LinkedFilesScreen extends StatelessWidget {
         listenable: controller,
         builder: (context, _) {
           final files = controller.linkedFiles;
+          final access = controller.linkedNeedsAccess;
           // Pull down to check every file now and ask the other devices.
           return RefreshIndicator(
             onRefresh: () => runLinkedAction(context, controller.refreshLinked),
             child: files.isEmpty
                 ? ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    children: const [
-                      Padding(
+                    children: [
+                      if (access) LinkedAccessNotice(controller: controller),
+                      const Padding(
                         padding: EdgeInsets.all(32),
                         child: Text(
                           'No linked files yet. Choose "Send linked" when you send '
@@ -126,6 +129,7 @@ class LinkedFilesScreen extends StatelessWidget {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.only(bottom: 24),
                     children: [
+                      if (access) LinkedAccessNotice(controller: controller),
                       for (final file in files)
                         _LinkedTile(controller: controller, file: file),
                     ],
