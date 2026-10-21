@@ -266,6 +266,12 @@ class FakeController extends EcController {
   @override
   Future<void> refreshLinked() async => linkedCalls.add('refresh');
 
+  @override
+  bool linkedNeedsAccess = false;
+
+  @override
+  Future<void> openLinkedAccessSettings() async => setupCalls.add('files');
+
   /// Paths given to [open].
   final opened = <String>[];
 }

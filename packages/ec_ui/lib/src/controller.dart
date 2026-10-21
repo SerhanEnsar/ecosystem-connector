@@ -137,4 +137,11 @@ abstract class EcController extends ChangeNotifier {
 
   /// Checks every linked file now and asks the other devices for theirs.
   Future<void> refreshLinked();
+
+  /// Whether linked files need a permission the user has not given yet (Android:
+  /// all files access). Everything else works without it.
+  bool get linkedNeedsAccess;
+
+  /// Opens the system page where that permission is given.
+  Future<void> openLinkedAccessSettings();
 }

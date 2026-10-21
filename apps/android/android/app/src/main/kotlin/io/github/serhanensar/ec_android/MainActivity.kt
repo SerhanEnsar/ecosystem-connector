@@ -8,6 +8,7 @@ import android.net.NetworkCapabilities
 import android.os.Build
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -60,6 +61,13 @@ class MainActivity : FlutterActivity() {
                         )
                         result.success(null)
                     }
+                    "fileAccess" -> result.success(
+                        Build.VERSION.SDK_INT < 30 || Environment.isExternalStorageManager(),
+                    )
+                    "openFileAccessSettings" -> {
+                        openFileAccessSettings()
+                        result.success(null)
+                    }
                     "openAccessibilitySettings" -> {
                         startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                         result.success(null)
@@ -97,6 +105,23 @@ class MainActivity : FlutterActivity() {
         val connectivity = getSystemService(ConnectivityManager::class.java)
         val capabilities = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
         return capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+    }
+
+    /**
+     * Opens the system page where the app may be allowed to manage all files, which
+     * linked files need (see the manifest). Some devices have only the list of apps.
+     */
+    private fun openFileAccessSettings() {
+        if (Build.VERSION.SDK_INT < 30) return
+        val app = Intent(
+            Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+            Uri.parse("package:$packageName"),
+        )
+        try {
+            startActivity(app)
+        } catch (_: android.content.ActivityNotFoundException) {
+            startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+        }
     }
 
     /** Asks for the permissions the app needs, then starts the receive service. */

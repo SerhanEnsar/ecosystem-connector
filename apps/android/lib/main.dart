@@ -94,6 +94,10 @@ PlatformHooks _hooks({
       await _platform.invokeMethod<bool>('layerActive') ?? false,
   vpnActive: () async =>
       await _platform.invokeMethod<bool>('vpnActive') ?? false,
+  linkedAccess: () async =>
+      await _platform.invokeMethod<bool>('fileAccess') ?? true,
+  openLinkedAccessSettings: () =>
+      _platform.invokeMethod<void>('openFileAccessSettings'),
   fling: FlingHooks(
     status: () async {
       final s = await _platform.invokeMapMethod<String, bool>('flingStatus');

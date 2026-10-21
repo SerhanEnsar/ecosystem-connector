@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../controller.dart';
 import '../linked/conflict_card.dart';
+import '../linked/linked_access_notice.dart';
 import '../model.dart';
 import '../platform.dart';
 import '../widgets/device_spine.dart';
@@ -29,6 +30,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   var _vpnDismissed = false;
+  var _accessDismissed = false;
   var _flingDismissed = false;
 
   EcController get controller => widget.controller;
@@ -113,6 +115,14 @@ class _HomeScreenState extends State<HomeScreen> {
               if (controller.vpnActive && !_vpnDismissed)
                 VpnNotice(
                   onDismiss: () => setState(() => _vpnDismissed = true),
+                ),
+              // Only once something is linked; the Linked files screen always says.
+              if (controller.linkedNeedsAccess &&
+                  controller.linkedFiles.isNotEmpty &&
+                  !_accessDismissed)
+                LinkedAccessNotice(
+                  controller: controller,
+                  onDismiss: () => setState(() => _accessDismissed = true),
                 ),
               if (controller.pendingConflict case final file?)
                 ConflictCard(controller: controller, file: file),
