@@ -159,6 +159,19 @@ jobs:
           else
             tar -czf "dist/$name.tar.gz" "$name"
           fi
+      # The Linux app is the GTK window in apps/linux plus this `ec`, with an installer.
+      - name: Package the Linux app
+        if: matrix.name == 'linux-x64'
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          name="ECOnnector-$version-linux-x64"
+          mkdir -p "$name"
+          cp target/release/ec LICENSE NOTICE "$name/"
+          cp apps/linux/econnector_gui.py apps/linux/install.sh apps/linux/uninstall.sh \
+            apps/linux/io.github.serhanensar.ecosystemconnector.svg \
+            apps/linux/io.github.serhanensar.ecosystemconnector.desktop.in "$name/"
+          cp apps/linux/README.md "$name/README.md"
+          tar -czf "dist/$name.tar.gz" "$name"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cli-${{ matrix.name }}
