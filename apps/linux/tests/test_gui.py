@@ -140,9 +140,15 @@ class RealEcTests(unittest.TestCase):
                 a_id = [ln for ln in self._ec(["--home", self.a, "id"]).splitlines() if ln.startswith("Id:")][0]
                 short = a_id.split()[1]
                 gui.ECProcess(["--home", self.b, "send", short, payload],
-                              on_exit=lambda ok, p: (events.append(("sent", ok, p.lines[-1])), None))
+                              on_exit=lambda ok, p: (events.append(("sent", ok, p.lines[-1])), finish()))
             if line.strip().startswith("saved "):
-                GLib.timeout_add(300, lambda: (loop.quit(), False)[1])
+                finish()
+
+        def finish():
+            # The receiver can save the file before the sender has exited: wait for both.
+            saved = any(isinstance(e, str) and e.startswith("saved ") for e in events)
+            if saved and any(isinstance(e, tuple) for e in events):
+                loop.quit()
 
         serve = gui.ECProcess(["--home", self.a, "serve", "--port", "0", "--dir", recv], on_line=serve_line)
         GLib.timeout_add_seconds(30, loop.quit)
