@@ -12,7 +12,7 @@ and continue what you were doing on another device.
 [![Windows](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/windows.yml/badge.svg)](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/windows.yml)
 [![Security](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/security.yml/badge.svg)](https://github.com/SerhanEnsar/ecosystem-connector/actions/workflows/security.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Android-informational)
+![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20Android-informational)
 ![Status](https://img.shields.io/badge/status-early%20development-orange)
 
 [Türkçe](README.tr.md) · [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
@@ -92,6 +92,7 @@ Download the latest build from [Releases](https://github.com/SerhanEnsar/ecosyst
 | Android phone or tablet | `…-android-arm64-v8a.apk` (most devices) or `…-android-universal.apk` |
 | macOS | `…-macos-universal.zip` |
 | Windows | `…-windows-x64.zip` |
+| Linux | `…-linux-x64.tar.gz` (unpack, run `./install.sh`) |
 | Command line tool (optional) | `…-command-line-…` |
 
 Early releases are marked as pre-releases. The apps can pair (QR code, link, or by
@@ -182,7 +183,8 @@ cd apps/android && flutter run       # or apps/macos, apps/windows
 crates/      Rust core: identity, networking, transfer, sync, clipboard, handoff,
              and the `ec` command line tool
 packages/    Shared Flutter UI (ec_ui)
-apps/        One Flutter app per platform: android/, macos/, windows/
+apps/        One Flutter app per platform: android/, macos/, windows/;
+             linux/ is a GTK 4 window around the `ec` tool
 tools/       Local check script, release signing setup
 extension/   Browser extension (planned)
 bench/       Reproducible benchmarks that produce the charts in this README

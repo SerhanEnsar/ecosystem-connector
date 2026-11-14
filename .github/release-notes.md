@@ -5,6 +5,7 @@
 | Android phone or tablet | `ECOnnector-{{VERSION}}-android-arm64-v8a.apk` (most devices) or `-universal.apk` | Open the file on the device and allow installing from this source. Later versions update in place. |
 | macOS | `ECOnnector-{{VERSION}}-macos-universal.zip` | **This is the Mac app.** Unzip and move "ECOnnector" to Applications. It is not notarized yet: the first time, right-click it and choose **Open** (or System Settings → Privacy & Security → Open Anyway). Allow local network access when asked. |
 | Windows | `ECOnnector-{{VERSION}}-windows-x64.zip` | Unzip anywhere and run `ECOnnector.exe`. SmartScreen may warn because the app is not code-signed yet. |
+| Linux | `ECOnnector-{{VERSION}}-linux-x64.tar.gz` | **This is the Linux app.** Unpack and run `./install.sh`, then open ECOnnector from the app menu. Needs GTK 4 and libadwaita 1.5+ (Ubuntu 24.04, Fedora 40 or newer): `sudo apt install python3-gi gir1.2-gtk-4.0 gir1.2-adw-1`. |
 | Command line tool (optional, for developers) | `ECOnnector-{{VERSION}}-command-line-<platform>` | Not the app. Unpack and run `ec --help` in a terminal. |
 
 ## Verify
