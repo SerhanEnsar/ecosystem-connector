@@ -37,3 +37,6 @@ build/
 /fuzz/corpus/
 /fuzz/artifacts/
 /fuzz/coverage/
+
+# Python (apps/linux)
+__pycache__/

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=ECOnnector
+Comment=Send files and pages between your devices
+Comment[tr]=Cihazlar arasında dosya ve sayfa paylaş
+Exec=@EXEC@
+Icon=io.github.serhanensar.ecosystemconnector
+Terminal=false
+Categories=Network;FileTransfer;
+Keywords=share;send;transfer;files;paylaş;gönder;
+StartupNotify=true
+StartupWMClass=io.github.serhanensar.ecosystemconnector

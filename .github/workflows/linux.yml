@@ -1,0 +1,43 @@
+# Linux app: apps/linux, a GTK 4 window around the `ec` command line tool.
+name: Linux
+
+on:
+  push:
+    branches: [main, develop, "platform/**"]
+    paths:
+      - "apps/linux/**"
+      - "crates/ec-cli/**"
+      - ".github/workflows/linux.yml"
+  pull_request:
+    paths:
+      - "apps/linux/**"
+      - "crates/ec-cli/**"
+      - ".github/workflows/linux.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: Check and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install GTK 4 and libadwaita
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 shellcheck desktop-file-utils
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      # The app parses what `ec` prints, so the tests run against the real tool too.
+      - run: cargo build --release --locked -p ec-cli
+      - run: EC_REAL="$PWD/target/release/ec" tools/check.sh linux

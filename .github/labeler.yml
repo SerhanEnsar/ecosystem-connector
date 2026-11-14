@@ -13,6 +13,9 @@
 "platform: windows":
   - changed-files:
       - any-glob-to-any-file: ["apps/windows/**"]
+"platform: linux":
+  - changed-files:
+      - any-glob-to-any-file: ["apps/linux/**"]
 "area: ci":
   - changed-files:
       - any-glob-to-any-file: [".github/**", "tools/**"]

@@ -22,6 +22,7 @@ including the module rules, is in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 | Android | `apps/android/` | Flutter, Android Studio |
 | macOS | `apps/macos/` | Flutter, Xcode |
 | Windows | `apps/windows/` | Flutter, Visual Studio 2022 (C++ workload) |
+| Linux | `apps/linux/` | Python 3, GTK 4, libadwaita 1.5+ |
 
 ## Branches
 
@@ -38,7 +39,7 @@ releases. Details: [docs/DEVELOPMENT.md#branches](docs/DEVELOPMENT.md#branches).
 Run the same checks CI runs, for the area you changed:
 
 ```sh
-tools/check.sh core      # or: ui, android, macos, windows, all
+tools/check.sh core      # or: ui, android, macos, windows, linux, all
 ```
 
 Please also:

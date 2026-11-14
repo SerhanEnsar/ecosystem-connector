@@ -21,6 +21,7 @@ apps/                one Flutter project per platform, each with its own native 
   android/
   macos/
   windows/
+  linux/             GTK 4 window (Python) around the `ec` tool; no Flutter
 tools/               scripts: local checks, release signing setup
 .github/workflows/   one workflow per area (see below)
 ```
@@ -103,6 +104,21 @@ cd apps/macos && flutter run -d macos
 cd apps/windows; flutter run -d windows
 ```
 
+### Linux
+
+- Python 3 with GTK 4 and libadwaita 1.5 or newer
+  (`sudo apt install python3-gi gir1.2-gtk-4.0 gir1.2-adw-1`)
+- A built `ec` (`cargo build -p ec-cli`)
+
+```sh
+EC_BIN=target/debug/ec python3 apps/linux/econnector_gui.py
+EC_REAL=target/debug/ec tools/check.sh linux
+```
+
+The Linux app drives `ec` and reads its output, so a change to what `ec` prints needs a
+matching change in `apps/linux/econnector_gui.py`; the Linux workflow runs its tests
+against a freshly built `ec` whenever `crates/ec-cli` changes.
+
 ## Branches
 
 ```mermaid
@@ -138,8 +154,8 @@ and each area's workflow only runs when its files change.
 
 1. Merge `develop` into `main`.
 2. Tag: `git tag -a v0.2.0 -m "v0.2.0" && git push origin v0.2.0`.
-3. The Release workflow builds the Android APKs (signed), the macOS and Windows apps
-   and the `ec` CLI, writes `SHA256SUMS.txt`, attests build provenance and publishes the
+3. The Release workflow builds the Android APKs (signed), the macOS and Windows apps,
+   the `ec` CLI and the Linux app (`ec` plus `apps/linux`), writes `SHA256SUMS.txt`, attests build provenance and publishes the
    GitHub release. Tags with a suffix such as `v0.2.0-alpha.1` are marked as pre-releases.
 
 Versions follow [Semantic Versioning](https://semver.org). The app version comes from

@@ -49,6 +49,7 @@ sayfasından indir:
 | Android telefon veya tablet | `…-android-arm64-v8a.apk` (çoğu cihaz) ya da `…-android-universal.apk` |
 | macOS | `…-macos-universal.zip` |
 | Windows | `…-windows-x64.zip` |
+| Linux | `…-linux-x64.tar.gz` (aç, `./install.sh` çalıştır) |
 | Komut satırı aracı (isteğe bağlı) | `…-command-line-…` |
 
 İlk sürümler ön sürüm (pre-release) olarak işaretlenir. Uygulamalar eşleşebilir (QR kod
