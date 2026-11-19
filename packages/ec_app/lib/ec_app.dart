@@ -16,12 +16,24 @@ import 'src/notifier.dart';
 export 'src/hooks.dart';
 
 /// Starts the core and shows the app. Errors during start-up are shown on screen.
-Future<void> runEcApp(EcPlatform platform, PlatformHooks hooks) async {
+///
+/// [arrivals] are cards to draw in the window (Windows); see [ECOnnectorApp.arrivals].
+Future<void> runEcApp(
+  EcPlatform platform,
+  PlatformHooks hooks, {
+  Stream<ArrivalEntry>? arrivals,
+}) async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await hooks.beforeStart?.call();
     final controller = await startController(hooks);
-    runApp(ECOnnectorApp(platform: platform, controller: controller));
+    runApp(
+      ECOnnectorApp(
+        platform: platform,
+        controller: controller,
+        arrivals: arrivals,
+      ),
+    );
   } catch (error) {
     runApp(_StartupError(error));
   }

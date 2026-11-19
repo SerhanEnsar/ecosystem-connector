@@ -16,6 +16,8 @@ dependencies:
   ec_app:
     path: ../../packages/ec_app
   path_provider: ^2.1.6
+  file_selector: ^1.1.0
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:
