@@ -95,6 +95,12 @@ Download the latest build from [Releases](https://github.com/SerhanEnsar/ecosyst
 | Linux | `…-linux-x64.tar.gz` (unpack, run `./install.sh`) |
 | Command line tool (optional) | `…-command-line-…` |
 
+On Windows you can also install with winget:
+
+```sh
+winget install SerhanEnsar.ECOnnector
+```
+
 Early releases are marked as pre-releases. The apps can pair (QR code, link, or by
 scanning the code with the phone's own camera), send and receive files, choose where
 received files go, and fling from the Android screen edge; the `ec` command line tool
