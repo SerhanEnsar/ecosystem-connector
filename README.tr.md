@@ -52,6 +52,12 @@ sayfasından indir:
 | Linux | `…-linux-x64.tar.gz` (aç, `./install.sh` çalıştır) |
 | Komut satırı aracı (isteğe bağlı) | `…-command-line-…` |
 
+Windows'ta winget ile de kurabilirsin:
+
+```sh
+winget install SerhanEnsar.ECOnnector
+```
+
 İlk sürümler ön sürüm (pre-release) olarak işaretlenir. Uygulamalar eşleşebilir (QR kod
 ya da link), eşleşmiş cihazları görür, dosya gönderip alabilir; `ec` aracı da çalışır.
 
