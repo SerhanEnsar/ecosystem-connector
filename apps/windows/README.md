@@ -3,7 +3,7 @@
 The Windows app. Screens come from the shared [`ec_ui`](../../packages/ec_ui) package; this
 folder holds only what is specific to Windows.
 
-Planned platform integrations: Tray icon, toast notifications, Explorer "Send to" integration.
+Arrivals (received files, pages and text) show as cards in the window, the same as on macOS and Android, and as a notification while the window is hidden. Planned platform integrations: Tray icon, Explorer "Send to" integration.
 
 ## Run
 

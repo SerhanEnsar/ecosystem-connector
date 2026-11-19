@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// System notifications for received files.
@@ -34,8 +35,12 @@ class Notifier {
             ),
           ) ??
           false;
-    } catch (_) {
+      if (!_ready) {
+        debugPrint('Notifications are off: the plugin did not start.');
+      }
+    } catch (error) {
       // Notifications are a convenience; the app works without them.
+      debugPrint('Notifications are off: $error');
       _ready = false;
     }
   }
